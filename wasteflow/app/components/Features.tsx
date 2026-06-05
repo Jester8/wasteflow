@@ -44,17 +44,17 @@ const fadeUpVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.6, ease: "easeOut" },
   },
 };
 
 const cardVariants = {
   hidden: { opacity: 0, y: 28 },
-  visible: (i: number) => ({
+  visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.65, delay: i * 0.11, ease: [0.22, 1, 0.36, 1] },
-  }),
+    transition: { duration: 0.65, ease: "easeOut" },
+  },
 };
 
 export default function Features() {
@@ -120,7 +120,17 @@ export default function Features() {
       {!isMobile && (
         <div style={styles.grid}>
           {features.map((feature, i) => (
-            <FeatureCard key={feature.title} feature={feature} index={i} />
+            <motion.div
+              key={feature.title}
+              custom={i}
+              variants={cardVariants}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true, margin: "-60px" }}
+              style={{ width: "100%" }}
+            >
+              <FeatureCard feature={feature} />
+            </motion.div>
           ))}
         </div>
       )}
@@ -142,7 +152,7 @@ export default function Features() {
                   transform: `translateX(-${currentIndex * 100}%)`,
                 }}
               >
-                <FeatureCard feature={feature} index={i} />
+                <FeatureCard feature={feature} />
               </div>
             ))}
           </div>
@@ -167,24 +177,20 @@ export default function Features() {
 
 function FeatureCard({
   feature,
-  index,
 }: {
   feature: typeof features[0];
-  index: number;
 }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const Icon = feature.icon;
 
   return (
     <motion.div
-      custom={index}
-      variants={cardVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, margin: "-60px" }}
       className="feature-card-container"
       style={styles.cardContainer}
       onClick={() => setIsFlipped(!isFlipped)}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5 }}
     >
       <div
         style={{

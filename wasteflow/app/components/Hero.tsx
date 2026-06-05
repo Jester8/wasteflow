@@ -81,7 +81,7 @@ export default function Hero() {
               <circle cx="145" cy="110" r="18" fill="#222" />
               <circle cx="145" cy="110" r="10" fill="#444" />
               <rect x="190" y="40" width="70" height="60" rx="6" fill="#2a6b5a" />
-              <text x="225" y="75" fill="#B8D52E" font-size="12" font-family="Arial" text-anchor="middle">SKIP</text>
+              <text x="225" y="75" fill="#B8D52E" font-size="12" font-family="Quicksand, sans-serif" text-anchor="middle">SKIP</text>
               <path d="M30 50 L40 20 L180 20 L190 50 Z" fill="#8BAA1F" />
             `;
             parent.appendChild(fallbackSvg);
@@ -105,6 +105,10 @@ export default function Hero() {
       {/* ── KEYFRAMES ──────────────────────────────────────────────────── */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
+
+        * {
+          font-family: 'Quicksand', sans-serif;
+        }
 
         @keyframes blobTopRight {
           0%, 100% { transform: scale(1) translate(0px, 0px); }
@@ -130,6 +134,7 @@ export default function Hero() {
           white-space: nowrap;
           cursor: pointer;
           border: none;
+          font-family: 'Quicksand', sans-serif;
         }
         .hero-btn-primary:hover { background: #DDE11A; transform: translateY(-2px) scale(1.04); }
         .hero-btn-primary:active { transform: scale(0.96); }
@@ -149,6 +154,7 @@ export default function Hero() {
           white-space: nowrap;
           cursor: pointer;
           background: transparent;
+          font-family: 'Quicksand', sans-serif;
         }
         .hero-btn-secondary:hover { border-color: rgba(184,213,46,0.45); color: #fff; transform: translateY(-2px) scale(1.04); }
         .hero-btn-secondary:active { transform: scale(0.96); }
@@ -180,6 +186,7 @@ export default function Hero() {
           z-index: 1000;
           padding: 2rem 1.5rem;
           box-shadow: -4px 0 20px rgba(0,0,0,0.3);
+          font-family: 'Quicksand', sans-serif;
         }
 
         /* Hide right column content on mobile */
@@ -315,10 +322,10 @@ export default function Hero() {
                 <X size={24} color="#B8D52E" />
               </button>
               <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "3rem" }}>
-                <a href="#features" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500 }}>Features</a>
-                <a href="#pricing" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500 }}>Pricing</a>
-                <a href="#about" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500 }}>About</a>
-                <a href="#contact" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500 }}>Contact</a>
+                <a href="#features" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Features</a>
+                <a href="#pricing" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Pricing</a>
+                <a href="#about" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>About</a>
+                <a href="#contact" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Contact</a>
                 <button className="hero-btn-primary" style={{ width: "100%", justifyContent: "center" }}>
                   Get Started
                 </button>
@@ -363,6 +370,7 @@ export default function Hero() {
                   padding: "0.45rem 1rem", borderRadius: "9999px",
                   border: "1px solid rgba(184,213,46,0.3)",
                   background: "rgba(184,213,46,0.08)", color: "#B8D52E",
+                  fontFamily: "'Quicksand', sans-serif",
                 }}>
                   <motion.span
                     animate={{ opacity: [1, 0.4, 1] }}
@@ -376,7 +384,7 @@ export default function Hero() {
                 </span>
               </motion.div>
 
-              {/* Headline */}
+              {/* Headline - Quicksand applied here */}
               <motion.div
                 variants={itemVariants}
                 style={{ marginBottom: "1.25rem" }}
@@ -389,10 +397,11 @@ export default function Hero() {
                     fontWeight: 700,
                     color: "#fff",
                     margin: 0,
+                    fontFamily: "'Quicksand', sans-serif",
                   }}
                 >
                   Skip Deliveries,<br />
-                  <span style={{ color: "#B8D52E" }}>Done Right.</span>
+                  <span style={{ color: "#B8D52E", fontFamily: "'Quicksand', sans-serif" }}>Done Right.</span>
                 </h1>
               </motion.div>
 
@@ -405,6 +414,7 @@ export default function Hero() {
                   color: "rgba(255,255,255,0.55)",
                   margin: "0 0 2rem 0",
                   maxWidth: "30rem",
+                  fontFamily: "'Quicksand', sans-serif",
                 }}
               >
                 Approve dispatch, track skips in real time, and eliminate
@@ -464,10 +474,10 @@ export default function Hero() {
                   borderBottom: "1px solid rgba(255,255,255,0.07)",
                   background: "rgba(255,255,255,0.04)",
                 }}>
-                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "rgba(255,255,255,0.5)" }}>
+                  <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "rgba(255,255,255,0.5)", fontFamily: "'Quicksand', sans-serif" }}>
                     Live Fleet Tracking
                   </span>
-                  <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.75rem", fontWeight: 600, color: "#B8D52E" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontSize: "0.75rem", fontWeight: 600, color: "#B8D52E", fontFamily: "'Quicksand', sans-serif" }}>
                     <motion.span
                       animate={{ opacity: [1, 0.4, 1] }}
                       transition={{ duration: 2, repeat: Infinity }}
