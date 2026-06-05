@@ -9,14 +9,9 @@ export default function CTA() {
           to   { opacity: 1; transform: translateY(0); }
         }
 
-        @keyframes pulse-ring {
-          0%   { transform: scale(1);   opacity: 0.4; }
-          100% { transform: scale(1.6); opacity: 0; }
-        }
-
         .cta-section {
           width: 100%;
-          background: #132d1e;
+          background: #ffffff;
           padding: 56px 24px;
           display: flex;
           flex-direction: column;
@@ -28,23 +23,12 @@ export default function CTA() {
           overflow: hidden;
         }
 
-        .cta-section::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(ellipse at 0% 50%, rgba(184,213,46,0.07) 0%, transparent 55%),
-            radial-gradient(ellipse at 100% 50%, rgba(46,125,82,0.1) 0%, transparent 55%);
-          pointer-events: none;
-        }
-
-        /* top + bottom accent lines */
         .cta-section::after {
           content: '';
           position: absolute;
           top: 0; left: 0; right: 0;
           height: 1px;
-          background: linear-gradient(to right, transparent, rgba(184,213,46,0.35), transparent);
+          background: linear-gradient(to right, transparent, rgba(19,45,30,0.12), transparent);
         }
 
         .cta-inner {
@@ -62,7 +46,7 @@ export default function CTA() {
         .cta-text h2 {
           font-size: clamp(1.3rem, 2.5vw, 1.75rem);
           font-weight: 700;
-          color: #f0f9f4;
+          color: #1a2e1f;
           line-height: 1.25;
           margin-bottom: 6px;
           animation: fadeUp 0.5s ease both;
@@ -70,7 +54,7 @@ export default function CTA() {
 
         .cta-text p {
           font-size: 0.9rem;
-          color: #7aaa8e;
+          color: #556b5e;
           font-weight: 400;
           line-height: 1.5;
           animation: fadeUp 0.5s 0.1s ease both;
@@ -78,7 +62,7 @@ export default function CTA() {
           animation-fill-mode: both;
         }
 
-        .cta-text h2 span { color: #B8D52E; }
+        .cta-text h2 span { color: #2e7d52; }
 
         .cta-actions {
           display: flex;
