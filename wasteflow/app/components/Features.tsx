@@ -34,29 +34,6 @@ const features = [
   },
 ];
 
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.12 } },
-};
-
-const fadeUpVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" },
-  },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 28 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.65, ease: "easeOut" },
-  },
-};
-
 export default function Features() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
@@ -99,43 +76,41 @@ export default function Features() {
 
   return (
     <section style={styles.section}>
-      <motion.div
-        style={styles.header}
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-80px" }}
-      >
-        <motion.h2 variants={fadeUpVariants} style={styles.heading}>
+      <div style={styles.header}>
+        <motion.h2 
+          style={styles.heading}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+        >
           Everything you need on site
         </motion.h2>
 
-        <motion.p variants={fadeUpVariants} style={styles.subheading}>
+        <motion.p 
+          style={styles.subheading}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
+        >
           Manage your fleet, approvals, and compliance from one clean interface
           built for the field.
         </motion.p>
-      </motion.div>
+      </div>
 
       {/* DESKTOP: Original Grid Layout */}
       {!isMobile && (
         <div style={styles.grid}>
           {features.map((feature, i) => (
-            <motion.div
-              key={feature.title}
-              custom={i}
-              variants={cardVariants}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-60px" }}
-              style={{ width: "100%" }}
-            >
-              <FeatureCard feature={feature} />
-            </motion.div>
+            <div key={feature.title} style={{ width: "100%" }}>
+              <FeatureCard feature={feature} index={i} />
+            </div>
           ))}
         </div>
       )}
 
-      {/* MOBILE: Swipe-only Carousel (no buttons, just swipe) */}
+      {/* MOBILE: Swipe-only Carousel */}
       {isMobile && (
         <div style={styles.carouselContainer}>
           <div 
@@ -152,12 +127,12 @@ export default function Features() {
                   transform: `translateX(-${currentIndex * 100}%)`,
                 }}
               >
-                <FeatureCard feature={feature} />
+                <FeatureCard feature={feature} index={i} />
               </div>
             ))}
           </div>
 
-          {/* Dots indicator only (visual feedback, not clickable) */}
+          {/* Dots indicator */}
           <div style={styles.dotsContainer}>
             {features.map((_, idx) => (
               <div
@@ -175,11 +150,7 @@ export default function Features() {
   );
 }
 
-function FeatureCard({
-  feature,
-}: {
-  feature: typeof features[0];
-}) {
+function FeatureCard({ feature, index }: { feature: typeof features[0]; index: number }) {
   const [isFlipped, setIsFlipped] = useState(false);
   const Icon = feature.icon;
 
@@ -188,9 +159,10 @@ function FeatureCard({
       className="feature-card-container"
       style={styles.cardContainer}
       onClick={() => setIsFlipped(!isFlipped)}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
+      initial={{ opacity: 0, y: 28 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.65, delay: index * 0.11 }}
     >
       <div
         style={{
@@ -283,7 +255,6 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: 1.6,
     margin: 0,
   },
-  // DESKTOP GRID (original)
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(260px, 300px))",
@@ -293,7 +264,6 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     alignItems: "center",
   },
-  // MOBILE CAROUSEL (swipe-only)
   carouselContainer: {
     position: "relative",
     width: "100%",
@@ -324,7 +294,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     transition: "all 0.2s",
   },
-  // CARD STYLES (unchanged from original)
   cardContainer: {
     width: "100%",
     height: "260px",
