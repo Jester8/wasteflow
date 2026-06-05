@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowRight, Play, Menu, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { ArrowRight, Play } from "lucide-react";
+import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 
 // ─── SITE ROWS ────────────────────────────────────────────────────────────────
@@ -13,7 +13,6 @@ const siteRows = [
 
 // ─── HERO ─────────────────────────────────────────────────────────────────────
 export default function Hero() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -174,21 +173,6 @@ export default function Hero() {
           }
         }
 
-        /* Mobile menu */
-        .mobile-menu {
-          position: fixed;
-          top: 0;
-          right: 0;
-          bottom: 0;
-          width: 80%;
-          max-width: 300px;
-          background: #00332A;
-          z-index: 1000;
-          padding: 2rem 1.5rem;
-          box-shadow: -4px 0 20px rgba(0,0,0,0.3);
-          font-family: 'Quicksand', sans-serif;
-        }
-
         /* Hide right column content on mobile */
         .desktop-only {
           display: none;
@@ -263,77 +247,6 @@ export default function Hero() {
         background: "radial-gradient(circle, rgba(0,60,48,0.4) 0%, transparent 65%)",
         filter: "blur(80px)",
       }} />
-
-      {/* Mobile Menu Button */}
-      {isMobile && (
-        <button
-          onClick={() => setIsMobileMenuOpen(true)}
-          style={{
-            position: "fixed",
-            top: "1rem",
-            right: "1rem",
-            zIndex: 100,
-            background: "rgba(255,255,255,0.1)",
-            border: "none",
-            borderRadius: "0.5rem",
-            padding: "0.5rem",
-            cursor: "pointer",
-            backdropFilter: "blur(8px)",
-          }}
-        >
-          <Menu size={24} color="#B8D52E" />
-        </button>
-      )}
-
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={{
-                position: "fixed",
-                inset: 0,
-                background: "rgba(0,0,0,0.7)",
-                zIndex: 999,
-              }}
-            />
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "tween", duration: 0.3 }}
-              className="mobile-menu"
-            >
-              <button
-                onClick={() => setIsMobileMenuOpen(false)}
-                style={{
-                  position: "absolute",
-                  top: "1rem",
-                  right: "1rem",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                <X size={24} color="#B8D52E" />
-              </button>
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "3rem" }}>
-                <a href="#features" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Features</a>
-                <a href="#pricing" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Pricing</a>
-                <a href="#about" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>About</a>
-                <a href="#contact" style={{ color: "#fff", textDecoration: "none", fontSize: "1rem", fontWeight: 500, fontFamily: "'Quicksand', sans-serif" }}>Contact</a>
-                <button className="hero-btn-primary" style={{ width: "100%", justifyContent: "center" }}>
-                  Get Started
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* ── MAIN CONTENT ──────────────────────────────────────────── */}
       <div style={{
