@@ -4,6 +4,7 @@ import Features from "../../wasteweb/app/components/Features";
 import Footer from "../../wasteweb/app/components/Footer";
 import How from "../../wasteweb/app/components/How";
 import Cta from "../../wasteweb/app/components/Cta";
+import Faq from "../../wasteweb/app/components/Faq";
 
 export default function Page() {
   return (
@@ -12,6 +13,7 @@ export default function Page() {
       <Hero />
       <Features />
       <How />
+      <Faq />
       <Cta />
       <Footer />
     </main>
