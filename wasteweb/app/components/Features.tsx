@@ -281,45 +281,6 @@ function FeatureCard({ feature, index }: { feature: typeof features[0]; index: n
 }
 
 export default function Features() {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dotsRef  = useRef<HTMLDivElement>(null);
-  const currentRef = useRef(0);
-  let touchStartX = 0;
-  let touchEndX   = 0;
-
-  const goTo = (idx: number) => {
-    const total = features.length;
-    currentRef.current = ((idx % total) + total) % total;
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(-${currentRef.current * (100 / total)}%)`;
-    }
-    dotsRef.current?.querySelectorAll(".dot").forEach((d, i) =>
-      d.classList.toggle("active", i === currentRef.current)
-    );
-  };
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-
-    const onTouchStart = (e: TouchEvent) => { touchStartX = e.touches[0].clientX; };
-    const onTouchMove  = (e: TouchEvent) => { touchEndX = e.touches[0].clientX; };
-    const onTouchEnd   = () => {
-      const diff = touchStartX - touchEndX;
-      if (diff > 50)  goTo(currentRef.current + 1);
-      if (diff < -50) goTo(currentRef.current - 1);
-    };
-
-    track.addEventListener("touchstart", onTouchStart);
-    track.addEventListener("touchmove",  onTouchMove);
-    track.addEventListener("touchend",   onTouchEnd);
-    return () => {
-      track.removeEventListener("touchstart", onTouchStart);
-      track.removeEventListener("touchmove",  onTouchMove);
-      track.removeEventListener("touchend",   onTouchEnd);
-    };
-  }, []);
-
   return (
     <>
       <style>{`
@@ -385,7 +346,7 @@ export default function Features() {
           animation-fill-mode: both;
         }
 
-        /* Desktop grid */
+        /* Shared grid — desktop auto-fit, mobile single column */
         .features-grid {
           position: relative;
           z-index: 1;
@@ -397,52 +358,15 @@ export default function Features() {
           justify-content: center;
         }
 
-        /* Mobile carousel */
-        .features-carousel {
-          position: relative;
-          z-index: 1;
-          width: 100%;
-          max-width: 320px;
-          margin: 0 auto;
-          overflow: hidden;
-          display: none;
-        }
-
-        .carousel-track {
-          display: flex;
-          width: 300%;
-          transition: transform 0.3s ease-out;
-          will-change: transform;
-        }
-
-        .carousel-slide {
-          flex-shrink: 0;
-          width: 33.3333%;
-          padding: 0 8px;
-        }
-
-        .carousel-dots {
-          display: flex;
-          justify-content: center;
-          gap: 8px;
-          margin-top: 20px;
-        }
-
-        .dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 999px;
-          background: #c6e2d0;
-          transition: width 0.2s, background 0.2s;
-        }
-        .dot.active {
-          width: 12px;
-          background: #2e7d52;
-        }
-
         @media (max-width: 767px) {
-          .features-grid     { display: none; }
-          .features-carousel { display: block; }
+          .features-section {
+            padding: 60px 20px;
+          }
+
+          .features-grid {
+            grid-template-columns: 1fr;
+            max-width: 420px;
+          }
         }
       `}</style>
 
@@ -452,27 +376,10 @@ export default function Features() {
           <p>Manage your fleet, approvals, and compliance from one clean interface built for the field.</p>
         </div>
 
-        {/* Desktop */}
         <div className="features-grid">
           {features.map((f, i) => (
             <FeatureCard key={f.title} feature={f} index={i} />
           ))}
-        </div>
-
-        {/* Mobile carousel */}
-        <div className="features-carousel">
-          <div className="carousel-track" ref={trackRef}>
-            {features.map((f, i) => (
-              <div key={f.title} className="carousel-slide">
-                <FeatureCard feature={f} index={i} />
-              </div>
-            ))}
-          </div>
-          <div className="carousel-dots" ref={dotsRef}>
-            {features.map((_, i) => (
-              <div key={i} className={`dot${i === 0 ? " active" : ""}`} />
-            ))}
-          </div>
         </div>
       </section>
     </>
