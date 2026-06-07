@@ -129,10 +129,10 @@ export default function CTA() {
           padding: 13px 24px;
           border-radius: 10px;
           background: transparent;
-          color: #a8d9be;
+          color: #0d2416;
           font-size: 0.875rem;
           font-weight: 600;
-          border: 1px solid rgba(168,217,190,0.25);
+          border: 1px solid #0d2416;
           cursor: pointer;
           text-decoration: none;
           white-space: nowrap;
@@ -140,9 +140,9 @@ export default function CTA() {
         }
 
         .cta-btn-secondary:hover {
-          border-color: rgba(168,217,190,0.55);
-          color: #d6f0e0;
-          background: rgba(168,217,190,0.06);
+          border-color: #0a1b10;
+          color: #0a1b10;
+          background: rgba(13,36,22,0.05);
         }
 
         @media (max-width: 768px) {

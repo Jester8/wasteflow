@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useState } from "react";
 
 const howItWorks = [
   {
@@ -16,7 +16,6 @@ const howItWorks = [
         <polyline points="10 9 9 9 8 9" />
       </svg>
     ),
-    // white card — forest green accents
     cardBg: "#ffffff",
     cardBorder: "#c6e2d0",
     accent: "#1a4d2e",
@@ -30,7 +29,6 @@ const howItWorks = [
     glowColor: "rgba(26,77,46,0.14)",
     hoverBorder: "rgba(26,77,46,0.4)",
     cornerTint: "rgba(26,77,46,0.06)",
-    // back face
     backBg: "#0f2d1a",
     backAccent: "#B8D52E",
     backText: "#c8e8d2",
@@ -47,7 +45,6 @@ const howItWorks = [
         <polyline points="22 4 12 14.01 9 11.01" />
       </svg>
     ),
-    // dark forest card
     cardBg: "#0d2416",
     cardBorder: "rgba(184,213,46,0.2)",
     accent: "#B8D52E",
@@ -77,7 +74,6 @@ const howItWorks = [
         <circle cx="12" cy="10" r="3" />
       </svg>
     ),
-    // lime card
     cardBg: "#d4e84a",
     cardBorder: "rgba(26,77,46,0.2)",
     accent: "#1a4d2e",
@@ -107,7 +103,6 @@ const howItWorks = [
         <path d="M16 8l5 3-5 3V8z" />
       </svg>
     ),
-    // white card — lime + forest mix
     cardBg: "#ffffff",
     cardBorder: "#d4e84a",
     accent: "#5a8a1a",
@@ -193,9 +188,8 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
               : `0 0 0 1px ${item.cardBorder}, 0 2px 16px rgba(0,0,0,0.06)`,
           }}
         >
-          {/* ── FRONT ── */}
+          {/* FRONT */}
           <div className="hiw-face" style={{ background: item.cardBg }}>
-            {/* corner glow */}
             <div style={{
               position: "absolute", top: 0, right: 0,
               width: 110, height: 110,
@@ -203,8 +197,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
               background: `radial-gradient(circle, ${item.accent} 0%, transparent 70%)`,
               opacity: 0.09, pointerEvents: "none",
             }} />
-
-            {/* step badge */}
             <div style={{
               position: "absolute", top: 20, right: 20,
               width: 26, height: 26, borderRadius: 8,
@@ -215,8 +207,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {index + 1}
             </div>
-
-            {/* icon */}
             <div style={{
               width: 46, height: 46, borderRadius: 12,
               background: item.iconBg,
@@ -225,7 +215,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.icon}
             </div>
-
             <h3 style={{
               fontSize: "1rem", fontWeight: 700,
               color: item.titleColor, marginBottom: 8,
@@ -240,8 +229,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.description}
             </p>
-
-            {/* tap hint */}
             <div style={{
               position: "absolute", bottom: 14, right: 18,
               fontSize: "0.67rem", color: item.hintColor,
@@ -255,9 +242,8 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             </div>
           </div>
 
-          {/* ── BACK ── */}
+          {/* BACK */}
           <div className="hiw-face hiw-back" style={{ background: item.backBg }}>
-            {/* corner glow */}
             <div style={{
               position: "absolute", top: 0, right: 0,
               width: 110, height: 110,
@@ -265,7 +251,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
               background: `radial-gradient(circle, ${item.backAccent} 0%, transparent 70%)`,
               opacity: 0.15, pointerEvents: "none",
             }} />
-
             <span style={{
               fontSize: "0.67rem", fontWeight: 700,
               letterSpacing: "0.1em", textTransform: "uppercase",
@@ -273,9 +258,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               How it works
             </span>
-
             <div style={{ width: 28, height: 2, borderRadius: 2, background: item.backDivider, opacity: 0.6 }} />
-
             <p style={{
               fontSize: "0.88rem", color: item.backText,
               lineHeight: 1.68, fontWeight: 500,
@@ -283,8 +266,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.shortDetail}
             </p>
-
-            {/* flip back hint */}
             <div style={{
               position: "absolute", bottom: 14, right: 18,
               fontSize: "0.67rem", color: item.backLabel,
@@ -304,46 +285,6 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
 }
 
 export default function HowItWorks() {
-  const trackRef = useRef<HTMLDivElement>(null);
-  const dotsRef = useRef<HTMLDivElement>(null);
-  const currentRef = useRef(0);
-  const touchStartX = useRef(0);
-  const touchEndX = useRef(0);
-  const total = howItWorks.length;
-  const [current, setCurrent] = useState(0);
-
-  const goTo = (idx: number) => {
-    const next = ((idx % total) + total) % total;
-    currentRef.current = next;
-    setCurrent(next);
-    if (trackRef.current) {
-      trackRef.current.style.transform = `translateX(-${next * (100 / total)}%)`;
-    }
-    dotsRef.current?.querySelectorAll(".hiw-dot").forEach((d, i) =>
-      d.classList.toggle("active", i === next)
-    );
-  };
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const onTS = (e: TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
-    const onTM = (e: TouchEvent) => { touchEndX.current = e.touches[0].clientX; };
-    const onTE = () => {
-      const diff = touchStartX.current - touchEndX.current;
-      if (diff > 50)  goTo(currentRef.current + 1);
-      if (diff < -50) goTo(currentRef.current - 1);
-    };
-    track.addEventListener("touchstart", onTS);
-    track.addEventListener("touchmove",  onTM);
-    track.addEventListener("touchend",   onTE);
-    return () => {
-      track.removeEventListener("touchstart", onTS);
-      track.removeEventListener("touchmove",  onTM);
-      track.removeEventListener("touchend",   onTE);
-    };
-  }, []);
-
   return (
     <>
       <style>{`
@@ -425,7 +366,6 @@ export default function HowItWorks() {
           line-height: 1.65;
         }
 
-        /* 4-col desktop */
         .hiw-grid {
           position: relative;
           z-index: 1;
@@ -440,64 +380,14 @@ export default function HowItWorks() {
           .hiw-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; }
         }
 
-        /* Mobile carousel */
-        .hiw-carousel {
-          position: relative;
-          z-index: 1;
-          width: 100%;
-          max-width: 300px;
-          margin: 0 auto;
-          overflow: hidden;
-          display: none;
-        }
-
-        .hiw-track {
-          display: flex;
-          width: 400%;
-          transition: transform 0.35s cubic-bezier(0.4,0.2,0.2,1);
-          will-change: transform;
-        }
-
-        .hiw-slide { flex-shrink: 0; width: 25%; padding: 0 6px; }
-
-        .hiw-controls {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 16px;
-          margin-top: 20px;
-        }
-
-        .hiw-nav-btn {
-          width: 38px; height: 38px;
-          border-radius: 50%;
-          border: 1px solid #c6e2d0;
-          background: #fff;
-          display: flex; align-items: center; justify-content: center;
-          color: #556b5e;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-        }
-
-        .hiw-nav-btn:hover { border-color: #1a4d2e; color: #1a4d2e; }
-        .hiw-nav-btn:active { transform: scale(0.92); }
-
-        .hiw-dots { display: flex; align-items: center; gap: 6px; }
-
-        .hiw-dot {
-          width: 7px; height: 7px;
-          border-radius: 999px;
-          background: #c6e2d0;
-          transition: width 0.25s ease, background 0.25s ease;
-          cursor: pointer;
-        }
-
-        .hiw-dot.active { width: 18px; background: #1a4d2e; }
-
         @media (max-width: 639px) {
-          .hiw-grid     { display: none; }
-          .hiw-carousel { display: block; }
+          .hiw-section {
+            padding: 60px 20px 72px;
+          }
+          .hiw-grid {
+            grid-template-columns: 1fr;
+            max-width: 420px;
+          }
         }
       `}</style>
 
@@ -517,39 +407,10 @@ export default function HowItWorks() {
           <p>From request to completion — manage your skip logistics in four simple steps</p>
         </div>
 
-        {/* Desktop — 4 across */}
         <div className="hiw-grid">
           {howItWorks.map((item, i) => (
             <FlipCard key={item.title} item={item} index={i} />
           ))}
-        </div>
-
-        {/* Mobile carousel */}
-        <div className="hiw-carousel">
-          <div className="hiw-track" ref={trackRef}>
-            {howItWorks.map((item, i) => (
-              <div key={item.title} className="hiw-slide">
-                <FlipCard item={item} index={i} />
-              </div>
-            ))}
-          </div>
-          <div className="hiw-controls">
-            <button className="hiw-nav-btn" onClick={() => goTo(current - 1)} aria-label="Previous">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                <path d="m15 18-6-6 6-6"/>
-              </svg>
-            </button>
-            <div className="hiw-dots" ref={dotsRef}>
-              {howItWorks.map((_, i) => (
-                <div key={i} className={`hiw-dot${i === 0 ? " active" : ""}`} onClick={() => goTo(i)} />
-              ))}
-            </div>
-            <button className="hiw-nav-btn" onClick={() => goTo(current + 1)} aria-label="Next">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                <path d="m9 18 6-6-6-6"/>
-              </svg>
-            </button>
-          </div>
         </div>
       </section>
     </>
