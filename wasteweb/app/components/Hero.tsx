@@ -35,14 +35,14 @@ const heroSlides = [
     sub: "Approve dispatch, track skips in real time, and eliminate delays — built for UK construction sites.",
   },
   {
-    image: "/truck.png",
+    image: "/truck1.jpeg",
     eyebrow: "Real-Time Fleet Tracking.",
     headline: "Every skip, every driver,",
     highlight: "always in sight.",
     sub: "Live GPS across your entire fleet so you always know where your skips are and when they arrive on site.",
   },
   {
-    image: "/truck.png",
+    image: "/truck2.jpeg",
     eyebrow: "Smarter Waste Logistics.",
     headline: "Cut costs, cut delays,",
     highlight: "cut your carbon.",

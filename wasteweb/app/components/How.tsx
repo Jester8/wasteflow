@@ -122,9 +122,40 @@ const howItWorks = [
     backLabel: "#d4e84a",
     backDivider: "#d4e84a",
   },
+  {
+    title: "Two-Way Approval",
+    description: "Both parties confirm before anything moves.",
+    shortDetail: "Contractors place the order and operators review and accept it. Once accepted, the operator sends a readiness request that the contractor confirms — ensuring both parties are aligned before collection begins.",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 24, height: 24 }}>
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+        <path d="m15 5 4 4" />
+      </svg>
+    ),
+    cardBg: "#ffffff",
+    cardBorder: "rgba(26,77,46,0.18)",
+    accent: "#1a4d2e",
+    iconBg: "#e8f5ee",
+    iconColor: "#1a4d2e",
+    stepBg: "#e8f5ee",
+    stepColor: "#1a4d2e",
+    titleColor: "#1a2e1f",
+    descColor: "#4a6655",
+    hintColor: "#8aab97",
+    glowColor: "rgba(26,77,46,0.14)",
+    hoverBorder: "rgba(26,77,46,0.45)",
+    cornerTint: "rgba(26,77,46,0.06)",
+    backBg: "#1a4d2e",
+    backAccent: "#d4e84a",
+    backText: "#c8e8a0",
+    backLabel: "#d4e84a",
+    backDivider: "#d4e84a",
+  },
 ];
 
-function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }) {
+type HowItWorksItem = typeof howItWorks[0];
+
+function FlipCard({ item, index }: { item: HowItWorksItem; index: number }) {
   const [flipped, setFlipped] = useState(false);
 
   return (
@@ -137,7 +168,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
 
         .hiw-wrap-${index} {
           perspective: 1100px;
-          height: 252px;
+          height: 290px;
           cursor: pointer;
           animation: fadeSlideUp 0.55s ease both;
           animation-delay: ${index * 0.09}s;
@@ -190,6 +221,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
         >
           {/* FRONT */}
           <div className="hiw-face" style={{ background: item.cardBg }}>
+            {/* Corner glow */}
             <div style={{
               position: "absolute", top: 0, right: 0,
               width: 110, height: 110,
@@ -197,6 +229,8 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
               background: `radial-gradient(circle, ${item.accent} 0%, transparent 70%)`,
               opacity: 0.09, pointerEvents: "none",
             }} />
+
+            {/* Step badge */}
             <div style={{
               position: "absolute", top: 20, right: 20,
               width: 26, height: 26, borderRadius: 8,
@@ -207,6 +241,8 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {index + 1}
             </div>
+
+            {/* Icon */}
             <div style={{
               width: 46, height: 46, borderRadius: 12,
               background: item.iconBg,
@@ -215,6 +251,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.icon}
             </div>
+
             <h3 style={{
               fontSize: "1rem", fontWeight: 700,
               color: item.titleColor, marginBottom: 8,
@@ -222,6 +259,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.title}
             </h3>
+
             <p style={{
               fontSize: "0.855rem", color: item.descColor,
               fontWeight: 500, lineHeight: 1.55,
@@ -229,6 +267,8 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               {item.description}
             </p>
+
+            {/* Tap hint */}
             <div style={{
               position: "absolute", bottom: 14, right: 18,
               fontSize: "0.67rem", color: item.hintColor,
@@ -244,6 +284,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
 
           {/* BACK */}
           <div className="hiw-face hiw-back" style={{ background: item.backBg }}>
+            {/* Corner glow */}
             <div style={{
               position: "absolute", top: 0, right: 0,
               width: 110, height: 110,
@@ -251,6 +292,7 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
               background: `radial-gradient(circle, ${item.backAccent} 0%, transparent 70%)`,
               opacity: 0.15, pointerEvents: "none",
             }} />
+
             <span style={{
               fontSize: "0.67rem", fontWeight: 700,
               letterSpacing: "0.1em", textTransform: "uppercase",
@@ -258,14 +300,18 @@ function FlipCard({ item, index }: { item: typeof howItWorks[0]; index: number }
             }}>
               How it works
             </span>
+
             <div style={{ width: 28, height: 2, borderRadius: 2, background: item.backDivider, opacity: 0.6 }} />
+
             <p style={{
-              fontSize: "0.88rem", color: item.backText,
-              lineHeight: 1.68, fontWeight: 500,
-              fontFamily: "'DM Sans',sans-serif",
-            }}>
-              {item.shortDetail}
-            </p>
+                fontSize: "0.88rem", color: item.backText,
+                lineHeight: 1.68, fontWeight: 500,
+                fontFamily: "'DM Sans',sans-serif",
+              }}>
+                {item.shortDetail}
+              </p>
+
+            {/* Flip back hint */}
             <div style={{
               position: "absolute", bottom: 14, right: 18,
               fontSize: "0.67rem", color: item.backLabel,
@@ -372,12 +418,16 @@ export default function HowItWorks() {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 16px;
-          max-width: 1160px;
+          max-width: 1400px;
           width: 100%;
         }
 
-        @media (min-width: 900px) {
-          .hiw-grid { grid-template-columns: repeat(4, 1fr); gap: 18px; }
+        @media (min-width: 1100px) {
+          .hiw-grid { grid-template-columns: repeat(5, 1fr); gap: 20px; }
+        }
+
+        @media (min-width: 700px) and (max-width: 1099px) {
+          .hiw-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
         }
 
         @media (max-width: 639px) {
@@ -404,7 +454,7 @@ export default function HowItWorks() {
             Process
           </div>
           <h2>How It <span>Works</span></h2>
-          <p>From request to completion — manage your skip logistics in four simple steps</p>
+          <p>From request to completion — manage your skip logistics in five simple steps</p>
         </div>
 
         <div className="hiw-grid">

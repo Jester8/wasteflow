@@ -272,7 +272,7 @@ export default function FAQ() {
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.75')}
               onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
             >
-              hello@wasteflow.org
+     info@wasteflow.org
             </a>
           </p>
         </motion.div>

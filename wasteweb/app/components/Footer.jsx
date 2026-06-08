@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MapPin, Phone, ChevronUp } from "lucide-react";
+import { Mail, MapPin, Phone, ChevronUp, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -187,9 +187,10 @@ export default function Footer() {
             {/* Contact info */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
               {[
-                { Icon: MapPin, text: "123 Construction Way, London SE1 9SG" },
-                { Icon: Phone, text: "+44 (0) 20 1234 5678" },
-                { Icon: Mail, text: "hello@wasteflow.org" },
+                { Icon: MapPin, text: "Wasteflow Ventures Limited | 854 Bristol Road Selly Oak Birmingham B29 6HW | Registered in England and Wales" },
+                { Icon: Phone, text: "+447867386257" },
+                { Icon: Mail, text: "info@wasteflow.org" },
+                { Icon: Building2, text: "Company No: 17247994" }
               ].map(({ Icon, text }) => (
                 <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem" }}>
                   <Icon size={15} color="#B8D52E" style={{ flexShrink: 0, marginTop: "2px" }} />
