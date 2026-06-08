@@ -5,6 +5,7 @@ import Footer from "../../wasteweb/app/components/Footer";
 import How from "../../wasteweb/app/components/How";
 import Cta from "../../wasteweb/app/components/Cta";
 import Faq from "../../wasteweb/app/components/Faq";
+import Newsletter from "../../wasteweb/app/components/Newsletter";
 
 export default function Page() {
   return (
@@ -14,7 +15,9 @@ export default function Page() {
       <Features />
       <How />
       <Faq />
+  
       <Cta />
+          <Newsletter />
       <Footer />
     </main>
   );
