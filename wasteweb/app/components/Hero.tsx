@@ -42,7 +42,7 @@ const heroSlides = [
     sub: "Live GPS across your entire fleet so you always know where your skips are and when they arrive on site.",
   },
   {
-    image: "/truck2.jpeg",
+    image: "/truck3.png",
     eyebrow: "Smarter Waste Logistics.",
     headline: "Cut costs, cut delays,",
     highlight: "cut your carbon.",

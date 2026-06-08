@@ -331,7 +331,7 @@ export default function Newsletter() {
             {/* ── IMAGE ── */}
             <div className="nl-image-wrap">
               <Image
-                src="/truck2.jpeg"
+                src="/truck2.png"
                 alt="WasteFlow construction truck"
                 fill
                 className="object-cover object-center"

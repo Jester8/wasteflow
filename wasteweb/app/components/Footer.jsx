@@ -142,7 +142,7 @@ export default function Footer() {
         padding: "3rem 1.5rem 1.5rem",
       }}>
 
-        {/* ── LOGO ROW — standalone at the top ── */}
+        {/* ── LOGO ROW ── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -159,7 +159,7 @@ export default function Footer() {
           />
         </motion.div>
 
-        {/* ── MAIN GRID — description/contact/social + 3 link columns ── */}
+        {/* ── MAIN GRID ── */}
         <div style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
@@ -168,7 +168,7 @@ export default function Footer() {
           alignItems: "start",
         }}>
 
-          {/* ── Column 1: Description + Contact + Social ── */}
+          {/* ── Column 1: Description + Social (no address/phone here) ── */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -184,13 +184,10 @@ export default function Footer() {
               Streamlining construction waste logistics with skip tracking and fleet management.
             </p>
 
-            {/* Contact info */}
+            {/* Contact info — email + company no only */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
               {[
-                { Icon: MapPin, text: "Wasteflow Ventures Limited | 854 Bristol Road Selly Oak Birmingham B29 6HW | Registered in England and Wales" },
-                { Icon: Phone, text: "+447867386257" },
                 { Icon: Mail, text: "info@wasteflow.org" },
-                { Icon: Building2, text: "Company No: 17247994" }
               ].map(({ Icon, text }) => (
                 <div key={text} style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem" }}>
                   <Icon size={15} color="#B8D52E" style={{ flexShrink: 0, marginTop: "2px" }} />
@@ -312,9 +309,40 @@ export default function Footer() {
           </motion.div>
         </div>
 
+        {/* ── ADDRESS + PHONE STRIP ── */}
+        <div style={{
+          paddingTop: "1.25rem",
+          paddingBottom: "1.25rem",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "1.5rem",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <MapPin size={13} color="#B8D52E" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)", lineHeight: 1.4 }}>
+              Wasteflow Ventures Limited | 854 Bristol Road Selly Oak Birmingham B29 6HW | Registered in England and Wales
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+            <Phone size={13} color="#B8D52E" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)" }}>
+              +447867386257
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+            <Building2 size={13} color="#B8D52E" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.45)" }}>
+              Company No: 17247994
+            </span>
+          </div>
+        </div>
+
         {/* ── BOTTOM BAR ── */}
         <div style={{
-          paddingTop: "2rem",
+          paddingTop: "1.25rem",
           borderTop: "1px solid rgba(255,255,255,0.06)",
           display: "flex",
           flexWrap: "wrap",
