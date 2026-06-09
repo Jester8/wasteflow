@@ -272,7 +272,7 @@ function HeroText() {
         opacity: done1 ? 1 : 0,
         transition: "opacity 0.6s ease",
       }}>
-        Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
+        Manage skip orders, track pickups in real time, and keep your site compliant all from one platform.
       </p>
     </div>
   );
