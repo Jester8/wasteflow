@@ -272,7 +272,7 @@ function HeroText() {
         opacity: done1 ? 1 : 0,
         transition: "opacity 0.6s ease",
       }}>
-        Manage skip orders, track pickups in real time, and keep your site compliant all from one platform.
+        Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
       </p>
     </div>
   );
@@ -305,6 +305,11 @@ export default function LoginPage() {
     // TODO: wire up Firebase auth
     await new Promise(r => setTimeout(r, 1400));
     setLoading(false);
+    if (role === "superadmin") {
+      window.location.href = "/superadmin";
+    } else {
+      window.location.href = "/admin";
+    }
   };
 
   return (
@@ -585,7 +590,23 @@ export default function LoginPage() {
 
         {/* ── RIGHT: Form ── */}
         <div className="wf-form-panel">
-          
+          <div className="wf-form-header">
+            <Link href="/" className="wf-back-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+              </svg>
+              Back to Home
+            </Link>
+            <div className="wf-mobile-logo">
+              <div className="wf-mobile-logo-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <span className="wf-mobile-logo-text">WasteFlow</span>
+            </div>
+          </div>
 
           <div className="wf-form-scroll">
             <div className="wf-form-inner">
@@ -632,9 +653,9 @@ export default function LoginPage() {
                       onChange={e => setPassword(e.target.value)}
                       error={errors.password}
                     />
-                    {/* <div className="wf-forgot">
+                    <div className="wf-forgot">
                       <Link href="/forgot-password">Forgot password?</Link>
-                    </div> */}
+                    </div>
                   </div>
                 </div>
 
