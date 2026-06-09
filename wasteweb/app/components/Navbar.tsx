@@ -48,7 +48,7 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="wf-desktop-cta">
-            <a href="#demo" className="wf-cta-btn">
+            <a href="/login" className="wf-cta-btn">
               Get Started
             </a>
           </div>

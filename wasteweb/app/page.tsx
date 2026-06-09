@@ -15,9 +15,8 @@ export default function Page() {
       <Features />
       <How />
       <Faq />
-  
       <Cta />
-          <Newsletter />
+      <Newsletter />
       <Footer />
     </main>
   );
