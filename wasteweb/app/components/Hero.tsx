@@ -32,7 +32,7 @@ const heroSlides = [
     eyebrow: "Skip Deliveries, Done Right.",
     headline: "Construction sites across the UK",
     highlight: "run smoother, faster.",
-    sub: "Approve dispatch, track skips in real time, and eliminate delays — built for UK construction sites.",
+    sub: "Approve dispatch, track skips in real time, and eliminate delays  built for UK construction sites.",
   },
   {
     image: "/truck1.jpeg",
@@ -280,7 +280,7 @@ export default function Hero() {
             >
               <button className="btn-primary">
                 Get Started Free
-                <ArrowRight size={14} />
+              
               </button>
               <button className="btn-secondary">
                 <span style={{

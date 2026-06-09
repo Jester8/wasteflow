@@ -125,7 +125,7 @@ const howItWorks = [
   {
     title: "Two-Way Approval",
     description: "Both parties confirm before anything moves.",
-    shortDetail: "Contractors place the order and operators review and accept it. Once accepted, the operator sends a readiness request that the contractor confirms — ensuring both parties are aligned before collection begins.",
+    shortDetail: "Contractors place the order and operators review and accept it. Once accepted, the operator sends a readiness request that the contractor confirms  ensuring both parties are aligned before collection begins.",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 24, height: 24 }}>
         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
