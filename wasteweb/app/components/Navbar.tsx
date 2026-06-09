@@ -98,7 +98,7 @@ export default function Navbar() {
 
             <div className="wf-mobile-buttons">
               <a
-                href="#demo"
+                href="/login"
                 onClick={() => setMobileOpen(false)}
                 className="wf-mobile-btn-primary"
               >
