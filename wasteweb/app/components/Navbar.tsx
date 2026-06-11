@@ -48,7 +48,7 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="wf-desktop-cta">
-            <a href="/login" className="wf-cta-btn">
+            <a href="/signup" className="wf-cta-btn">
               Get Started
             </a>
           </div>
@@ -98,7 +98,7 @@ export default function Navbar() {
 
             <div className="wf-mobile-buttons">
               <a
-                href="/login"
+                href="/signup"
                 onClick={() => setMobileOpen(false)}
                 className="wf-mobile-btn-primary"
               >

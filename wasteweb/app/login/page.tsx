@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 // ─── Typewriter hook ──────────────────────────────────────────────────────────
-function useTypewriter(text, speed = 45) {
+function useTypewriter(text: string, speed = 45) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -23,7 +23,10 @@ function useTypewriter(text, speed = 45) {
 }
 
 // ─── Input ────────────────────────────────────────────────────────────────────
-function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }) {
+function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }: {
+  label?: string; type?: string; placeholder?: string; error?: string;
+  leftIcon?: React.ReactNode; required?: boolean; [k: string]: any;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
@@ -84,7 +87,9 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
 }
 
 // ─── PasswordInput ────────────────────────────────────────────────────────────
-function PasswordInput({ label, placeholder, error, ...props }) {
+function PasswordInput({ label, placeholder, error, ...props }: {
+  label?: string; placeholder?: string; error?: string; [k: string]: any;
+}) {
   const [show, setShow] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -171,7 +176,10 @@ function PasswordInput({ label, placeholder, error, ...props }) {
 }
 
 // ─── Button ───────────────────────────────────────────────────────────────────
-function Button({ children, type = "button", loading, fullWidth, onClick }) {
+function Button({ children, type = "button", loading, fullWidth, onClick }: {
+  children: React.ReactNode; type?: "button" | "submit";
+  loading?: boolean; fullWidth?: boolean; onClick?: () => void;
+}) {
   return (
     <button
       type={type}
@@ -278,25 +286,48 @@ function HeroText() {
   );
 }
 
-// ─── Main Login Page ──────────────────────────────────────────────────────────
-const ROLES = ["admin", "superadmin"];
+// ─── Role config ──────────────────────────────────────────────────────────────
+type Role = "operator" | "contractor";
 
+const ROLE_CONFIG: Record<Role, {
+  label: string;
+  emoji: string;
+  placeholder: string;
+  redirect: string;
+}> = {
+  operator: {
+    label: "Operator",
+    emoji: "🏗",
+    placeholder: "you@company.co.uk",
+    redirect: "/operator/dashboard",
+  },
+  contractor: {
+    label: "Contractor",
+    emoji: "🚛",
+    placeholder: "you@haulage.co.uk",
+    redirect: "/contractor/dashboard",
+  },
+};
+
+// ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function LoginPage() {
-  const [role, setRole] = useState("admin");
+  const [role, setRole] = useState<Role>("operator");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
+  const config = ROLE_CONFIG[role];
+
   const validate = () => {
-    const errs = {};
+    const errs: Record<string, string> = {};
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       errs.email = "Please enter a valid email address";
     if (!password) errs.password = "Password is required";
     return errs;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
@@ -305,11 +336,7 @@ export default function LoginPage() {
     // TODO: wire up Firebase auth
     await new Promise(r => setTimeout(r, 1400));
     setLoading(false);
-    if (role === "superadmin") {
-      window.location.href = "/superadmin";
-    } else {
-      window.location.href = "/admin";
-    }
+    window.location.href = config.redirect;
   };
 
   return (
@@ -362,7 +389,6 @@ export default function LoginPage() {
           z-index: 1;
         }
 
-        /* lime accent stripe on right edge */
         .wf-hero::after {
           content: '';
           position: absolute;
@@ -406,11 +432,10 @@ export default function LoginPage() {
           gap: 6px;
           font-size: 0.8rem;
           font-weight: 700;
-          color: "#4a7a5a";
+          color: #4a7a5a;
           text-decoration: none;
           transition: color 0.18s;
           font-family: 'Quicksand', sans-serif;
-          color: #4a7a5a;
         }
         .wf-back-link:hover { color: #1a4d2e; }
 
@@ -482,12 +507,11 @@ export default function LoginPage() {
           padding: 9px 8px;
           border-radius: 7px;
           border: none;
-          font-size: 0.78rem;
+          font-size: 0.8rem;
           font-weight: 700;
           font-family: 'Quicksand', sans-serif;
           cursor: pointer;
           transition: all 0.2s;
-          text-transform: capitalize;
           background: transparent;
           color: #6b8f7a;
           white-space: nowrap;
@@ -508,7 +532,7 @@ export default function LoginPage() {
         .wf-forgot {
           display: flex;
           justify-content: flex-end;
-          margin-top: 5px;
+          margin-top: 6px;
         }
         .wf-forgot a {
           font-size: 0.75rem;
@@ -517,6 +541,9 @@ export default function LoginPage() {
           text-decoration: none;
           transition: color 0.18s;
           font-family: 'Quicksand', sans-serif;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
         }
         .wf-forgot a:hover { color: #B8D52E; }
 
@@ -535,6 +562,25 @@ export default function LoginPage() {
           background: #f0f7f2;
           margin: 20px 0;
         }
+
+        .wf-signup-nudge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #6b8f7a;
+          font-family: 'Quicksand', sans-serif;
+          margin-top: 16px;
+        }
+        .wf-signup-nudge a {
+          color: #1a4d2e;
+          font-weight: 700;
+          text-decoration: none;
+          transition: color 0.18s;
+        }
+        .wf-signup-nudge a:hover { color: #B8D52E; }
 
         /* footer */
         .wf-footer {
@@ -616,14 +662,14 @@ export default function LoginPage() {
 
               {/* Role toggle */}
               <div className="wf-toggle">
-                {ROLES.map(r => (
+                {(["operator", "contractor"] as Role[]).map(r => (
                   <button
                     key={r}
                     type="button"
                     className={`wf-toggle-btn${role === r ? " active" : ""}`}
                     onClick={() => { setRole(r); setErrors({}); }}
                   >
-                    {r === "superadmin" ? "Super Admin" : "Admin"}
+                    {ROLE_CONFIG[r].emoji} {ROLE_CONFIG[r].label}
                   </button>
                 ))}
               </div>
@@ -633,10 +679,10 @@ export default function LoginPage() {
                   <Input
                     label="Email Address"
                     type="email"
-                    placeholder="you@wasteflow.org"
+                    placeholder={config.placeholder}
                     required
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                     error={errors.email}
                     leftIcon={
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
@@ -650,26 +696,32 @@ export default function LoginPage() {
                       label="Password"
                       placeholder="Enter your password"
                       value={password}
-                      onChange={e => setPassword(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                       error={errors.password}
                     />
                     <div className="wf-forgot">
-                      <Link href="/forgot-password">Forgot password?</Link>
+                      <Link href={`/forgot-password?role=${role}`}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+                          <circle cx="12" cy="12" r="10"/>
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                          <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Forgot password?
+                      </Link>
                     </div>
                   </div>
                 </div>
 
                 <Button type="submit" fullWidth loading={loading}>
-                  Sign in as {role === "superadmin" ? "Super Admin" : "Admin"}
+                  Sign in as {config.label}
                 </Button>
               </form>
 
               <div className="wf-divider" />
 
-              <p className="wf-operator-note">
-                {role === "superadmin"
-                  ? "Super Admin access is by invitation only. Contact your system administrator if you need access."
-                  : "Admin accounts are created by your Super Admin. Contact your Super Admin if you need access."}
+              <p className="wf-signup-nudge">
+                Don't have an account?{" "}
+                <Link href={`/signup?role=${role}`}>Sign up</Link>
               </p>
 
             </div>
