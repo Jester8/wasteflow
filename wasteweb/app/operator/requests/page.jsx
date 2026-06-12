@@ -2,16 +2,17 @@
 
 import { useState } from "react";
 import Sidebar from "../../components/Sidebar";
+import RequestDetailModal from "./components/RequestDetailModal";
 
 const TABS = ["All", "Pending", "Scheduled", "Arriving", "In Transit", "Completed", "Declined"];
 
 const STATUS_CONFIG = {
-  Pending:    { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
-  Scheduled:  { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
-  Arriving:   { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
-  "In Transit":{ bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
-  Completed:  { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
-  Declined:   { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
+  Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
+  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
+  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
+  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
+  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
 };
 
 const WASTE_TYPE_CONFIG = {
@@ -107,10 +108,22 @@ function WasteTypeBadge({ type }) {
   );
 }
 
-function RequestCard({ req, onAccept, onDecline }) {
+function MetaRow({ icon, text, muted }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+      <span style={{ color: "#8aab97", marginTop: 1, flexShrink: 0 }}>{icon}</span>
+      <span style={{
+        fontSize: "0.8rem", fontWeight: 600,
+        color: muted ? "#8aab97" : "#3a5a45",
+        fontFamily: "'Quicksand', sans-serif",
+        lineHeight: 1.4,
+      }}>{text}</span>
+    </div>
+  );
+}
+
+function RequestCard({ req, onAccept, onDecline, onViewDetails }) {
   const isPending = req.status === "Pending";
-  const isDeclined = req.status === "Declined";
-  const isCompleted = req.status === "Completed";
 
   return (
     <div className="wf-card" style={{
@@ -123,7 +136,7 @@ function RequestCard({ req, onAccept, onDecline }) {
       transition: "box-shadow 0.2s, transform 0.2s",
       fontFamily: "'Quicksand', sans-serif",
     }}>
-      {/* Title + badges */}
+      {/* Title + ID */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <h3 style={{
@@ -178,62 +191,61 @@ function RequestCard({ req, onAccept, onDecline }) {
         {isPending ? (
           <>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => onAccept(req.id)} className="wf-btn-accept" style={{
-                flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
-                background: "#1a4d2e", color: "#B8D52E",
-                fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
-                transition: "background 0.18s, transform 0.15s",
-              }}>
+              <button
+                onClick={() => onAccept(req.id)}
+                className="wf-btn-accept"
+                style={{
+                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                  padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                  background: "#1a4d2e", color: "#B8D52E",
+                  fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
+                  transition: "background 0.18s, transform 0.15s",
+                }}
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
                 Accept
               </button>
             </div>
-            <button onClick={() => onDecline(req.id)} className="wf-btn-decline" style={{
-              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
-              background: "#ef4444", color: "#fff",
-              fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
-              transition: "background 0.18s",
-            }}>
+            <button
+              onClick={() => onDecline(req.id)}
+              className="wf-btn-decline"
+              style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
+                background: "#ef4444", color: "#fff",
+                fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
+                transition: "background 0.18s",
+              }}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
               Decline
             </button>
           </>
-        ) : (
-          <button className="wf-btn-view" style={{
+        ) : null}
+
+        {/* View Details — always shown */}
+        <button
+          className="wf-btn-view"
+          onClick={() => onViewDetails(req)}
+          style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
             padding: "10px 16px", borderRadius: 10, cursor: "pointer",
             background: "none", border: "1px solid #e8f2eb",
             color: "#1a4d2e", fontSize: "0.82rem", fontWeight: 700,
             fontFamily: "'Quicksand', sans-serif",
             transition: "background 0.18s, border-color 0.18s",
-          }}>
-            View Details
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-            </svg>
-          </button>
-        )}
+          }}
+        >
+          View Details
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
       </div>
-    </div>
-  );
-}
-
-function MetaRow({ icon, text, muted }) {
-  return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
-      <span style={{ color: "#8aab97", marginTop: 1, flexShrink: 0 }}>{icon}</span>
-      <span style={{
-        fontSize: "0.8rem", fontWeight: 600,
-        color: muted ? "#8aab97" : "#3a5a45",
-        fontFamily: "'Quicksand', sans-serif",
-        lineHeight: 1.4,
-      }}>{text}</span>
     </div>
   );
 }
@@ -244,6 +256,7 @@ export default function RequestsPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
   const [requests, setRequests] = useState(MOCK_REQUESTS);
+  const [selectedReq, setSelectedReq] = useState(null);
 
   const filtered = requests.filter((r) => {
     const matchTab = activeTab === "All" || r.status === activeTab;
@@ -265,6 +278,17 @@ export default function RequestsPage() {
     setRequests((prev) =>
       prev.map((r) => r.id === id ? { ...r, status: "Declined" } : r)
     );
+  };
+
+  // Keep modal in sync if status changes while open
+  const handleAcceptWithSync = (id) => {
+    handleAccept(id);
+    setSelectedReq((prev) => prev?.id === id ? { ...prev, status: "Scheduled" } : prev);
+  };
+
+  const handleDeclineWithSync = (id) => {
+    handleDecline(id);
+    setSelectedReq((prev) => prev?.id === id ? { ...prev, status: "Declined" } : prev);
   };
 
   const counts = TABS.reduce((acc, tab) => {
@@ -302,9 +326,7 @@ export default function RequestsPage() {
           justify-content: space-between; flex-shrink: 0;
         }
 
-        .wf-topbar-left {
-          display: flex; align-items: center; gap: 14px;
-        }
+        .wf-topbar-left { display: flex; align-items: center; gap: 14px; }
 
         .wf-hamburger {
           display: none;
@@ -320,9 +342,7 @@ export default function RequestsPage() {
           color: #1a2e1f; font-family: 'Quicksand', sans-serif;
         }
 
-        .wf-topbar-right {
-          display: flex; align-items: center; gap: 10px;
-        }
+        .wf-topbar-right { display: flex; align-items: center; gap: 10px; }
 
         .wf-notif-btn {
           width: 34px; height: 34px; border-radius: 9px;
@@ -339,13 +359,11 @@ export default function RequestsPage() {
           background: #B8D52E; border: 1.5px solid #f5faf6;
         }
 
-        /* Page content */
         .wf-content {
           padding: 28px;
           display: flex; flex-direction: column; gap: 24px;
         }
 
-        /* Page header */
         .wf-page-header h1 {
           font-size: clamp(1.4rem, 2.5vw, 1.75rem);
           font-weight: 700; color: #1a2e1f;
@@ -357,14 +375,8 @@ export default function RequestsPage() {
           font-weight: 600; font-family: 'Quicksand', sans-serif;
         }
 
-        /* Search + filter bar */
-        .wf-search-row {
-          display: flex; align-items: center; gap: 12px;
-        }
-
-        .wf-search-wrap {
-          flex: 1; position: relative;
-        }
+        .wf-search-row { display: flex; align-items: center; gap: 12px; }
+        .wf-search-wrap { flex: 1; position: relative; }
 
         .wf-search-icon {
           position: absolute; left: 14px; top: 50%;
@@ -398,7 +410,6 @@ export default function RequestsPage() {
         }
         .wf-filter-btn:hover { border-color: #B8D52E; background: #f5faf6; }
 
-        /* Tabs */
         .wf-tabs-wrap {
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
@@ -422,9 +433,7 @@ export default function RequestsPage() {
           transition: background 0.15s, color 0.15s;
         }
         .wf-tab:hover { background: #f0f7f2; color: #1a4d2e; }
-        .wf-tab.active {
-          background: #1a4d2e; color: #B8D52E;
-        }
+        .wf-tab.active { background: #1a4d2e; color: #B8D52E; }
 
         .wf-tab-count {
           font-size: 0.65rem; font-weight: 700;
@@ -436,7 +445,6 @@ export default function RequestsPage() {
           background: #f0f7f2; color: #8aab97;
         }
 
-        /* Cards grid */
         .wf-cards-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -444,18 +452,15 @@ export default function RequestsPage() {
           align-items: start;
         }
 
-        /* Card hover */
         .wf-card:hover {
           box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important;
           transform: translateY(-2px);
         }
 
-        /* Button hovers */
         .wf-btn-accept:hover { background: #B8D52E !important; color: #0d2416 !important; }
         .wf-btn-decline:hover { background: #dc2626 !important; }
         .wf-btn-view:hover { background: #f0f7f2 !important; border-color: #B8D52E !important; }
 
-        /* Empty state */
         .wf-empty {
           grid-column: 1 / -1;
           display: flex; flex-direction: column;
@@ -463,7 +468,6 @@ export default function RequestsPage() {
           padding: 64px 24px; gap: 12px; text-align: center;
         }
 
-        /* Mobile */
         @media (max-width: 1100px) {
           .wf-cards-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -494,7 +498,6 @@ export default function RequestsPage() {
         />
 
         <main className="wf-admin-main">
-          {/* Topbar */}
           <div className="wf-topbar">
             <div className="wf-topbar-left">
               <button className="wf-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
@@ -507,7 +510,10 @@ export default function RequestsPage() {
               <span className="wf-topbar-title">All Requests</span>
             </div>
             <div className="wf-topbar-right">
-              <span style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }} className="wf-topbar-date">
+              <span
+                style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}
+                className="wf-topbar-date"
+              >
                 {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
               </span>
               <button className="wf-notif-btn" aria-label="Notifications">
@@ -522,13 +528,11 @@ export default function RequestsPage() {
 
           <div className="wf-content">
 
-            {/* Page header */}
             <div className="wf-page-header">
               <h1>All Pickup Requests</h1>
               <p>Review and manage incoming pickup requests</p>
             </div>
 
-            {/* Search + filter */}
             <div className="wf-search-row">
               <div className="wf-search-wrap">
                 <span className="wf-search-icon">
@@ -552,7 +556,6 @@ export default function RequestsPage() {
               </button>
             </div>
 
-            {/* Tabs */}
             <div className="wf-tabs-wrap">
               <div className="wf-tabs">
                 {TABS.map((tab) => (
@@ -570,7 +573,6 @@ export default function RequestsPage() {
               </div>
             </div>
 
-            {/* Cards */}
             <div className="wf-cards-grid">
               {filtered.length === 0 ? (
                 <div className="wf-empty">
@@ -598,6 +600,7 @@ export default function RequestsPage() {
                     req={req}
                     onAccept={handleAccept}
                     onDecline={handleDecline}
+                    onViewDetails={setSelectedReq}
                   />
                 ))
               )}
@@ -606,6 +609,13 @@ export default function RequestsPage() {
           </div>
         </main>
       </div>
+
+      <RequestDetailModal
+        item={selectedReq}
+        onClose={() => setSelectedReq(null)}
+        onAccept={handleAcceptWithSync}
+        onDecline={handleDeclineWithSync}
+      />
     </>
   );
 }

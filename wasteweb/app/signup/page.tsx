@@ -4,10 +4,8 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "operator" | "contractor";
 
-// ─── Shared Input ─────────────────────────────────────────────────────────────
 function Input({
   label, type = "text", placeholder, error, leftIcon, required: req, hint, ...props
 }: {
@@ -56,7 +54,6 @@ function Input({
   );
 }
 
-// ─── Select ───────────────────────────────────────────────────────────────────
 function Select({ label, error, required: req, children, hint, ...props }: {
   label?: string; error?: string; required?: boolean; children: React.ReactNode; hint?: string; [k: string]: any;
 }) {
@@ -90,7 +87,6 @@ function Select({ label, error, required: req, children, hint, ...props }: {
   );
 }
 
-// ─── Textarea ─────────────────────────────────────────────────────────────────
 function Textarea({ label, error, required: req, hint, ...props }: {
   label?: string; error?: string; required?: boolean; hint?: string; [k: string]: any;
 }) {
@@ -121,7 +117,6 @@ function Textarea({ label, error, required: req, hint, ...props }: {
   );
 }
 
-// ─── FileUpload ───────────────────────────────────────────────────────────────
 function FileUpload({ label, hint, error, accept, required: req, onChange }: {
   label?: string; hint?: string; error?: string; accept?: string; required?: boolean;
   onChange?: (f: File | null) => void;
@@ -162,7 +157,6 @@ function FileUpload({ label, hint, error, accept, required: req, onChange }: {
   );
 }
 
-// ─── PasswordInput ────────────────────────────────────────────────────────────
 function PasswordInput({ label, placeholder, error, ...props }: { label?: string; placeholder?: string; error?: string; [k: string]: any }) {
   const [show, setShow] = useState(false);
   return (
@@ -198,7 +192,6 @@ function PasswordInput({ label, placeholder, error, ...props }: { label?: string
   );
 }
 
-// ─── Checkbox ─────────────────────────────────────────────────────────────────
 function Checkbox({ label, error, checked, onChange }: { label: React.ReactNode; error?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -222,7 +215,6 @@ function Checkbox({ label, error, checked, onChange }: { label: React.ReactNode;
   );
 }
 
-// ─── Step Indicator ───────────────────────────────────────────────────────────
 function StepIndicator({ current, total, labels }: { current: number; total: number; labels: string[] }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 24 }}>
@@ -255,7 +247,6 @@ function StepIndicator({ current, total, labels }: { current: number; total: num
   );
 }
 
-// ─── Nav Button ───────────────────────────────────────────────────────────────
 function NavBtn({ children, onClick, variant = "primary", loading, fullWidth }: {
   children: React.ReactNode; onClick?: () => void; variant?: "primary" | "ghost"; loading?: boolean; fullWidth?: boolean;
 }) {
@@ -295,7 +286,6 @@ function NavBtn({ children, onClick, variant = "primary", loading, fullWidth }: 
   );
 }
 
-// ─── OPERATOR STEPS ───────────────────────────────────────────────────────────
 const OPERATOR_LABELS = ["Account", "Business & Site", "Waste Profile"];
 
 function OperatorStep1({ data, setData, errors }: any) {
@@ -395,7 +385,6 @@ function OperatorStep3({ data, setData, errors }: any) {
   );
 }
 
-// ─── CONTRACTOR STEPS ─────────────────────────────────────────────────────────
 const CONTRACTOR_LABELS = ["Account", "Business Info", "Compliance"];
 
 function ContractorStep1({ data, setData, errors }: any) {
@@ -487,16 +476,13 @@ function ContractorStep3({ data, setData, errors }: any) {
   );
 }
 
-// ─── Main Signup Page ─────────────────────────────────────────────────────────
 export default function SignupPage() {
   const [role, setRole] = useState<Role>("operator");
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Operator data
   const [opData, setOpData] = useState<Record<string, any>>({});
-  // Contractor data
   const [coData, setCoData] = useState<Record<string, any>>({});
 
   const data = role === "operator" ? opData : coData;
@@ -505,7 +491,6 @@ export default function SignupPage() {
   const totalSteps = 3;
   const labels = role === "operator" ? OPERATOR_LABELS : CONTRACTOR_LABELS;
 
-  // Basic per-step validation
   const validateStep = () => {
     const errs: Record<string, string> = {};
     if (step === 0) {
@@ -558,7 +543,6 @@ export default function SignupPage() {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     setLoading(true);
-    // TODO: wire up Firebase / API
     await new Promise(r => setTimeout(r, 1600));
     setLoading(false);
     window.location.href = role === "operator" ? "/operator/dashboard" : "/contractor/dashboard";
@@ -612,7 +596,6 @@ export default function SignupPage() {
 
       <div className="wf-su-root">
 
-        {/* ── LEFT HERO ── */}
         <div className="wf-su-hero">
           <Image src="/truck2.png" alt="WasteFlow" fill style={{ objectFit: "cover", objectPosition: "center" }} sizes="42vw" />
           <div className="wf-su-hero-scrim" />
@@ -626,7 +609,6 @@ export default function SignupPage() {
           </div>
         </div>
 
-        {/* ── RIGHT FORM PANEL ── */}
         <div className="wf-su-panel">
           <div className="wf-su-header">
             {step > 0 ? (
@@ -651,22 +633,19 @@ export default function SignupPage() {
           <div className="wf-su-scroll">
             <div className="wf-su-inner" key={`${role}-${step}`}>
 
-              {/* Role toggle — only on step 0 */}
               {step === 0 && (
                 <div className="wf-su-toggle">
                   {(["operator", "contractor"] as Role[]).map(r => (
                     <button key={r} type="button" className={`wf-su-toggle-btn${role === r ? " active" : ""}`}
                       onClick={() => { setRole(r); setStep(0); setErrors({}); }}>
-                      {r === "operator" ? "🏗 Operator (I have a site)" : "🚛 Contractor (I collect waste)"}
+                      {r === "operator" ? "🏗 Operator (I have a lorry)" : "🚛 Contractor (I have a  site)"}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Step indicator */}
               <StepIndicator current={step} total={totalSteps} labels={labels} />
 
-              {/* Heading */}
               <h1 style={{ fontSize: "1.55rem", fontWeight: 700, color: "#1a2e1f", letterSpacing: "-0.02em", lineHeight: 1.2, marginBottom: 4, fontFamily: "'Quicksand',sans-serif" }}>
                 {stepHeadings[role][step]}
               </h1>
@@ -674,7 +653,6 @@ export default function SignupPage() {
                 {stepSubs[role][step]}
               </p>
 
-              {/* Step content */}
               {role === "operator" && step === 0 && <OperatorStep1 data={opData} setData={setOpData} errors={errors} />}
               {role === "operator" && step === 1 && <OperatorStep2 data={opData} setData={setOpData} errors={errors} />}
               {role === "operator" && step === 2 && <OperatorStep3 data={opData} setData={setOpData} errors={errors} />}
@@ -682,10 +660,8 @@ export default function SignupPage() {
               {role === "contractor" && step === 1 && <ContractorStep2 data={coData} setData={setCoData} errors={errors} />}
               {role === "contractor" && step === 2 && <ContractorStep3 data={coData} setData={setCoData} errors={errors} />}
 
-              {/* Navigation */}
               <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid #f0f7f2" }}>
 
-                {/* "Already have an account?" — centered, above button */}
                 {step === 0 && (
                   <p style={{ textAlign: "center", fontSize: "0.8rem", fontWeight: 600, color: "#6b8f7a", fontFamily: "'Quicksand',sans-serif", marginBottom: 14 }}>
                     Already have an account?{" "}
@@ -693,7 +669,6 @@ export default function SignupPage() {
                   </p>
                 )}
 
-                {/* Full-width primary button */}
                 {step < totalSteps - 1 ? (
                   <NavBtn onClick={handleNext} fullWidth>
                     Continue

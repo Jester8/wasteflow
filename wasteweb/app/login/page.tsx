@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-// ─── Typewriter hook ──────────────────────────────────────────────────────────
 function useTypewriter(text: string, speed = 45) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
@@ -22,7 +21,6 @@ function useTypewriter(text: string, speed = 45) {
   return { displayed, done };
 }
 
-// ─── Input ────────────────────────────────────────────────────────────────────
 function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }: {
   label?: string; type?: string; placeholder?: string; error?: string;
   leftIcon?: React.ReactNode; required?: boolean; [k: string]: any;
@@ -86,7 +84,6 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
   );
 }
 
-// ─── PasswordInput ────────────────────────────────────────────────────────────
 function PasswordInput({ label, placeholder, error, ...props }: {
   label?: string; placeholder?: string; error?: string; [k: string]: any;
 }) {
@@ -175,7 +172,6 @@ function PasswordInput({ label, placeholder, error, ...props }: {
   );
 }
 
-// ─── Button ───────────────────────────────────────────────────────────────────
 function Button({ children, type = "button", loading, fullWidth, onClick }: {
   children: React.ReactNode; type?: "button" | "submit";
   loading?: boolean; fullWidth?: boolean; onClick?: () => void;
@@ -226,18 +222,12 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
           Signing in…
         </>
       ) : (
-        <>
-          {children}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-            <path d="M5 12h14M12 5l7 7-7 7"/>
-          </svg>
-        </>
+        children
       )}
     </button>
   );
 }
 
-// ─── Hero text with typewriter ────────────────────────────────────────────────
 function HeroText() {
   const line1 = "Smarter waste logistics";
   const line2 = "for construction sites.";
@@ -286,7 +276,6 @@ function HeroText() {
   );
 }
 
-// ─── Role config ──────────────────────────────────────────────────────────────
 type Role = "operator" | "contractor";
 
 const ROLE_CONFIG: Record<Role, {
@@ -299,7 +288,7 @@ const ROLE_CONFIG: Record<Role, {
     label: "Operator",
     emoji: "🏗",
     placeholder: "you@company.co.uk",
-    redirect: "/operator/dashboard",
+    redirect: "/operator",
   },
   contractor: {
     label: "Contractor",
@@ -309,7 +298,6 @@ const ROLE_CONFIG: Record<Role, {
   },
 };
 
-// ─── Main Login Page ──────────────────────────────────────────────────────────
 export default function LoginPage() {
   const [role, setRole] = useState<Role>("operator");
   const [email, setEmail] = useState("");
@@ -333,7 +321,6 @@ export default function LoginPage() {
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     setLoading(true);
-    // TODO: wire up Firebase auth
     await new Promise(r => setTimeout(r, 1400));
     setLoading(false);
     window.location.href = config.redirect;
@@ -366,7 +353,6 @@ export default function LoginPage() {
           font-family: 'Quicksand', sans-serif;
         }
 
-        /* ── LEFT PANEL ── */
         .wf-hero {
           display: none;
           position: relative;
@@ -405,7 +391,6 @@ export default function LoginPage() {
           padding: 48px;
         }
 
-        /* ── RIGHT PANEL ── */
         .wf-form-panel {
           width: 100%;
           display: flex;
@@ -493,7 +478,6 @@ export default function LoginPage() {
           font-family: 'Quicksand', sans-serif;
         }
 
-        /* role toggle */
         .wf-toggle {
           display: flex;
           background: #f0f7f2;
@@ -582,7 +566,6 @@ export default function LoginPage() {
         }
         .wf-signup-nudge a:hover { color: #B8D52E; }
 
-        /* footer */
         .wf-footer {
           flex-shrink: 0;
           border-top: 1px solid #f0f7f2;
@@ -619,7 +602,6 @@ export default function LoginPage() {
 
       <div className="wf-login-root">
 
-        {/* ── LEFT: Hero ── */}
         <div className="wf-hero">
           <Image
             src="/truck2.png"
@@ -634,7 +616,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* ── RIGHT: Form ── */}
         <div className="wf-form-panel">
           <div className="wf-form-header">
             <Link href="/" className="wf-back-link">
@@ -643,7 +624,6 @@ export default function LoginPage() {
               </svg>
               Back to Home
             </Link>
-            
           </div>
 
           <div className="wf-form-scroll">
@@ -652,7 +632,6 @@ export default function LoginPage() {
               <h1 className="wf-heading">Welcome back</h1>
               <p className="wf-sub">Sign in to your WasteFlow account to continue.</p>
 
-              {/* Role toggle */}
               <div className="wf-toggle">
                 {(["operator", "contractor"] as Role[]).map(r => (
                   <button
