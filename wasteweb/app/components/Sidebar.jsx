@@ -112,38 +112,28 @@ export default function Sidebar({
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         flexShrink: 0,
       }}>
-        {/* Logo / icon */}
+        {/* Logo */}
         {!collapsed ? (
-          <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10,
-              background: "#B8D52E",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
-            }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#0d2416" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
-            <span style={{
-              fontWeight: 700, fontSize: "1.05rem",
-              color: "#e8f5ee", letterSpacing: "-0.01em",
-              fontFamily: "'Quicksand', sans-serif",
-            }}>WasteFlow</span>
+          <Link href="/operator" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+            <Image
+              src="/logo.png"
+              alt="WasteFlow"
+              width={120}
+              height={36}
+              style={{ objectFit: "contain" }}
+              priority
+            />
           </Link>
         ) : (
-          <Link href="/admin">
-            <div style={{
-              width: 32, height: 32, borderRadius: 10,
-              background: "#B8D52E",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="#0d2416" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </div>
+          <Link href="/operator" style={{ display: "flex", alignItems: "center" }}>
+            <Image
+              src="/logo.png"
+              alt="WasteFlow"
+              width={32}
+              height={32}
+              style={{ objectFit: "contain" }}
+              priority
+            />
           </Link>
         )}
 
