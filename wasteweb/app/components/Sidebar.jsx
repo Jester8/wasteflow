@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   {
     label: "Dashboard",
-    href: "/operator",
+    href: "/contractor",
     exact: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   },
   {
     label: "All Requests",
-    href: "/operator/requests",
+    href: "/contractor/requests",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   },
   {
     label: "My Pickups",
-    href: "/operator/pickups",
+    href: "/contractor/pickup",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <rect x="1" y="3" width="15" height="13" rx="2" />
@@ -46,7 +46,7 @@ const NAV_ITEMS = [
   },
   {
     label: "History",
-    href: "/operator/history",
+    href: "/contractor/history",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <polyline points="1 4 1 10 7 10" />

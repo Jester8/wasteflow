@@ -304,7 +304,7 @@ export default function AdminDashboard() {
 
           <div className="wf-content">
             <div className="wf-greeting">
-              <h1>Good morning, Operator 👋</h1>
+              <h1>Good morning, Contractor 👋</h1>
               <p>Here's what's happening on WasteFlow today.</p>
             </div>
 

@@ -638,7 +638,7 @@ export default function SignupPage() {
                   {(["operator", "contractor"] as Role[]).map(r => (
                     <button key={r} type="button" className={`wf-su-toggle-btn${role === r ? " active" : ""}`}
                       onClick={() => { setRole(r); setStep(0); setErrors({}); }}>
-                      {r === "operator" ? "🏗 Operator (I have a lorry)" : "🚛 Contractor (I have a  site)"}
+                      {r === "contractor" ? "🚛 Contractor (I have a site)" : r === "operator" ? "🏗 Operator (I have a lorry)" : ""}
                     </button>
                   ))}
                 </div>

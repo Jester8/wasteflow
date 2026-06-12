@@ -294,7 +294,7 @@ const ROLE_CONFIG: Record<Role, {
     label: "Contractor",
     emoji: "🚛",
     placeholder: "you@haulage.co.uk",
-    redirect: "/contractor/dashboard",
+    redirect: "/contractor",
   },
 };
 
