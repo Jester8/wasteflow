@@ -4,10 +4,8 @@ import Sidebar from "../sidebar";
 import OperatorRequestDetailModal from "../myrequests/Operatorrequestdetailmodal ";
 import CreateRequestModal from "../myrequests/Createrequestmodal";
 
-// ─── Tabs (matching screenshot) ───────────────────────────────────────────────
 const TABS = ["All", "Pending", "Accepted", "Arriving", "In Progress", "Completed"];
 
-// ─── Badge config ─────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
   Pending:       { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b"  },
   Accepted:      { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6"  },
@@ -26,7 +24,6 @@ const WASTE_TYPE_CONFIG = {
   General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
 const INITIAL_REQUESTS = [
   {
     id: "WF-0041", title: "Concrete debris",
@@ -72,8 +69,16 @@ const INITIAL_REQUESTS = [
   },
 ];
 
-// ─── Badge components ─────────────────────────────────────────────────────────
-function StatusBadge({ status }) {
+type RequestItem = typeof INITIAL_REQUESTS[0];
+
+const CreateRequestModalTyped = CreateRequestModal as React.ComponentType<{
+  open: boolean;
+  defaults: RequestItem | null;
+  onClose: () => void;
+  onSubmit: (newReq: RequestItem) => void;
+}>;
+
+function StatusBadge({ status }: { status: keyof typeof STATUS_CONFIG }) {
   const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
   return (
     <span style={{
@@ -92,7 +97,7 @@ function StatusBadge({ status }) {
   );
 }
 
-function WasteTypeBadge({ type }) {
+function WasteTypeBadge({ type }: { type: keyof typeof WASTE_TYPE_CONFIG }) {
   const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
   return (
     <span style={{
@@ -115,8 +120,7 @@ function WasteTypeBadge({ type }) {
   );
 }
 
-// ─── Meta row inside card ─────────────────────────────────────────────────────
-function MetaRow({ icon, text, muted }) {
+function MetaRow({ icon, text, muted }: { icon: React.ReactNode; text: string; muted?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
       <span style={{ color: "#8aab97", marginTop: 1, flexShrink: 0, display: "flex" }}>{icon}</span>
@@ -131,8 +135,7 @@ function MetaRow({ icon, text, muted }) {
   );
 }
 
-// ─── Request card ─────────────────────────────────────────────────────────────
-function RequestCard({ req, onViewDetails }) {
+function RequestCard({ req, onViewDetails }: { req: typeof INITIAL_REQUESTS[0]; onViewDetails: (req: typeof INITIAL_REQUESTS[0]) => void }) {
   return (
     <div className="or-card" style={{
       background: "#ffffff",
@@ -145,7 +148,6 @@ function RequestCard({ req, onViewDetails }) {
       fontFamily: "'Quicksand', sans-serif",
       cursor: "default",
     }}>
-      {/* Title + ID */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <h3 style={{
@@ -161,15 +163,13 @@ function RequestCard({ req, onViewDetails }) {
           }}>{req.id}</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <WasteTypeBadge type={req.wasteType} />
-          <StatusBadge status={req.status} />
+          <WasteTypeBadge type={req.wasteType as keyof typeof WASTE_TYPE_CONFIG} />
+          <StatusBadge status={req.status as keyof typeof STATUS_CONFIG} />
         </div>
       </div>
 
-      {/* Divider */}
       <div style={{ height: 1, background: "#f0f7f2" }} />
 
-      {/* Meta */}
       <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         <MetaRow
           text={req.location}
@@ -217,7 +217,6 @@ function RequestCard({ req, onViewDetails }) {
         )}
       </div>
 
-      {/* View Details button */}
       <button
         className="or-card-btn"
         onClick={() => onViewDetails(req)}
@@ -243,8 +242,7 @@ function RequestCard({ req, onViewDetails }) {
   );
 }
 
-// ─── Empty state ──────────────────────────────────────────────────────────────
-function EmptyState({ hasSearch }) {
+function EmptyState({ hasSearch }: { hasSearch: boolean }) {
   return (
     <div style={{
       gridColumn: "1 / -1",
@@ -287,18 +285,16 @@ function EmptyState({ hasSearch }) {
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function MyRequestsPage() {
   const [collapsed, setCollapsed]       = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [activeTab, setActiveTab]       = useState("All");
   const [search, setSearch]             = useState("");
   const [requests, setRequests]         = useState(INITIAL_REQUESTS);
-  const [selectedReq, setSelectedReq]   = useState(null);
+  const [selectedReq, setSelectedReq]   = useState<typeof INITIAL_REQUESTS[0] | null>(null);
   const [showCreate, setShowCreate]     = useState(false);
-  const [createDefaults, setCreateDefaults] = useState(null);
+  const [createDefaults, setCreateDefaults] = useState<typeof INITIAL_REQUESTS[0] | null>(null);
 
-  // ── Filtering ──
   const filtered = requests.filter((r) => {
     const matchTab = activeTab === "All" || r.status === activeTab;
     const q = search.toLowerCase();
@@ -317,12 +313,11 @@ export default function MyRequestsPage() {
     return acc;
   }, {});
 
-  // ── Handlers ──
-  function handleSubmit(newReq) {
+  function handleSubmit(newReq: typeof INITIAL_REQUESTS[0]) {
     setRequests((prev) => [newReq, ...prev]);
   }
 
-  function handleResubmit(req) {
+  function handleResubmit(req: typeof INITIAL_REQUESTS[0]) {
     setCreateDefaults(req);
     setShowCreate(true);
   }
@@ -350,7 +345,6 @@ export default function MyRequestsPage() {
           height: 100vh; overflow-y: auto;
         }
 
-        /* ── Top bar ── */
         .or-topbar {
           position: sticky; top: 0; z-index: 10;
           background: rgba(245,250,246,0.92);
@@ -390,14 +384,12 @@ export default function MyRequestsPage() {
           background: #B8D52E; border: 1.5px solid #f5faf6;
         }
 
-        /* ── Content ── */
         .or-content {
           padding: 28px;
           display: flex; flex-direction: column; gap: 24px;
           max-width: 1400px; width: 100%;
         }
 
-        /* ── Page header ── */
         .or-page-header {
           display: flex; align-items: flex-start;
           justify-content: space-between; gap: 16px;
@@ -415,7 +407,6 @@ export default function MyRequestsPage() {
           font-weight: 600; font-family: 'Quicksand', sans-serif;
         }
 
-        /* ── Create button ── */
         .or-create-btn {
           display: inline-flex; align-items: center; gap: 8px;
           padding: 11px 20px; border-radius: 12px;
@@ -427,7 +418,6 @@ export default function MyRequestsPage() {
         }
         .or-create-btn:hover { background: #B8D52E; color: #0d2416; transform: translateY(-1px); }
 
-        /* ── Search row ── */
         .or-search-row { display: flex; align-items: center; gap: 12px; }
         .or-search-wrap { flex: 1; position: relative; }
         .or-search-icon {
@@ -460,7 +450,6 @@ export default function MyRequestsPage() {
         }
         .or-filter-btn:hover { border-color: #B8D52E; background: #f5faf6; }
 
-        /* ── Tabs ── */
         .or-tabs-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         .or-tabs-wrap::-webkit-scrollbar { display: none; }
         .or-tabs {
@@ -489,7 +478,6 @@ export default function MyRequestsPage() {
           background: rgba(255,255,255,0.15); color: #B8D52E;
         }
 
-        /* ── Cards grid ── */
         .or-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -506,7 +494,6 @@ export default function MyRequestsPage() {
           border-color: #B8D52E !important;
         }
 
-        /* ── Responsive ── */
         @media (max-width: 1100px) { .or-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
           .or-hamburger { display: flex; }
@@ -523,7 +510,6 @@ export default function MyRequestsPage() {
       `}</style>
 
       <div className="or-root">
-        {/* ── Sidebar ── */}
         <Sidebar
           adminEmail="faluizolaife@gmail.com"
           adminName="User"
@@ -535,10 +521,8 @@ export default function MyRequestsPage() {
           onClose={() => setSidebarOpen(false)}
         />
 
-        {/* ── Main ── */}
         <main className="or-main">
 
-          {/* Top bar */}
           <div className="or-topbar">
             <div className="or-topbar-left">
               <button
@@ -579,10 +563,8 @@ export default function MyRequestsPage() {
             </div>
           </div>
 
-          {/* Content */}
           <div className="or-content">
 
-            {/* Page header + CTA */}
             <div className="or-page-header">
               <div>
                 <h1>My Requests</h1>
@@ -598,7 +580,6 @@ export default function MyRequestsPage() {
               </button>
             </div>
 
-            {/* Search + filter */}
             <div className="or-search-row">
               <div className="or-search-wrap">
                 <span className="or-search-icon">
@@ -625,7 +606,6 @@ export default function MyRequestsPage() {
               </button>
             </div>
 
-            {/* Tabs */}
             <div className="or-tabs-wrap">
               <div className="or-tabs">
                 {TABS.map((tab) => (
@@ -643,7 +623,6 @@ export default function MyRequestsPage() {
               </div>
             </div>
 
-            {/* Cards */}
             <div className="or-grid">
               {filtered.length === 0 ? (
                 <EmptyState hasSearch={!!search} />
@@ -662,14 +641,13 @@ export default function MyRequestsPage() {
         </main>
       </div>
 
-      {/* ── Modals ── */}
       <OperatorRequestDetailModal
         item={selectedReq}
         onClose={() => setSelectedReq(null)}
         onResubmit={handleResubmit}
       />
 
-      <CreateRequestModal
+      <CreateRequestModalTyped
         open={showCreate}
         defaults={createDefaults}
         onClose={() => { setShowCreate(false); setCreateDefaults(null); }}
