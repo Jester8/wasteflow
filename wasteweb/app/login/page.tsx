@@ -288,7 +288,7 @@ const ROLE_CONFIG: Record<Role, {
     label: "Operator",
     emoji: "🏗",
     placeholder: "you@company.co.uk",
-    redirect: "/operator",
+    redirect: "/operators",
   },
   contractor: {
     label: "Contractor",

@@ -1,11 +1,11 @@
-import Navbar from "../../wasteweb/app/components/Navbar";
-import Hero from "../../wasteweb/app/components/Hero";
-import Features from "../../wasteweb/app/components/Features";
-import Footer from "../../wasteweb/app/components/Footer";
-import How from "../../wasteweb/app/components/How";
-import Cta from "../../wasteweb/app/components/Cta";
-import Faq from "../../wasteweb/app/components/Faq";
-import Newsletter from "../../wasteweb/app/components/Newsletter";
+import Navbar from "./components/Navbar";
+import Hero from "./components/Hero";
+import Features from "./components/Features";
+import Footer from "./components/Footer";
+import How from "./components/How";
+import Cta from "./components/Cta";
+import Faq from "./components/Faq";
+import Newsletter from "./components/Newsletter";
 
 export default function Page() {
   return (
