@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
 import "react-loading-skeleton/dist/skeleton.css";
+import { AuthProvider } from "@/app/context/AuthContext";
 
 const quicksand = Quicksand({
   variable: "--font-quicksand",
@@ -33,7 +34,11 @@ export default function RootLayout({
       lang="en"
       className={`${quicksand.variable} ${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   );
 }

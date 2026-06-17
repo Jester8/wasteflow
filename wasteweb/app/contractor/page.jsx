@@ -1,6 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../context/AuthContext";
 import Sidebar from "../components/Sidebar";
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
@@ -75,18 +79,53 @@ function StatusBadge({ status }) {
   );
 }
 
-const MOCK_REQUESTS = [
-  { id: "WF-0041", contractor: "BuildRight Ltd",   site: "Canary Wharf E14", size: "8yd",  date: "09 Jun 2025", status: "Pending"   },
-  { id: "WF-0040", contractor: "Apex Groundworks", site: "Stratford E15",    size: "12yd", date: "08 Jun 2025", status: "Approved"  },
-  { id: "WF-0039", contractor: "Greenfield Civil", site: "Hackney E8",       size: "6yd",  date: "07 Jun 2025", status: "Collected" },
-  { id: "WF-0038", contractor: "SiteClear UK",     site: "Lewisham SE13",    size: "10yd", date: "06 Jun 2025", status: "Rejected"  },
-  { id: "WF-0037", contractor: "BuildRight Ltd",   site: "Bermondsey SE1",   size: "8yd",  date: "05 Jun 2025", status: "Collected" },
-];
+const KYC_BADGE_STYLES = {
+  pending:   { bg: "rgba(184,213,46,0.12)", color: "#5a8a1a", border: "rgba(184,213,46,0.3)", label: "KYC Pending" },
+  submitted: { bg: "rgba(59,130,246,0.08)", color: "#2563eb", border: "rgba(59,130,246,0.2)", label: "Under Review" },
+  approved:  { bg: "rgba(26,77,46,0.08)",   color: "#1a4d2e", border: "rgba(26,77,46,0.2)",  label: "Verified" },
+  rejected:  { bg: "rgba(224,92,92,0.08)",  color: "#c0392b", border: "rgba(224,92,92,0.2)", label: "Rejected" },
+};
+
+function KycStatusBadge({ status }) {
+  const s = KYC_BADGE_STYLES[status] || KYC_BADGE_STYLES.pending;
+  return (
+    <span style={{
+      fontSize: "0.7rem", fontWeight: 700,
+      padding: "4px 12px", borderRadius: 999,
+      background: s.bg, color: s.color,
+      border: `1px solid ${s.border}`,
+      fontFamily: "'Quicksand', sans-serif",
+      letterSpacing: "0.02em", whiteSpace: "nowrap",
+      display: "inline-flex", alignItems: "center",
+    }}>{s.label}</span>
+  );
+}
+
+const MOCK_REQUESTS = [];
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function AdminDashboard() {
+export default function ContractorDashboard() {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const router = useRouter();
+  const { user, profile } = useAuth();
+
+  const displayName = profile?.fullName || user?.email?.split("@")[0] || "Contractor";
+  const displayEmail = profile?.email || user?.email || "";
+  const kycStatus = profile?.kycStatus || "pending";
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut(auth);
+      router.replace("/login");
+    } catch (err) {
+      console.error("Sign out failed:", err);
+      setSigningOut(false);
+    }
+  };
 
   return (
     <>
@@ -261,9 +300,9 @@ export default function AdminDashboard() {
 
       <div className="wf-admin-root">
         <Sidebar
-          adminEmail="operator@wasteflow.org"
-          adminName="Operator"
-          onSignOut={() => { window.location.href = "/login"; }}
+          adminEmail={displayEmail}
+          adminName={displayName}
+          onSignOut={handleSignOut}
           collapsed={collapsed}
           onCollapse={() => setCollapsed(true)}
           onExpand={() => setCollapsed(false)}
@@ -286,7 +325,7 @@ export default function AdminDashboard() {
                   <line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <span className="wf-topbar-title">Operator Dashboard</span>
+              <span className="wf-topbar-title">Contractor Dashboard</span>
             </div>
             <div className="wf-topbar-right">
               <span className="wf-topbar-date">
@@ -303,22 +342,25 @@ export default function AdminDashboard() {
           </div>
 
           <div className="wf-content">
-            <div className="wf-greeting">
-              <h1>Good morning, Contractor 👋</h1>
-              <p>Here's what's happening on WasteFlow today.</p>
+            <div className="wf-greeting" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+              <div>
+                <h1>Good morning, {displayName.split(" ")[0]} 👋</h1>
+                <p>Here's what's happening on WasteFlow today.</p>
+              </div>
+              <KycStatusBadge status={kycStatus} />
             </div>
 
             <div className="wf-stats-grid">
-              <StatCard label="Total Requests" value="128" sub="↑ 12 this week" accent
+              <StatCard label="Total Requests" value="0" accent
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
               />
-              <StatCard label="Pending" value="14" sub="Awaiting review"
+              <StatCard label="Pending" value="0"
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
               />
-              <StatCard label="My Pickups" value="9" sub="Scheduled today"
+              <StatCard label="My Pickups" value="0"
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8l5 3-5 3V8z"/></svg>}
               />
-              <StatCard label="Completed" value="105" sub="All time"
+              <StatCard label="Completed" value="0"
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
               />
             </div>
@@ -326,7 +368,7 @@ export default function AdminDashboard() {
             <div className="wf-table-card">
               <div className="wf-table-header">
                 <span className="wf-table-title">Recent Requests</span>
-                <a href="/operator/requests" className="wf-view-all">
+                <a href="/contractor/requests" className="wf-view-all">
                   View all
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -342,17 +384,25 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_REQUESTS.map(req => (
-                      <tr key={req.id}>
-                        <td><span className="wf-id-cell">{req.id}</span></td>
-                        <td>{req.contractor}</td>
-                        <td>{req.site}</td>
-                        <td>{req.size}</td>
-                        <td style={{ color: "#8aab97" }}>{req.date}</td>
-                        <td><StatusBadge status={req.status} /></td>
-                        <td><button className="wf-action-btn">Review</button></td>
+                    {MOCK_REQUESTS.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: "center", padding: "32px 18px", color: "#9ab8a5" }}>
+                          No requests yet.
+                        </td>
                       </tr>
-                    ))}
+                    ) : (
+                      MOCK_REQUESTS.map(req => (
+                        <tr key={req.id}>
+                          <td><span className="wf-id-cell">{req.id}</span></td>
+                          <td>{req.contractor}</td>
+                          <td>{req.site}</td>
+                          <td>{req.size}</td>
+                          <td style={{ color: "#8aab97" }}>{req.date}</td>
+                          <td><StatusBadge status={req.status} /></td>
+                          <td><button className="wf-action-btn">Review</button></td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

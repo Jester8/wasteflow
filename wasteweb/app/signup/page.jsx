@@ -1,12 +1,14 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { signInWithGoogle, signInWithEmail } from "@/lib/auth";
-import { useAuth } from "../context/AuthContext";
-import { useRouter } from "next/navigation";
+import { signUp, signInWithGoogle } from "@/lib/auth";
+import { saveUserProfile } from "@/lib/firestore";
+import { sendEmailVerification } from "firebase/auth";
+import { auth } from "@/lib/firebase";
 
-function useTypewriter(text: string, speed = 45) {
+function useTypewriter(text, speed = 45) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
   useEffect(() => {
@@ -23,10 +25,7 @@ function useTypewriter(text: string, speed = 45) {
   return { displayed, done };
 }
 
-function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }: {
-  label?: string; type?: string; placeholder?: string; error?: string;
-  leftIcon?: React.ReactNode; required?: boolean; [k: string]: any;
-}) {
+function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
@@ -86,9 +85,7 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
   );
 }
 
-function PasswordInput({ label, placeholder, error, ...props }: {
-  label?: string; placeholder?: string; error?: string; [k: string]: any;
-}) {
+function PasswordInput({ label, placeholder, error, ...props }) {
   const [show, setShow] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -174,10 +171,7 @@ function PasswordInput({ label, placeholder, error, ...props }: {
   );
 }
 
-function Button({ children, type = "button", loading, fullWidth, onClick }: {
-  children: React.ReactNode; type?: "button" | "submit";
-  loading?: boolean; fullWidth?: boolean; onClick?: () => void;
-}) {
+function Button({ children, type = "button", loading, fullWidth, onClick }) {
   return (
     <button
       type={type}
@@ -221,7 +215,7 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
             <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
           </svg>
-          Signing in…
+          Creating account…
         </>
       ) : (
         children
@@ -230,7 +224,7 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
   );
 }
 
-function GoogleButton({ onClick, loading }: { onClick: () => void; loading: boolean }) {
+function GoogleButton({ onClick, loading }) {
   return (
     <button
       type="button"
@@ -332,78 +326,32 @@ function HeroText() {
   );
 }
 
-type Role = "operator" | "contractor";
-
-const ROLE_CONFIG: Record<Role, {
-  label: string;
-  emoji: string;
-  placeholder: string;
-}> = {
-  operator: {
-    label: "Operator",
-    emoji: "",
-    placeholder: "you@company.co.uk",
-  },
-  contractor: {
-    label: "Contractor",
-    emoji: "",
-    placeholder: "you@haulage.co.uk",
-  },
-};
-
-/**
- * Routes a signed-in user to the correct place based on their KYC status.
- * - no profile / no kycStatus  -> /kyc
- * - kycStatus "submitted" or "approved" -> role-specific dashboard
- */
-function routeAfterAuth(router: ReturnType<typeof useRouter>, profile: any) {
-  if (profile?.kycStatus === "submitted" || profile?.kycStatus === "approved") {
-    router.push(profile.role === "operator" ? "/operators/" : "/contractor/");
-  } else {
-    router.push("/kyc");
-  }
-}
-
-export default function LoginPage() {
-  const router = useRouter();
-  const { user, profile, loading: authLoading } = useAuth();
-  const [role, setRole] = useState<Role>("operator");
+export default function SignupPage() {
+  const [role, setRole] = useState("operator");
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [globalError, setGlobalError] = useState("");
-  const [postSignInPending, setPostSignInPending] = useState(false);
-
-  const config = ROLE_CONFIG[role];
-
-  // Single source of truth: AuthContext's `profile`. We only redirect once
-  // AuthContext has finished loading AND we know a sign-in just happened
-  // (postSignInPending) or a user was already present on mount (e.g. refresh).
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
-    routeAfterAuth(router, profile);
-  }, [authLoading, user, profile, router, postSignInPending]);
 
   const validate = () => {
-    const errs: Record<string, string> = {};
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      errs.email = "Please enter a valid email address";
-    if (!password) errs.password = "Password is required";
+    const errs = {};
+    if (!fullName.trim()) errs.fullName = "Full name is required";
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = "Valid email address is required";
+    if (!password || password.length < 8) errs.password = "Password must be at least 8 characters";
     return errs;
   };
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEmailSignup = async () => {
     const errs = validate();
     if (Object.keys(errs).length) { setErrors(errs); return; }
     setErrors({});
     setGlobalError("");
     setLoading(true);
 
-    const result = await signInWithEmail(email, password);
+    const result = await signUp(email, password, fullName);
 
     if (!result.success) {
       setGlobalError(result.error);
@@ -411,17 +359,27 @@ export default function LoginPage() {
       return;
     }
 
-    // Don't fetch the profile ourselves and don't push a route here.
-    // AuthContext's onAuthStateChanged listener will pick up the new user,
-    // fetch the profile, and the effect above will redirect once it's ready.
-    setPostSignInPending(true);
+    await saveUserProfile(result.uid, {
+      role,
+      fullName,
+      email,
+      kycStatus: "pending",
+      provider: "email",
+    });
+
+    if (auth.currentUser) {
+      await sendEmailVerification(auth.currentUser);
+    }
+
     setLoading(false);
+    window.location.href = "/verify-email";
   };
 
-  const handleGoogleSignIn = async () => {
-    setGlobalError("");
-    setGoogleLoading(true);
+const handleGoogleSignup = async () => {
+  setGlobalError("");
+  setGoogleLoading(true);
 
+  try {
     const result = await signInWithGoogle();
 
     if (!result.success) {
@@ -432,9 +390,38 @@ export default function LoginPage() {
       return;
     }
 
-    setPostSignInPending(true);
+    // For new users, save their profile
+    if (result.isNewUser) {
+      // Small delay to ensure auth state is fully updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Get the most up-to-date user info
+      const currentUser = auth.currentUser;
+      
+      if (currentUser) {
+        await saveUserProfile(result.uid, {
+          role,
+          fullName: currentUser.displayName || "",
+          email: currentUser.email || "",
+          kycStatus: "pending",
+          provider: "google",
+        });
+      } else {
+        console.error("No current user found after Google signup");
+        setGlobalError("Something went wrong. Please try again.");
+        setGoogleLoading(false);
+        return;
+      }
+    }
+
     setGoogleLoading(false);
-  };
+    window.location.href = "/kyc";
+  } catch (error) {
+    console.error("Google signup error:", error);
+    setGlobalError("Something went wrong. Please try again.");
+    setGoogleLoading(false);
+  }
+};
 
   return (
     <>
@@ -456,7 +443,7 @@ export default function LoginPage() {
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .wf-login-root {
+        .wf-signup-root {
           height: 100vh;
           display: flex;
           overflow: hidden;
@@ -525,8 +512,9 @@ export default function LoginPage() {
           flex: 1;
           overflow-y: auto;
           display: flex;
-          align-items: center;
-          padding: 32px;
+          align-items: flex-start;
+          justify-content: center;
+          padding: 24px 32px 32px;
         }
 
         .wf-form-inner {
@@ -589,24 +577,6 @@ export default function LoginPage() {
           margin-bottom: 20px;
         }
 
-        .wf-forgot {
-          display: flex;
-          justify-content: flex-end;
-          margin-top: 6px;
-        }
-        .wf-forgot a {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: #1a4d2e;
-          text-decoration: none;
-          transition: color 0.18s;
-          font-family: 'Quicksand', sans-serif;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .wf-forgot a:hover { color: #B8D52E; }
-
         .wf-google-btn {
           width: 100%;
           margin-bottom: 16px;
@@ -631,35 +601,6 @@ export default function LoginPage() {
           white-space: nowrap;
         }
 
-        .wf-operator-note {
-          text-align: center;
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          margin-top: 18px;
-          line-height: 1.6;
-          font-family: 'Quicksand', sans-serif;
-          font-weight: 600;
-        }
-
-        .wf-signup-nudge {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #6b8f7a;
-          font-family: 'Quicksand', sans-serif;
-          margin-top: 16px;
-        }
-        .wf-signup-nudge a {
-          color: #1a4d2e;
-          font-weight: 700;
-          text-decoration: none;
-          transition: color 0.18s;
-        }
-        .wf-signup-nudge a:hover { color: #B8D52E; }
-
         .wf-error-banner {
           background: #fff5f5;
           border: 1px solid #f5c6c6;
@@ -678,6 +619,25 @@ export default function LoginPage() {
           line-height: 1.5;
           margin: 0;
         }
+
+        .wf-signin-nudge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #6b8f7a;
+          font-family: 'Quicksand', sans-serif;
+          margin-top: 16px;
+        }
+        .wf-signin-nudge a {
+          color: #1a4d2e;
+          font-weight: 700;
+          text-decoration: none;
+          transition: color 0.18s;
+        }
+        .wf-signin-nudge a:hover { color: #B8D52E; }
 
         .wf-footer {
           flex-shrink: 0;
@@ -713,7 +673,7 @@ export default function LoginPage() {
         .wf-footer-links a:hover { color: #1a4d2e; }
       `}</style>
 
-      <div className="wf-login-root">
+      <div className="wf-signup-root">
         <div className="wf-hero">
           <Image
             src="/truck2.png"
@@ -721,6 +681,7 @@ export default function LoginPage() {
             fill
             style={{ objectFit: "cover", objectPosition: "center" }}
             sizes="50vw"
+            priority
           />
           <div className="wf-hero-scrim" />
           <div className="wf-hero-content">
@@ -735,18 +696,18 @@ export default function LoginPage() {
 
           <div className="wf-form-scroll">
             <div className="wf-form-inner">
-              <h1 className="wf-heading">Welcome back</h1>
-              <p className="wf-sub">Sign in to your WasteFlow account to continue.</p>
+              <h1 className="wf-heading">Create your account</h1>
+              <p className="wf-sub">Join WasteFlow to start managing construction waste efficiently.</p>
 
               <div className="wf-toggle">
-                {(["operator", "contractor"] as Role[]).map(r => (
+                {["operator", "contractor"].map(r => (
                   <button
                     key={r}
                     type="button"
                     className={`wf-toggle-btn${role === r ? " active" : ""}`}
-                    onClick={() => { setRole(r); setErrors({}); setGlobalError(""); }}
+                    onClick={() => setRole(r)}
                   >
-                    {ROLE_CONFIG[r].emoji} {ROLE_CONFIG[r].label}
+                    {r === "operator" ? " Operator" : " Contractor"}
                   </button>
                 ))}
               </div>
@@ -761,7 +722,7 @@ export default function LoginPage() {
               )}
 
               <div className="wf-google-btn">
-                <GoogleButton onClick={handleGoogleSignIn} loading={googleLoading} />
+                <GoogleButton onClick={handleGoogleSignup} loading={googleLoading} />
               </div>
 
               <div className="wf-divider">
@@ -770,52 +731,56 @@ export default function LoginPage() {
                 <div className="wf-divider-line" />
               </div>
 
-              <form onSubmit={handleEmailSignIn}>
-                <div className="wf-form-fields">
-                  <Input
-                    label="Email Address"
-                    type="email"
-                    placeholder={config.placeholder}
-                    required
-                    value={email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                    error={errors.email}
-                    leftIcon={
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
-                      </svg>
-                    }
-                  />
-                  <div>
-                    <PasswordInput
-                      label="Password"
-                      placeholder="Enter your password"
-                      value={password}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                      error={errors.password}
-                    />
-                    <div className="wf-forgot">
-                      <Link href={`/reset?role=${role}`}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
-                          <circle cx="12" cy="12" r="10"/>
-                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                          <line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                        Forgot password?
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+              <div className="wf-form-fields">
+                <Input
+                  label="Full Name"
+                  placeholder="John Smith"
+                  required
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  error={errors.fullName}
+                  leftIcon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+                    </svg>
+                  }
+                />
+                <Input
+                  label="Email Address"
+                  type="email"
+                  placeholder="you@company.co.uk"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  error={errors.email}
+                  leftIcon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  }
+                />
+                <PasswordInput
+                  label="Password"
+                  placeholder="Create a strong password (8+ chars)"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  error={errors.password}
+                />
+              </div>
 
-                <Button type="submit" fullWidth loading={loading}>
-                  Sign in as {config.label}
-                </Button>
-              </form>
+              <Button type="button" fullWidth loading={loading} onClick={handleEmailSignup}>
+                Create account
+              </Button>
 
-              <p className="wf-signup-nudge">
-                Don't have an account?{" "}
-                <Link href={`/signup?role=${role}`}>Sign up</Link>
+              <p className="wf-signin-nudge">
+                Already have an account?{" "}
+                <Link href="/login">Sign in</Link>
+              </p>
+
+              <p style={{ textAlign: "center", fontSize: "0.72rem", fontWeight: 600, color: "#9ab8a5", fontFamily: "'Quicksand',sans-serif", marginTop: 16, lineHeight: 1.6 }}>
+                By creating an account you agree to our{" "}
+                <a href="#" style={{ color: "#1a4d2e", textDecoration: "none" }}>Terms</a> &{" "}
+                <a href="#" style={{ color: "#1a4d2e", textDecoration: "none" }}>Privacy Policy</a>
               </p>
             </div>
           </div>
