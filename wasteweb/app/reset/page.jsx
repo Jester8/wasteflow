@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -210,8 +210,7 @@ const ROLE_CONFIG = {
   contractor: { label: "Contractor", placeholder: "you@haulage.co.uk" },
 };
 
-// Separate component that uses useSearchParams
-function ResetPasswordContent() {
+export default function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialRole = searchParams.get("role") === "contractor" ? "contractor" : "operator";
@@ -815,28 +814,5 @@ function ResetPasswordContent() {
         </div>
       </div>
     </>
-  );
-}
-
-// Main component with Suspense boundary
-export default function ResetPasswordPage() {
-  return (
-    <Suspense fallback={
-      <div style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Quicksand', sans-serif",
-        background: "#f5faf6",
-        color: "#1a2e1f",
-        fontWeight: 600,
-        fontSize: "1rem",
-      }}>
-        Loading...
-      </div>
-    }>
-      <ResetPasswordContent />
-    </Suspense>
   );
 }

@@ -455,7 +455,8 @@ export default function KycPage() {
     if (!authLoading && profile?.kycStatus === "submitted") {
       router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
     }
-  }, [user, profile, authLoading, router]);
+
+      }, [user, profile, authLoading, router]);
 
   if (authLoading || !profile) {
     return (
@@ -557,7 +558,7 @@ export default function KycPage() {
       setSubmitting(false);
       setUploadProgress("");
 
-      router.replace(isOperator ? "/operator/" : "/contractor/");
+      router.replace(isOperator ? "/operators/" : "/contractor/");
 
     } catch (err) {
       console.error(err);
