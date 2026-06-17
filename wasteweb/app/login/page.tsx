@@ -406,7 +406,7 @@ export default function LoginPage() {
     const result = await signInWithEmail(email, password);
 
     if (!result.success) {
-      setGlobalError(result.error);
+      setGlobalError(result.error || "Sign in failed. Please try again.");
       setLoading(false);
       return;
     }
@@ -425,9 +425,7 @@ export default function LoginPage() {
     const result = await signInWithGoogle();
 
     if (!result.success) {
-      if (result.error) {
-        setGlobalError(result.error);
-      }
+      setGlobalError(result.error || "Google sign in failed. Please try again.");
       setGoogleLoading(false);
       return;
     }
