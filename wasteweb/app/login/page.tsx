@@ -267,8 +267,10 @@ function routeAfterAuth(router: ReturnType<typeof useRouter>, profile: any) {
     router.push("/kyc");
     return;
   }
+  
   const { kycStatus, role } = profile;
-  if (kycStatus === "submitted" || kycStatus === "approved") {
+  
+  if (kycStatus === "pending" || kycStatus === "submitted" || kycStatus === "approved") {
     router.push(role === "operator" ? "/operators/" : "/contractor/");
   } else {
     router.push("/kyc");
