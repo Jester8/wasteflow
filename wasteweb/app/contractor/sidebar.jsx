@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   {
     label: "Dashboard",
-    href: "/operators",
+    href: "/contractor",
     exact: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   },
   {
     label: "Create Requests",
-    href: "/operators/requests",
+    href: "/contractor/requests",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   },
   {
     label: "My Requests",
-    href: "/operators/myrequests",
+    href: "/contractor/myrequests",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <rect x="1" y="3" width="15" height="13" rx="2" />
@@ -45,7 +45,7 @@ const NAV_ITEMS = [
   },
   {
     label: "History",
-    href: "/operators/history",
+    href: "/contractor/history",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <polyline points="1 4 1 10 7 10" />
@@ -113,7 +113,7 @@ export default function Sidebar({
       }}>
         {/* Logo */}
         {!collapsed ? (
-          <Link href="/operators" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
+          <Link href="/contractor" style={{ display: "flex", alignItems: "center", textDecoration: "none" }}>
             <Image
               src="/logo.png"
               alt="WasteFlow"

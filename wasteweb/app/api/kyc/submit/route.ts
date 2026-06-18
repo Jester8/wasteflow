@@ -1,4 +1,3 @@
-// app/api/kyc/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "../../../lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
@@ -7,26 +6,46 @@ export async function POST(req: NextRequest) {
   try {
     const { uid, kycData } = await req.json();
 
-    if (!uid || !kycData) {
-      return NextResponse.json({ error: "Missing uid or kycData" }, { status: 400 });
+    if (!uid || typeof uid !== "string") {
+      return NextResponse.json({ error: "Invalid uid" }, { status: 400 });
     }
 
-    // Write KYC payload to /kyc/{uid}
-    await adminDb.doc(`kyc/${uid}`).set({
+    // 1. Verify the user document actually exists
+    const userRef = adminDb.doc(`users/${uid}`);
+    const userSnap = await userRef.get();
+
+    if (!userSnap.exists) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 2. Check KYC hasn't already been submitted
+    const kycRef = adminDb.doc(`kyc/${uid}`);
+    const kycSnap = await kycRef.get();
+
+    if (kycSnap.exists) {
+      return NextResponse.json({ error: "KYC already submitted" }, { status: 409 });
+    }
+
+    // 3. Write KYC document
+    await kycRef.set({
       ...kycData,
       uid,
       submittedAt: FieldValue.serverTimestamp(),
     });
 
-    // Set kycStatus on /users/{uid} — Admin SDK bypasses Firestore rules
-    await adminDb.doc(`users/${uid}`).update({
+    // 4. Update user's kycStatus — Admin SDK bypasses Firestore rules
+    await userRef.update({
       kycStatus: "submitted",
       kycSubmittedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("KYC submit error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  } catch (err: any) {
+    console.error("[kyc/submit]", err);
+    return NextResponse.json(
+      { error: err.message ?? "Internal server error" },
+      { status: 500 }
+    );
   }
 }

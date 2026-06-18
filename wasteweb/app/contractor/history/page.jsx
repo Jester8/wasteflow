@@ -1,488 +1,712 @@
 "use client";
 
-import { useState } from "react";
-import Sidebar from "../../components/Sidebar";
-import HistoryDetailModal from "./components/historydetailmodal";
+import { useState, useEffect, useRef } from "react";
+
+// ─── Waste type options ───────────────────────────────────────────────────────
+const WASTE_TYPES = ["Mixed", "Metal", "Concrete", "Green", "Hazardous", "General"];
 
 const WASTE_TYPE_CONFIG = {
-  Mixed:    { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
-  Metal:    { bg: "rgba(100,116,139,0.10)",color: "#475569", border: "rgba(100,116,139,0.25)" },
-  Concrete: { bg: "rgba(120,113,108,0.10)",color: "#57534e", border: "rgba(120,113,108,0.25)" },
-  Green:    { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)"  },
-  Hazardous:{ bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
-  General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
+  Mixed:     { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
+  Metal:     { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
+  Concrete:  { bg: "rgba(120,113,108,0.10)", color: "#57534e", border: "rgba(120,113,108,0.25)" },
+  Green:     { bg: "rgba(34,197,94,0.10)",   color: "#15803d", border: "rgba(34,197,94,0.25)"  },
+  Hazardous: { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
+  General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-export const MOCK_HISTORY = [
-  {
-    id: "WF-0039",
-    title: "Concrete Debris",
-    wasteType: "Mixed",
-    location: "Allen Street, London",
-    dates: "Jan 25 – Jan 28, 2026",
-    weight: "1 Ton",
-    note: "",
-  },
-  {
-    id: "WF-0035",
-    title: "Demolition Site Debris",
-    wasteType: "Concrete",
-    location: "Lagos, NGA",
-    dates: "Jan 25 – Jan 27, 2026",
-    weight: "3 Tons",
-    note: "Take for Recycle",
-  },
-  {
-    id: "WF-0031",
-    title: "General waste clearance",
-    wasteType: "General",
-    location: "854 Bristol Road, Selly Oak",
-    dates: "Dec 10 – Dec 11, 2025",
-    weight: "8 Tonnes",
-    note: "Ring Temi when you arrive",
-  },
-  {
-    id: "WF-0028",
-    title: "Metal scrap removal",
-    wasteType: "Metal",
-    location: "Canary Wharf, E14",
-    dates: "Nov 20 – Nov 21, 2025",
-    weight: "14 Tonnes",
-    note: "",
-  },
-  {
-    id: "WF-0024",
-    title: "Green waste disposal",
-    wasteType: "Green",
-    location: "Hackney, E8",
-    dates: "Oct 5 – Oct 5, 2025",
-    weight: "5 Tonnes",
-    note: "",
-  },
-  {
-    id: "WF-0019",
-    title: "Site clearance — Phase 2",
-    wasteType: "Mixed",
-    location: "Stratford, E15",
-    dates: "Sep 14 – Sep 16, 2025",
-    weight: "22 Tonnes",
-    note: "Access via rear gate only",
-  },
-];
-
-function WasteTypeBadge({ type }) {
+// ─── Tiny helpers ─────────────────────────────────────────────────────────────
+function WasteTypePill({ type, selected, onClick }) {
   const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
   return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: "0.7rem", fontWeight: 600,
-      padding: "3px 9px", borderRadius: 999,
-      background: c.bg, color: c.color,
-      border: `1px solid ${c.border}`,
-      fontFamily: "'Quicksand', sans-serif",
-      whiteSpace: "nowrap",
-    }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-      </svg>
-      {type}
-    </span>
-  );
-}
-
-function CompletedBadge() {
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      padding: "3px 9px", borderRadius: 999,
-      background: "rgba(184,213,46,0.12)", color: "#3a6b00",
-      border: "1px solid rgba(184,213,46,0.35)",
-      fontFamily: "'Quicksand', sans-serif",
-      whiteSpace: "nowrap",
-    }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-        <polyline points="22 4 12 14.01 9 11.01"/>
-      </svg>
-      Completed
-    </span>
-  );
-}
-
-function MetaRow({ icon, text, muted }) {
-  return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
-      <span style={{ color: "#8aab97", marginTop: 1, flexShrink: 0 }}>{icon}</span>
-      <span style={{
-        fontSize: "0.8rem", fontWeight: 600,
-        color: muted ? "#8aab97" : "#3a5a45",
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        padding: "6px 12px", borderRadius: 999, cursor: "pointer",
         fontFamily: "'Quicksand', sans-serif",
-        lineHeight: 1.4,
-      }}>{text}</span>
-    </div>
+        fontSize: "0.75rem", fontWeight: 700,
+        background: selected ? c.bg : "#f5faf6",
+        color: selected ? c.color : "#8aab97",
+        border: selected ? `1.5px solid ${c.border}` : "1.5px solid #e8f2eb",
+        transition: "all 0.15s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {type}
+    </button>
   );
 }
 
-function HistoryCard({ item, onViewDetails }) {
+function Label({ children, required }) {
   return (
-    <div className="wf-hist-card" style={{
-      background: "#ffffff",
-      border: "1px solid #e8f2eb",
-      borderRadius: 16,
-      padding: "20px",
-      display: "flex", flexDirection: "column", gap: 14,
-      boxShadow: "0 1px 6px rgba(0,0,0,0.05)",
-      transition: "box-shadow 0.2s, transform 0.2s",
+    <label style={{
+      display: "block",
+      fontSize: "0.7rem", fontWeight: 700,
+      color: "#9ab8a5", letterSpacing: "0.06em",
+      textTransform: "uppercase",
       fontFamily: "'Quicksand', sans-serif",
+      marginBottom: 7,
     }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-          <h3 style={{
-            fontSize: "1rem", fontWeight: 700,
-            color: "#1a2e1f", margin: 0,
-            fontFamily: "'Quicksand', sans-serif",
-            lineHeight: 1.3,
-          }}>{item.title}</h3>
-          <span style={{
-            fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
-            fontFamily: "'Quicksand', sans-serif",
-            whiteSpace: "nowrap", letterSpacing: "0.04em",
-          }}>{item.id}</span>
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <WasteTypeBadge type={item.wasteType} />
-          <CompletedBadge />
-        </div>
-      </div>
+      {children}
+      {required && <span style={{ color: "#ef4444", marginLeft: 3 }}>*</span>}
+    </label>
+  );
+}
 
-      <div style={{ height: 1, background: "#f0f7f2" }} />
+function FieldHint({ children }) {
+  return (
+    <p style={{
+      fontSize: "0.7rem", fontWeight: 600, color: "#9ab8a5",
+      fontFamily: "'Quicksand', sans-serif", marginTop: 5,
+    }}>
+      {children}
+    </p>
+  );
+}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <MetaRow icon={
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-        } text={item.location} />
-        <MetaRow icon={
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-        } text={item.dates} />
-        <MetaRow icon={
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        } text={item.weight} />
-        {item.note && (
-          <MetaRow icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-          } text={item.note} muted />
-        )}
-      </div>
+function inputStyle(focused, error) {
+  return {
+    width: "100%",
+    padding: "10px 13px",
+    borderRadius: 10,
+    border: error
+      ? "1.5px solid #fca5a5"
+      : focused
+        ? "1.5px solid #B8D52E"
+        : "1.5px solid #e8f2eb",
+    background: "#ffffff",
+    fontSize: "0.875rem", fontWeight: 600,
+    color: "#1a2e1f",
+    fontFamily: "'Quicksand', sans-serif",
+    outline: "none",
+    transition: "border 0.18s, box-shadow 0.18s",
+    boxShadow: focused && !error ? "0 0 0 3px rgba(184,213,46,0.12)" : "none",
+    boxSizing: "border-box",
+  };
+}
 
-      <div style={{ marginTop: 2 }}>
-        <button
-          className="wf-hist-btn-view"
-          onClick={() => onViewDetails(item)}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-            padding: "10px 16px", borderRadius: 10, cursor: "pointer",
-            background: "none", border: "1px solid #e8f2eb",
-            color: "#1a4d2e", fontSize: "0.82rem", fontWeight: 700,
-            fontFamily: "'Quicksand', sans-serif",
-            transition: "background 0.18s, border-color 0.18s",
-          }}
-        >
-          View Details
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-          </svg>
-        </button>
-      </div>
+function FocusInput({ as: Tag = "input", error, style: extraStyle, ...props }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Tag
+      {...props}
+      onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={(e)  => { setFocused(false); props.onBlur?.(e);  }}
+      style={{ ...inputStyle(focused, error), ...extraStyle }}
+    />
+  );
+}
+
+// ─── Step indicators ──────────────────────────────────────────────────────────
+const STEPS = ["Job Details", "Schedule", "Notes"];
+
+function StepBar({ current }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 28 }}>
+      {STEPS.map((label, i) => {
+        const done    = i < current;
+        const active  = i === current;
+        const last    = i === STEPS.length - 1;
+        return (
+          <div key={i} style={{ display: "flex", alignItems: "center", flex: last ? "none" : 1, minWidth: 0 }}>
+            {/* Circle */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flexShrink: 0 }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: "50%",
+                background: done ? "#1a4d2e" : active ? "#B8D52E" : "#f0f7f2",
+                border: done ? "2px solid #1a4d2e" : active ? "2px solid #B8D52E" : "2px solid #e8f2eb",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.2s",
+              }}>
+                {done ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                ) : (
+                  <span style={{
+                    fontSize: "0.65rem", fontWeight: 800,
+                    color: active ? "#0d2416" : "#9ab8a5",
+                    fontFamily: "'Quicksand', sans-serif",
+                  }}>{i + 1}</span>
+                )}
+              </div>
+              <span style={{
+                fontSize: "0.62rem", fontWeight: 700,
+                color: active ? "#1a2e1f" : done ? "#4a7a5a" : "#9ab8a5",
+                fontFamily: "'Quicksand', sans-serif",
+                whiteSpace: "nowrap",
+                letterSpacing: "0.03em",
+              }}>{label}</span>
+            </div>
+            {/* Connector */}
+            {!last && (
+              <div style={{
+                flex: 1, height: 2, marginBottom: 18,
+                background: done ? "#1a4d2e" : "#e8f2eb",
+                transition: "background 0.3s",
+              }} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-export default function HistoryPage() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
+// ─── Review summary ───────────────────────────────────────────────────────────
+function ReviewRow({ label, value, accent }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "flex-start",
+      padding: "11px 0",
+      borderBottom: "1px solid #f0f7f2",
+      gap: 12,
+    }}>
+      <span style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5",
+        fontFamily: "'Quicksand', sans-serif",
+        textTransform: "uppercase", letterSpacing: "0.05em",
+        flexShrink: 0,
+      }}>{label}</span>
+      <span style={{
+        fontSize: "0.84rem", fontWeight: 600,
+        color: accent ? "#1a4d2e" : "#1a2e1f",
+        fontFamily: "'Quicksand', sans-serif",
+        textAlign: "right",
+      }}>{value || "—"}</span>
+    </div>
+  );
+}
 
-  const filtered = MOCK_HISTORY.filter((item) => {
-    const q = search.toLowerCase();
-    return !q ||
-      item.title.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q) ||
-      item.wasteType.toLowerCase().includes(q);
-  });
+// ─── Main modal ───────────────────────────────────────────────────────────────
+const EMPTY_FORM = {
+  title: "",
+  wasteType: "",
+  location: "",
+  dateFrom: "",
+  dateTo: "",
+  weight: "",
+  weightUnit: "Tonnes",
+  note: "",
+};
+
+export default function CreateRequestModal({ open, onClose, onSubmit }) {
+  const [step, setStep]     = useState(0);
+  const [form, setForm]     = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const bodyRef = useRef(null);
+
+  // Lock scroll
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  // Escape key
+  useEffect(() => {
+    if (!open) return;
+    const fn = (e) => { if (e.key === "Escape") handleClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [open]);
+
+  // Scroll body to top on step change
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step]);
+
+  const set = (k) => (e) =>
+    setForm((p) => ({ ...p, [k]: e.target ? e.target.value : e }));
+
+  function handleClose() {
+    onClose?.();
+    // slight delay so exit animation plays
+    setTimeout(() => { setStep(0); setForm(EMPTY_FORM); setErrors({}); setSubmitted(false); }, 300);
+  }
+
+  function validateStep(s) {
+    const e = {};
+    if (s === 0) {
+      if (!form.title.trim())    e.title    = "Job title is required";
+      if (!form.wasteType)       e.wasteType = "Please select a waste type";
+      if (!form.location.trim()) e.location = "Location is required";
+      if (!form.weight.trim())   e.weight   = "Estimated weight is required";
+    }
+    if (s === 1) {
+      if (!form.dateFrom) e.dateFrom = "Start date is required";
+      if (!form.dateTo)   e.dateTo   = "End date is required";
+      if (form.dateFrom && form.dateTo && form.dateTo < form.dateFrom)
+        e.dateTo = "End date must be after start date";
+    }
+    return e;
+  }
+
+  function next() {
+    const e = validateStep(step);
+    if (Object.keys(e).length) { setErrors(e); return; }
+    setErrors({});
+    setStep((s) => s + 1);
+  }
+
+  function back() {
+    setErrors({});
+    setStep((s) => s - 1);
+  }
+
+  function submit() {
+    const id = `WF-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const payload = {
+      ...form,
+      id,
+      status: "Pending",
+      dates: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`,
+      weight: `${form.weight} ${form.weightUnit}`,
+    };
+    onSubmit?.(payload);
+    setSubmitted(true);
+  }
+
+  function fmt(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  if (!open) return null;
 
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&display=swap');
 
-        .wf-admin-root {
-          display: flex; min-height: 100vh;
-          background: #f5faf6;
-          font-family: 'Quicksand', sans-serif;
+        @keyframes crBackdropIn  { from { opacity:0 } to { opacity:1 } }
+        @keyframes crDrawerIn    { from { transform:translateX(100%); opacity:0 } to { transform:translateX(0); opacity:1 } }
+        @keyframes crSuccessIn   { from { opacity:0; transform:scale(0.85) } to { opacity:1; transform:scale(1) } }
+        @keyframes crRingPop     { 0%{transform:scale(0)} 60%{transform:scale(1.2)} 100%{transform:scale(1)} }
+        @keyframes crCheckDraw   { from{stroke-dashoffset:30} to{stroke-dashoffset:0} }
+
+        .cr-backdrop {
+          position:fixed; inset:0; z-index:300;
+          background:rgba(10,22,13,0.45);
+          backdrop-filter:blur(3px);
+          animation:crBackdropIn 0.22s ease both;
+          display:flex; justify-content:flex-end;
         }
 
-        .wf-admin-main {
-          flex: 1; min-width: 0;
-          display: flex; flex-direction: column;
-          height: 100vh; overflow-y: auto;
+        .cr-drawer {
+          width:100%; max-width:480px; height:100%;
+          background:#ffffff;
+          display:flex; flex-direction:column;
+          animation:crDrawerIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
+          box-shadow:-8px 0 40px rgba(0,0,0,0.12);
+          overflow:hidden;
         }
 
-        .wf-topbar {
-          position: sticky; top: 0; z-index: 10;
-          background: rgba(245,250,246,0.92);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid #e8f2eb;
-          padding: 0 28px; height: 60px;
-          display: flex; align-items: center;
-          justify-content: space-between; flex-shrink: 0;
+        .cr-header {
+          display:flex; align-items:center; justify-content:space-between;
+          padding:20px 24px;
+          border-bottom:1px solid #f0f7f2;
+          flex-shrink:0; background:#ffffff;
         }
 
-        .wf-topbar-left { display: flex; align-items: center; gap: 14px; }
-
-        .wf-hamburger {
-          display: none;
-          background: none; border: none; cursor: pointer;
-          color: #1a4d2e; padding: 6px; border-radius: 8px;
-          align-items: center; justify-content: center;
-          transition: background 0.18s; flex-shrink: 0;
+        .cr-close {
+          width:34px; height:34px; border-radius:9px;
+          background:#f5faf6; border:1px solid #e8f2eb;
+          display:flex; align-items:center; justify-content:center;
+          cursor:pointer; color:#4a7a5a;
+          transition:background 0.18s, border-color 0.18s, color 0.18s;
+          flex-shrink:0;
         }
-        .wf-hamburger:hover { background: rgba(184,213,46,0.12); }
+        .cr-close:hover { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
 
-        .wf-topbar-title {
-          font-size: 1rem; font-weight: 700;
-          color: #1a2e1f; font-family: 'Quicksand', sans-serif;
+        .cr-body {
+          flex:1; overflow-y:auto; padding:24px;
+          display:flex; flex-direction:column; gap:20px;
         }
+        .cr-body::-webkit-scrollbar { width:4px; }
+        .cr-body::-webkit-scrollbar-track { background:transparent; }
+        .cr-body::-webkit-scrollbar-thumb { background:#c6e2d0; border-radius:4px; }
 
-        .wf-topbar-right { display: flex; align-items: center; gap: 10px; }
-
-        .wf-notif-btn {
-          width: 34px; height: 34px; border-radius: 9px;
-          background: #ffffff; border: 1px solid #e8f2eb;
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; color: #4a7a5a; position: relative;
-          transition: border 0.18s, color 0.18s;
-        }
-        .wf-notif-btn:hover { border-color: #B8D52E; color: #1a4d2e; }
-
-        .wf-notif-dot {
-          position: absolute; top: 7px; right: 7px;
-          width: 7px; height: 7px; border-radius: 50%;
-          background: #B8D52E; border: 1.5px solid #f5faf6;
+        .cr-footer {
+          flex-shrink:0; padding:16px 24px;
+          border-top:1px solid #f0f7f2;
+          background:#ffffff;
+          display:flex; flex-direction:column; gap:8px;
         }
 
-        .wf-content {
-          padding: 28px;
-          display: flex; flex-direction: column; gap: 24px;
+        .cr-btn-primary {
+          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+          padding:12px 20px; border-radius:10px;
+          background:#1a4d2e; border:none; cursor:pointer;
+          color:#B8D52E; font-size:0.88rem; font-weight:700;
+          font-family:'Quicksand',sans-serif;
+          transition:background 0.18s, color 0.18s, transform 0.15s;
+        }
+        .cr-btn-primary:hover { background:#B8D52E; color:#0d2416; transform:translateY(-1px); }
+
+        .cr-btn-secondary {
+          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+          padding:12px 20px; border-radius:10px;
+          background:none; border:1px solid #e8f2eb; cursor:pointer;
+          color:#1a4d2e; font-size:0.88rem; font-weight:700;
+          font-family:'Quicksand',sans-serif;
+          transition:background 0.18s, border-color 0.18s;
+        }
+        .cr-btn-secondary:hover { background:#f0f7f2; border-color:#B8D52E; }
+
+        .cr-field { display:flex; flex-direction:column; }
+
+        .cr-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+        .cr-error {
+          font-size:0.7rem; font-weight:600; color:#b91c1c;
+          font-family:'Quicksand',sans-serif; margin-top:5px;
         }
 
-        .wf-page-header h1 {
-          font-size: clamp(1.4rem, 2.5vw, 1.75rem);
-          font-weight: 700; color: #1a2e1f;
-          letter-spacing: -0.02em; margin-bottom: 4px;
-          font-family: 'Quicksand', sans-serif;
+        .cr-weight-wrap { display:flex; gap:8px; }
+        .cr-weight-wrap input { flex:1; }
+
+        .cr-unit-select {
+          padding:10px 10px; border-radius:10px;
+          border:1.5px solid #e8f2eb; background:#ffffff;
+          color:#1a2e1f; font-size:0.875rem; font-weight:600;
+          font-family:'Quicksand',sans-serif; cursor:pointer;
+          outline:none; transition:border 0.18s;
+          flex-shrink:0;
         }
-        .wf-page-header p {
-          font-size: 0.875rem; color: #6b8f7a;
-          font-weight: 600; font-family: 'Quicksand', sans-serif;
+        .cr-unit-select:focus { border-color:#B8D52E; box-shadow:0 0 0 3px rgba(184,213,46,0.12); }
+
+        .cr-success-wrap {
+          flex:1; display:flex; flex-direction:column;
+          align-items:center; justify-content:center;
+          gap:16px; padding:40px 32px; text-align:center;
+          animation:crSuccessIn 0.35s cubic-bezier(0.22,1,0.36,1) both;
         }
 
-        .wf-search-row { display: flex; align-items: center; gap: 12px; }
-        .wf-search-wrap { flex: 1; position: relative; }
-
-        .wf-search-icon {
-          position: absolute; left: 14px; top: 50%;
-          transform: translateY(-50%);
-          color: #8aab97; pointer-events: none;
-          display: flex; align-items: center;
+        .cr-success-ring {
+          width:72px; height:72px; border-radius:50%;
+          background:#1a4d2e;
+          display:flex; align-items:center; justify-content:center;
+          animation:crRingPop 0.4s cubic-bezier(0.22,1,0.36,1) 0.1s both;
         }
 
-        .wf-search-input {
-          width: 100%; padding: 11px 14px 11px 40px;
-          border: 1px solid #e8f2eb; border-radius: 12px;
-          background: #ffffff; font-size: 0.875rem;
-          font-weight: 600; color: #1a2e1f;
-          font-family: 'Quicksand', sans-serif;
-          outline: none; transition: border 0.18s, box-shadow 0.18s;
-        }
-        .wf-search-input::placeholder { color: #9ab8a5; }
-        .wf-search-input:focus {
-          border-color: #B8D52E;
-          box-shadow: 0 0 0 3px rgba(184,213,46,0.12);
+        .cr-success-check {
+          stroke-dasharray:30;
+          stroke-dashoffset:30;
+          animation:crCheckDraw 0.4s ease 0.4s forwards;
         }
 
-        .wf-summary-strip {
-          display: flex; align-items: center; gap: 8px;
-          padding: 12px 18px; border-radius: 12px;
-          background: #ffffff; border: 1px solid #e8f2eb;
-          width: fit-content;
+        .cr-review-box {
+          background:#f5faf6; border:1px solid #e8f2eb;
+          border-radius:12px; padding:4px 16px;
         }
 
-        .wf-hist-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          align-items: start;
-        }
+        .cr-waste-pills { display:flex; flex-wrap:wrap; gap:8px; }
 
-        .wf-hist-card:hover {
-          box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important;
-          transform: translateY(-2px);
-        }
-
-        .wf-hist-btn-view:hover {
-          background: #f0f7f2 !important;
-          border-color: #B8D52E !important;
-        }
-
-        .wf-empty {
-          grid-column: 1 / -1;
-          display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          padding: 64px 24px; gap: 12px; text-align: center;
-        }
-
-        @media (max-width: 1100px) {
-          .wf-hist-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 768px) {
-          .wf-hamburger { display: flex; }
-          .wf-topbar { padding: 0 16px; }
-          .wf-content { padding: 16px; gap: 16px; }
-          .wf-hist-grid { grid-template-columns: 1fr; }
-        }
-
-        @media (max-width: 480px) {
-          .wf-topbar-date { display: none; }
+        @media (max-width:480px) {
+          .cr-drawer { max-width:100%; }
+          .cr-row { grid-template-columns:1fr; }
         }
       `}</style>
 
-      <div className="wf-admin-root">
-        <Sidebar
-          adminEmail="admin@wasteflow.org"
-          adminName="Admin"
-          onSignOut={() => { window.location.href = "/login"; }}
-          collapsed={collapsed}
-          onCollapse={() => setCollapsed(true)}
-          onExpand={() => setCollapsed(false)}
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+      <div
+        className="cr-backdrop"
+        onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Create pickup request"
+      >
+        <div className="cr-drawer">
 
-        <main className="wf-admin-main">
-          <div className="wf-topbar">
-            <div className="wf-topbar-left">
-              <button className="wf-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
-                  <line x1="3" y1="6" x2="21" y2="6"/>
-                  <line x1="3" y1="12" x2="21" y2="12"/>
-                  <line x1="3" y1="18" x2="21" y2="18"/>
-                </svg>
-              </button>
-              <span className="wf-topbar-title">History</span>
-            </div>
-            <div className="wf-topbar-right">
-              <span style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }} className="wf-topbar-date">
-                {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
+          {/* ── Header ── */}
+          <div className="cr-header">
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              <span style={{
+                fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
+                fontFamily: "'Quicksand', sans-serif",
+                letterSpacing: "0.06em", textTransform: "uppercase",
+              }}>
+                {submitted ? "Request Submitted" : "New Pickup Request"}
               </span>
-              <button className="wf-notif-btn" aria-label="Notifications">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                <span className="wf-notif-dot" />
-              </button>
+              <span style={{
+                fontSize: "1rem", fontWeight: 700,
+                color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif",
+              }}>
+                {submitted ? "You're all set!" : STEPS[step]}
+              </span>
             </div>
+            <button className="cr-close" onClick={handleClose} aria-label="Close">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
 
-          <div className="wf-content">
-
-            <div className="wf-page-header">
-              <h1>Completed Pickups</h1>
-              <p>View your completed pickup assignments</p>
-            </div>
-
-            <div className="wf-search-row">
-              <div className="wf-search-wrap">
-                <span className="wf-search-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                </span>
-                <input
-                  className="wf-search-input"
-                  type="text"
-                  placeholder="Search by title, location, or waste type…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
+          {/* ── Body ── */}
+          {submitted ? (
+            /* ── Success state ── */
+            <div className="cr-success-wrap">
+              <div className="cr-success-ring">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 32, height: 32 }}>
+                  <polyline className="cr-success-check" points="20 6 9 17 4 12"/>
+                </svg>
               </div>
-            </div>
+              <div>
+                <p style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", marginBottom: 6 }}>
+                  Request submitted!
+                </p>
+                <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#6b8f7a", fontFamily: "'Quicksand', sans-serif", lineHeight: 1.55 }}>
+                  Your pickup request for <strong style={{ color: "#1a4d2e" }}>{form.title || "your job"}</strong> has been submitted and is pending contractor review.
+                </p>
+              </div>
 
-            <div className="wf-summary-strip">
-              <span style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: "#B8D52E", flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: "0.8rem", fontWeight: 700,
-                color: "#1a4d2e", fontFamily: "'Quicksand', sans-serif",
+              {/* Mini summary card */}
+              <div style={{
+                width: "100%", background: "#f5faf6",
+                border: "1px solid #e8f2eb", borderRadius: 14,
+                padding: "16px 18px", textAlign: "left",
+                display: "flex", flexDirection: "column", gap: 10,
               }}>
-                {MOCK_HISTORY.length} completed pickups
-              </span>
-            </div>
-
-            <div className="wf-hist-grid">
-              {filtered.length === 0 ? (
-                <div className="wf-empty">
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: "#f0f7f2",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#8aab97",
-                  }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 24, height: 24 }}>
-                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
+                {[
+                  { icon: "📍", label: form.location },
+                  { icon: "📅", label: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}` },
+                  { icon: "⚖️", label: `${form.weight} ${form.weightUnit}` },
+                ].map(({ icon, label }) => (
+                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: "0.85rem" }}>{icon}</span>
+                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>
+                      {label}
+                    </span>
                   </div>
-                  <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>
-                    No completed pickups found
-                  </p>
-                  <p style={{ fontSize: "0.8rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}>
-                    Try adjusting your search
-                  </p>
-                </div>
-              ) : (
-                filtered.map((item) => (
-                  <HistoryCard
-                    key={item.id}
-                    item={item}
-                    onViewDetails={setSelectedItem}
-                  />
-                ))
+                ))}
+              </div>
+
+              <p style={{
+                fontSize: "0.75rem", fontWeight: 600,
+                color: "#9ab8a5", fontFamily: "'Quicksand', sans-serif",
+              }}>
+                You'll be notified when a contractor accepts your request.
+              </p>
+            </div>
+          ) : (
+            <div className="cr-body" ref={bodyRef}>
+              {/* Step bar */}
+              <StepBar current={step} />
+
+              {/* ── Step 0: Job Details ── */}
+              {step === 0 && (
+                <>
+                  <div className="cr-field">
+                    <Label required>Job Title</Label>
+                    <FocusInput
+                      type="text"
+                      placeholder="e.g. Site clearance — Phase 2"
+                      value={form.title}
+                      onChange={set("title")}
+                      error={!!errors.title}
+                      maxLength={80}
+                    />
+                    {errors.title && <span className="cr-error">{errors.title}</span>}
+                  </div>
+
+                  <div className="cr-field">
+                    <Label required>Waste Type</Label>
+                    <div className="cr-waste-pills">
+                      {WASTE_TYPES.map((t) => (
+                        <WasteTypePill
+                          key={t}
+                          type={t}
+                          selected={form.wasteType === t}
+                          onClick={() => { setForm((p) => ({ ...p, wasteType: t })); setErrors((e) => ({ ...e, wasteType: null })); }}
+                        />
+                      ))}
+                    </div>
+                    {errors.wasteType && <span className="cr-error">{errors.wasteType}</span>}
+                  </div>
+
+                  <div className="cr-field">
+                    <Label required>Pickup Location</Label>
+                    <FocusInput
+                      type="text"
+                      placeholder="e.g. Canary Wharf, E14"
+                      value={form.location}
+                      onChange={set("location")}
+                      error={!!errors.location}
+                    />
+                    {errors.location && <span className="cr-error">{errors.location}</span>}
+                    <FieldHint>Full address or postcode helps contractors find you.</FieldHint>
+                  </div>
+
+                  <div className="cr-field">
+                    <Label required>Estimated Weight</Label>
+                    <div className="cr-weight-wrap">
+                      <FocusInput
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 12"
+                        value={form.weight}
+                        onChange={set("weight")}
+                        error={!!errors.weight}
+                      />
+                      <select
+                        className="cr-unit-select"
+                        value={form.weightUnit}
+                        onChange={set("weightUnit")}
+                      >
+                        <option>Tonnes</option>
+                        <option>Tons</option>
+                        <option>kg</option>
+                      </select>
+                    </div>
+                    {errors.weight && <span className="cr-error">{errors.weight}</span>}
+                  </div>
+                </>
+              )}
+
+              {/* ── Step 1: Schedule ── */}
+              {step === 1 && (
+                <>
+                  <div style={{
+                    background: "rgba(184,213,46,0.07)",
+                    border: "1px solid rgba(184,213,46,0.25)",
+                    borderRadius: 12, padding: "12px 15px",
+                    display: "flex", gap: 10, alignItems: "flex-start",
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#4a7a5a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0, marginTop: 1 }}>
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif", lineHeight: 1.5, margin: 0 }}>
+                      Set the window during which you'd like the pickup to happen. Contractors will use this to schedule their visit.
+                    </p>
+                  </div>
+
+                  <div className="cr-row">
+                    <div className="cr-field">
+                      <Label required>From</Label>
+                      <FocusInput
+                        type="date"
+                        value={form.dateFrom}
+                        onChange={set("dateFrom")}
+                        error={!!errors.dateFrom}
+                        extraStyle={{ colorScheme: "light" }}
+                      />
+                      {errors.dateFrom && <span className="cr-error">{errors.dateFrom}</span>}
+                    </div>
+                    <div className="cr-field">
+                      <Label required>To</Label>
+                      <FocusInput
+                        type="date"
+                        value={form.dateTo}
+                        onChange={set("dateTo")}
+                        error={!!errors.dateTo}
+                        extraStyle={{ colorScheme: "light" }}
+                      />
+                      {errors.dateTo && <span className="cr-error">{errors.dateTo}</span>}
+                    </div>
+                  </div>
+
+                  {/* Preview chip */}
+                  {form.dateFrom && form.dateTo && !errors.dateFrom && !errors.dateTo && (
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: 8,
+                      background: "rgba(26,77,46,0.06)",
+                      border: "1px solid rgba(26,77,46,0.15)",
+                      borderRadius: 999, padding: "7px 14px",
+                      width: "fit-content",
+                    }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                      <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a4d2e", fontFamily: "'Quicksand', sans-serif" }}>
+                        {fmt(form.dateFrom)} – {fmt(form.dateTo)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── Step 2: Review & Notes ── */}
+              {step === 2 && (
+                <>
+                  <div>
+                    <p style={{
+                      fontSize: "0.7rem", fontWeight: 700, color: "#9ab8a5",
+                      fontFamily: "'Quicksand', sans-serif",
+                      textTransform: "uppercase", letterSpacing: "0.06em",
+                      marginBottom: 10,
+                    }}>Summary</p>
+                    <div className="cr-review-box">
+                      <ReviewRow label="Job"      value={form.title} />
+                      <ReviewRow label="Type"     value={form.wasteType} />
+                      <ReviewRow label="Location" value={form.location} />
+                      <ReviewRow label="Window"   value={`${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`} />
+                      <ReviewRow label="Weight"   value={`${form.weight} ${form.weightUnit}`} accent />
+                    </div>
+                  </div>
+
+                  <div className="cr-field">
+                    <Label>Additional Notes</Label>
+                    <FocusInput
+                      as="textarea"
+                      rows={4}
+                      placeholder="e.g. Access via rear gate. Ring Temi on arrival."
+                      value={form.note}
+                      onChange={set("note")}
+                      extraStyle={{ resize: "vertical", minHeight: 90, lineHeight: 1.55 }}
+                    />
+                    <FieldHint>Any access instructions, contacts, or special handling notes.</FieldHint>
+                  </div>
+                </>
               )}
             </div>
+          )}
 
+          {/* ── Footer ── */}
+          <div className="cr-footer">
+            {submitted ? (
+              <button className="cr-btn-primary" onClick={handleClose}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                Done
+              </button>
+            ) : (
+              <>
+                {step < 2 ? (
+                  <button className="cr-btn-primary" onClick={next}>
+                    Continue
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </button>
+                ) : (
+                  <button className="cr-btn-primary" onClick={submit}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                      <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                    </svg>
+                    Submit Request
+                  </button>
+                )}
+                {step > 0 ? (
+                  <button className="cr-btn-secondary" onClick={back}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                    </svg>
+                    Back
+                  </button>
+                ) : (
+                  <button className="cr-btn-secondary" onClick={handleClose}>Cancel</button>
+                )}
+              </>
+            )}
           </div>
-        </main>
-      </div>
 
-      <HistoryDetailModal
-        item={selectedItem}
-        onClose={() => setSelectedItem(null)}
-      />
+        </div>
+      </div>
     </>
   );
 }

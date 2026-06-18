@@ -5,7 +5,7 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
-import Sidebar from "./sidebar";
+import Sidebar from "../components/Sidebar";
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon, accent = false }) {
@@ -104,14 +104,14 @@ function KycStatusBadge({ status }) {
 const MOCK_REQUESTS = [];
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
-export default function AdminDashboard() {
+export default function ContractorDashboard() {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const router = useRouter();
   const { user, profile } = useAuth();
 
-  const displayName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
+  const displayName = profile?.fullName || user?.email?.split("@")[0] || "Contractor";
   const displayEmail = profile?.email || user?.email || "";
   const kycStatus = profile?.kycStatus || "pending";
 
@@ -325,7 +325,7 @@ export default function AdminDashboard() {
                   <line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <span className="wf-topbar-title">Operators Dashboard</span>
+              <span className="wf-topbar-title">Contractor Dashboard</span>
             </div>
             <div className="wf-topbar-right">
               <span className="wf-topbar-date">
@@ -368,7 +368,7 @@ export default function AdminDashboard() {
             <div className="wf-table-card">
               <div className="wf-table-header">
                 <span className="wf-table-title">Recent Requests</span>
-                <a href="/admin/requests" className="wf-view-all">
+                <a href="/contractor/requests" className="wf-view-all">
                   View all
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
                     <path d="M5 12h14M12 5l7 7-7 7"/>

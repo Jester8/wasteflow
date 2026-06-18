@@ -278,10 +278,9 @@ export default function Hero() {
               transition={{ duration: 0.4, delay: 0.2 }}
               style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "0.65rem", flexWrap: "nowrap" }}
             >
-              <button className="btn-primary">
+              <a className="btn-primary" href="/signup">
                 Get Started Free
-              
-              </button>
+              </a>
               <button className="btn-secondary">
                 <span style={{
                   width: "1.3rem", height: "1.3rem", borderRadius: "50%",

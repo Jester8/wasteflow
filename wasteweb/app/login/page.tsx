@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,22 +31,13 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{
-          fontSize: "0.78rem", fontWeight: 600,
-          color: "#2a5c38", fontFamily: "'Quicksand',sans-serif",
-          letterSpacing: "0.01em",
-        }}>
+        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", letterSpacing: "0.01em" }}>
           {label}{req && <span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>}
         </label>
       )}
       <div style={{ position: "relative" }}>
         {leftIcon && (
-          <span style={{
-            position: "absolute", left: 13, top: "50%",
-            transform: "translateY(-50%)",
-            color: "#3d6b4d", pointerEvents: "none",
-            display: "flex", alignItems: "center",
-          }}>
+          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
             {leftIcon}
           </span>
         )}
@@ -57,23 +49,12 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
             padding: leftIcon ? "11px 14px 11px 38px" : "11px 14px",
             borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6",
-            color: "#1a2e1f",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "'Quicksand',sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
+            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
+            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => {
-            e.currentTarget.style.border = "1px solid #B8D52E";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)";
-          }}
-          onBlur={e => {
-            e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
+          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
           {...props}
         />
       </div>
@@ -93,74 +74,48 @@ function PasswordInput({ label, placeholder, error, ...props }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{
-          fontSize: "0.78rem", fontWeight: 600,
-          color: "#2a5c38", fontFamily: "'Quicksand',sans-serif",
-        }}>
+        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif" }}>
           {label}<span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
         </label>
       )}
       <div style={{ position: "relative" }}>
-        <span style={{
-          position: "absolute", left: 13, top: "50%",
-          transform: "translateY(-50%)",
-          color: "#3d6b4d", pointerEvents: "none",
-          display: "flex", alignItems: "center",
-        }}>
+        <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
         </span>
         <input
           type={show ? "text" : "password"}
           placeholder={placeholder}
           style={{
-            width: "100%",
-            padding: "11px 40px 11px 38px",
-            borderRadius: 10,
+            width: "100%", padding: "11px 40px 11px 38px", borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6",
-            color: "#1a2e1f",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "'Quicksand',sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
+            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
+            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => {
-            e.currentTarget.style.border = "1px solid #B8D52E";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)";
-          }}
-          onBlur={e => {
-            e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
+          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
           {...props}
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={() => setShow(v => !v)}
-          style={{
-            position: "absolute", right: 12, top: "50%",
-            transform: "translateY(-50%)",
-            background: "none", border: "none", cursor: "pointer",
-            color: "#3d6b4d", padding: 0, display: "flex", alignItems: "center",
-          }}
+          style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#3d6b4d", padding: 0, display: "flex", alignItems: "center" }}
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-              <line x1="1" y1="1" x2="23" y2="23"/>
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+              <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+              <line x1="1" y1="1" x2="23" y2="23" />
             </svg>
           ) : (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
           )}
         </button>
@@ -184,24 +139,14 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
       disabled={loading}
       onClick={onClick}
       style={{
-        width: fullWidth ? "100%" : "auto",
-        padding: "13px 24px",
-        borderRadius: 10,
-        background: loading ? "#2a5c38" : "#1a4d2e",
-        color: "#e8f5ee",
-        fontSize: "0.9rem",
-        fontWeight: 700,
-        fontFamily: "'Quicksand',sans-serif",
-        border: "none",
-        cursor: loading ? "not-allowed" : "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
+        width: fullWidth ? "100%" : "auto", padding: "13px 24px", borderRadius: 10,
+        background: loading ? "#2a5c38" : "#1a4d2e", color: "#e8f5ee",
+        fontSize: "0.9rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
+        border: "none", cursor: loading ? "not-allowed" : "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
         transition: "background 0.18s, transform 0.15s, box-shadow 0.18s",
-        letterSpacing: "0.01em",
-        opacity: loading ? 0.75 : 1,
+        letterSpacing: "0.01em", opacity: loading ? 0.75 : 1,
       }}
       onMouseEnter={e => {
         if (!loading) {
@@ -219,13 +164,11 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
       {loading ? (
         <>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
           Signing in…
         </>
-      ) : (
-        children
-      )}
+      ) : children}
     </button>
   );
 }
@@ -237,22 +180,12 @@ function GoogleButton({ onClick, loading }: { onClick: () => void; loading: bool
       onClick={onClick}
       disabled={loading}
       style={{
-        width: "100%",
-        padding: "12px 16px",
-        borderRadius: 10,
-        border: "1.5px solid #c6e2d0",
-        background: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        fontSize: "0.875rem",
-        fontWeight: 700,
-        fontFamily: "'Quicksand',sans-serif",
-        color: "#1a2e1f",
-        cursor: loading ? "not-allowed" : "pointer",
-        transition: "all 0.18s",
-        opacity: loading ? 0.65 : 1,
+        width: "100%", padding: "12px 16px", borderRadius: 10,
+        border: "1.5px solid #c6e2d0", background: "#fff",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        fontSize: "0.875rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
+        color: "#1a2e1f", cursor: loading ? "not-allowed" : "pointer",
+        transition: "all 0.18s", opacity: loading ? 0.65 : 1,
       }}
       onMouseEnter={e => {
         if (!loading) {
@@ -269,7 +202,7 @@ function GoogleButton({ onClick, loading }: { onClick: () => void; loading: bool
     >
       {loading ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
       ) : (
         <svg viewBox="0 0 24 24" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
@@ -293,14 +226,9 @@ function HeroText() {
   return (
     <div>
       <p style={{
-        fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)",
-        fontWeight: 700,
-        color: "#e8f5ee",
-        lineHeight: 1.3,
-        letterSpacing: "-0.02em",
-        fontFamily: "'Quicksand',sans-serif",
-        marginBottom: 12,
-        minHeight: "4.5em",
+        fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", fontWeight: 700, color: "#e8f5ee",
+        lineHeight: 1.3, letterSpacing: "-0.02em", fontFamily: "'Quicksand',sans-serif",
+        marginBottom: 12, minHeight: "4.5em",
       }}>
         {d1}
         {!done1 && <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />}
@@ -317,14 +245,9 @@ function HeroText() {
         )}
       </p>
       <p style={{
-        fontSize: "0.875rem",
-        color: "#5a8a6a",
-        fontWeight: 600,
-        lineHeight: 1.65,
-        maxWidth: 340,
-        fontFamily: "'Quicksand',sans-serif",
-        opacity: done1 ? 1 : 0,
-        transition: "opacity 0.6s ease",
+        fontSize: "0.875rem", color: "#5a8a6a", fontWeight: 600, lineHeight: 1.65,
+        maxWidth: 340, fontFamily: "'Quicksand',sans-serif",
+        opacity: done1 ? 1 : 0, transition: "opacity 0.6s ease",
       }}>
         Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
       </p>
@@ -334,31 +257,19 @@ function HeroText() {
 
 type Role = "operator" | "contractor";
 
-const ROLE_CONFIG: Record<Role, {
-  label: string;
-  emoji: string;
-  placeholder: string;
-}> = {
-  operator: {
-    label: "Operator",
-    emoji: "",
-    placeholder: "you@company.co.uk",
-  },
-  contractor: {
-    label: "Contractor",
-    emoji: "",
-    placeholder: "you@haulage.co.uk",
-  },
+const ROLE_CONFIG: Record<Role, { label: string; emoji: string; placeholder: string }> = {
+  operator: { label: "Operator", emoji: "", placeholder: "you@company.co.uk" },
+  contractor: { label: "Contractor", emoji: "", placeholder: "you@haulage.co.uk" },
 };
 
-/**
- * Routes a signed-in user to the correct place based on their KYC status.
- * - no profile / no kycStatus  -> /kyc
- * - kycStatus "submitted" or "approved" -> role-specific dashboard
- */
 function routeAfterAuth(router: ReturnType<typeof useRouter>, profile: any) {
-  if (profile?.kycStatus === "submitted" || profile?.kycStatus === "approved") {
-    router.push(profile.role === "operator" ? "/operators/" : "/contractor/");
+  if (!profile) {
+    router.push("/kyc");
+    return;
+  }
+  const { kycStatus, role } = profile;
+  if (kycStatus === "submitted" || kycStatus === "approved") {
+    router.push(role === "operator" ? "/operators/" : "/contractor/");
   } else {
     router.push("/kyc");
   }
@@ -378,9 +289,6 @@ export default function LoginPage() {
 
   const config = ROLE_CONFIG[role];
 
-  // Single source of truth: AuthContext's `profile`. We only redirect once
-  // AuthContext has finished loading AND we know a sign-in just happened
-  // (postSignInPending) or a user was already present on mount (e.g. refresh).
   useEffect(() => {
     if (authLoading) return;
     if (!user) return;
@@ -411,9 +319,6 @@ export default function LoginPage() {
       return;
     }
 
-    // Don't fetch the profile ourselves and don't push a route here.
-    // AuthContext's onAuthStateChanged listener will pick up the new user,
-    // fetch the profile, and the effect above will redirect once it's ready.
     setPostSignInPending(true);
     setLoading(false);
   };
@@ -438,276 +343,62 @@ export default function LoginPage() {
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
-
-        @keyframes wfSpin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes wfFadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wfBlink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
-        }
-
+        @keyframes wfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes wfFadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wfBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .wf-login-root {
-          height: 100vh;
-          display: flex;
-          overflow: hidden;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-login-root { height: 100vh; display: flex; overflow: hidden; font-family: 'Quicksand', sans-serif; }
 
-        .wf-hero {
-          display: none;
-          position: relative;
-          flex-direction: column;
-          justify-content: flex-end;
-        }
-        @media (min-width: 1024px) {
-          .wf-hero { display: flex; width: 50%; }
-        }
+        .wf-hero { display: none; position: relative; flex-direction: column; justify-content: flex-end; }
+        @media (min-width: 1024px) { .wf-hero { display: flex; width: 50%; } }
 
-        .wf-hero-scrim {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            to top,
-            rgba(5,15,8,0.82) 0%,
-            rgba(5,15,8,0.55) 40%,
-            rgba(5,15,8,0.38) 100%
-          );
-          z-index: 1;
-        }
+        .wf-hero-scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,15,8,0.82) 0%, rgba(5,15,8,0.55) 40%, rgba(5,15,8,0.38) 100%); z-index: 1; }
 
-        .wf-hero::after {
-          content: '';
-          position: absolute;
-          top: 0; right: 0;
-          width: 3px; height: 100%;
-          background: linear-gradient(to bottom, transparent, #B8D52E, transparent);
-          opacity: 0.55;
-          z-index: 10;
-        }
+        .wf-hero::after { content: ''; position: absolute; top: 0; right: 0; width: 3px; height: 100%; background: linear-gradient(to bottom, transparent, #B8D52E, transparent); opacity: 0.55; z-index: 10; }
 
-        .wf-hero-content {
-          position: relative;
-          z-index: 2;
-          padding: 48px;
-        }
+        .wf-hero-content { position: relative; z-index: 2; padding: 48px; }
 
-        .wf-form-panel {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          background: #ffffff;
-          overflow: hidden;
-        }
-        @media (min-width: 1024px) {
-          .wf-form-panel { width: 50%; }
-        }
+        .wf-form-panel { width: 100%; display: flex; flex-direction: column; background: #ffffff; overflow: hidden; }
+        @media (min-width: 1024px) { .wf-form-panel { width: 50%; } }
 
-        .wf-form-header {
-          flex-shrink: 0;
-          padding: 22px 32px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          border-bottom: 1px solid #f0f7f2;
-        }
+        .wf-form-header { flex-shrink: 0; padding: 22px 32px; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid #f0f7f2; }
 
-        .wf-form-scroll {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          align-items: center;
-          padding: 32px;
-        }
+        .wf-form-scroll { flex: 1; overflow-y: auto; display: flex; align-items: center; padding: 32px; }
 
-        .wf-form-inner {
-          max-width: 380px;
-          width: 100%;
-          margin: 0 auto;
-          animation: wfFadeUp 0.45s ease both;
-        }
+        .wf-form-inner { max-width: 380px; width: 100%; margin: 0 auto; animation: wfFadeUp 0.45s ease both; }
 
-        .wf-heading {
-          font-size: 1.7rem;
-          font-weight: 700;
-          color: #1a2e1f;
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-          margin-bottom: 6px;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-sub {
-          font-size: 0.875rem;
-          color: #6b8f7a;
-          font-weight: 600;
-          margin-bottom: 26px;
-          line-height: 1.55;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-heading { font-size: 1.7rem; font-weight: 700; color: #1a2e1f; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 6px; font-family: 'Quicksand', sans-serif; }
+        .wf-sub { font-size: 0.875rem; color: #6b8f7a; font-weight: 600; margin-bottom: 26px; line-height: 1.55; font-family: 'Quicksand', sans-serif; }
 
-        .wf-toggle {
-          display: flex;
-          background: #f0f7f2;
-          border-radius: 10px;
-          padding: 4px;
-          margin-bottom: 22px;
-          gap: 2px;
-        }
-        .wf-toggle-btn {
-          flex: 1;
-          padding: 9px 8px;
-          border-radius: 7px;
-          border: none;
-          font-size: 0.8rem;
-          font-weight: 700;
-          font-family: 'Quicksand', sans-serif;
-          cursor: pointer;
-          transition: all 0.2s;
-          background: transparent;
-          color: #6b8f7a;
-          white-space: nowrap;
-        }
-        .wf-toggle-btn.active {
-          background: #ffffff;
-          color: #1a2e1f;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+        .wf-toggle { display: flex; background: #f0f7f2; border-radius: 10px; padding: 4px; margin-bottom: 22px; gap: 2px; }
+        .wf-toggle-btn { flex: 1; padding: 9px 8px; border-radius: 7px; border: none; font-size: 0.8rem; font-weight: 700; font-family: 'Quicksand', sans-serif; cursor: pointer; transition: all 0.2s; background: transparent; color: #6b8f7a; white-space: nowrap; }
+        .wf-toggle-btn.active { background: #ffffff; color: #1a2e1f; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-        .wf-form-fields {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          margin-bottom: 20px;
-        }
+        .wf-form-fields { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
 
-        .wf-forgot {
-          display: flex;
-          justify-content: flex-end;
-          margin-top: 6px;
-        }
-        .wf-forgot a {
-          font-size: 0.75rem;
-          font-weight: 700;
-          color: #1a4d2e;
-          text-decoration: none;
-          transition: color 0.18s;
-          font-family: 'Quicksand', sans-serif;
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-        }
+        .wf-forgot { display: flex; justify-content: flex-end; margin-top: 6px; }
+        .wf-forgot a { font-size: 0.75rem; font-weight: 700; color: #1a4d2e; text-decoration: none; transition: color 0.18s; font-family: 'Quicksand', sans-serif; display: inline-flex; align-items: center; gap: 4px; }
         .wf-forgot a:hover { color: #B8D52E; }
 
-        .wf-google-btn {
-          width: 100%;
-          margin-bottom: 16px;
-        }
+        .wf-google-btn { width: 100%; margin-bottom: 16px; }
 
-        .wf-divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 18px 0;
-        }
-        .wf-divider-line {
-          flex: 1;
-          height: 1px;
-          background: #e8f2eb;
-        }
-        .wf-divider-text {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: #9ab8a5;
-          font-family: 'Quicksand', sans-serif;
-          white-space: nowrap;
-        }
+        .wf-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+        .wf-divider-line { flex: 1; height: 1px; background: #e8f2eb; }
+        .wf-divider-text { font-size: 0.72rem; font-weight: 700; color: #9ab8a5; font-family: 'Quicksand', sans-serif; white-space: nowrap; }
 
-        .wf-operator-note {
-          text-align: center;
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          margin-top: 18px;
-          line-height: 1.6;
-          font-family: 'Quicksand', sans-serif;
-          font-weight: 600;
-        }
-
-        .wf-signup-nudge {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #6b8f7a;
-          font-family: 'Quicksand', sans-serif;
-          margin-top: 16px;
-        }
-        .wf-signup-nudge a {
-          color: #1a4d2e;
-          font-weight: 700;
-          text-decoration: none;
-          transition: color 0.18s;
-        }
+        .wf-signup-nudge { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #6b8f7a; font-family: 'Quicksand', sans-serif; margin-top: 16px; }
+        .wf-signup-nudge a { color: #1a4d2e; font-weight: 700; text-decoration: none; transition: color 0.18s; }
         .wf-signup-nudge a:hover { color: #B8D52E; }
 
-        .wf-error-banner {
-          background: #fff5f5;
-          border: 1px solid #f5c6c6;
-          border-radius: 10px;
-          padding: 11px 14px;
-          display: flex;
-          align-items: flex-start;
-          gap: 9px;
-          margin-bottom: 16px;
-        }
-        .wf-error-banner p {
-          font-size: 0.78rem;
-          color: #c0392b;
-          font-weight: 600;
-          font-family: 'Quicksand', sans-serif;
-          line-height: 1.5;
-          margin: 0;
-        }
+        .wf-error-banner { background: #fff5f5; border: 1px solid #f5c6c6; border-radius: 10px; padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px; margin-bottom: 16px; }
+        .wf-error-banner p { font-size: 0.78rem; color: #c0392b; font-weight: 600; font-family: 'Quicksand', sans-serif; line-height: 1.5; margin: 0; }
 
-        .wf-footer {
-          flex-shrink: 0;
-          border-top: 1px solid #f0f7f2;
-          padding: 14px 32px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          align-items: center;
-          justify-content: space-between;
-        }
-        @media (min-width: 500px) {
-          .wf-footer { flex-direction: row; }
-        }
-        .wf-footer-copy {
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          font-weight: 600;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-footer-links {
-          display: flex;
-          gap: 16px;
-        }
-        .wf-footer-links a {
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          text-decoration: none;
-          font-weight: 600;
-          transition: color 0.18s;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-footer { flex-shrink: 0; border-top: 1px solid #f0f7f2; padding: 14px 32px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: space-between; }
+        @media (min-width: 500px) { .wf-footer { flex-direction: row; } }
+        .wf-footer-copy { font-size: 0.72rem; color: #9ab8a5; font-weight: 600; font-family: 'Quicksand', sans-serif; }
+        .wf-footer-links { display: flex; gap: 16px; }
+        .wf-footer-links a { font-size: 0.72rem; color: #9ab8a5; text-decoration: none; font-weight: 600; transition: color 0.18s; font-family: 'Quicksand', sans-serif; }
         .wf-footer-links a:hover { color: #1a4d2e; }
       `}</style>
 
@@ -780,8 +471,8 @@ export default function LoginPage() {
                     error={errors.email}
                     leftIcon={
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
                       </svg>
                     }
                   />
@@ -796,9 +487,9 @@ export default function LoginPage() {
                     <div className="wf-forgot">
                       <Link href={`/reset?role=${role}`}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
-                          <circle cx="12" cy="12" r="10"/>
-                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-                          <line x1="12" y1="17" x2="12.01" y2="17"/>
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                          <line x1="12" y1="17" x2="12.01" y2="17" />
                         </svg>
                         Forgot password?
                       </Link>

@@ -2,13 +2,14 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../../lib/firebase";
-import { getUserProfile } from "../../lib/firestore";
+import { onSnapshot, doc } from "firebase/firestore";
+import { auth, db } from "../../lib/firebase";
 
 type AuthContextType = {
   user: User | null;
   profile: any | null;
   loading: boolean;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,24 +20,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let profileUnsub: (() => void) | null = null;
+
+    const authUnsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      
+
+      if (profileUnsub) {
+        profileUnsub();
+        profileUnsub = null;
+      }
+
       if (firebaseUser) {
-        const userProfile = await getUserProfile(firebaseUser.uid);
-        setProfile(userProfile);
+        const userRef = doc(db, "users", firebaseUser.uid);
+        profileUnsub = onSnapshot(
+          userRef,
+          (snap) => {
+            if (snap.exists()) {
+              setProfile({ uid: snap.id, ...snap.data() });
+            } else {
+              setProfile(null);
+            }
+            setLoading(false);
+          },
+          () => {
+            setProfile(null);
+            setLoading(false);
+          }
+        );
       } else {
         setProfile(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      authUnsub();
+      if (profileUnsub) profileUnsub();
+    };
   }, []);
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { getUserProfile } = await import("../../lib/firestore");
+    const fresh = await getUserProfile(user.uid);
+    setProfile(fresh);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={{ user, profile, loading, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
