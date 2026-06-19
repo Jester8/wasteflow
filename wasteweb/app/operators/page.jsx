@@ -1,38 +1,11 @@
-// ── Drop this hook into both operators/page.tsx and contractor/page.tsx ────────
-// Add it right after the useAuth() call in the dashboard component
-
-/*
-  const { user, profile } = useAuth();
-
-  // ADD THIS BLOCK:
-  const router = useRouter(); // already imported
-  useEffect(() => {
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (profile && !profile.kycStatus) {
-      // Profile exists but KYC never submitted — send back to KYC
-      router.replace("/kyc");
-    }
-  }, [user, profile, router]);
-
-  // Optional: show nothing while profile loads to prevent flash
-  if (!user || !profile) return null;
-*/
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FULL operators/page.tsx with guard added
-// (apply the same pattern to contractor/page.tsx)
-// ─────────────────────────────────────────────────────────────────────────────
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
+import { useAuthGuard } from "../hooks/Useauthguard ";
 import Sidebar from "../components/Sidebar";
 
 function StatCard({ label, value, sub, icon, accent = false }) {
@@ -136,21 +109,38 @@ export default function OperatorDashboard() {
   const router = useRouter();
   const { user, profile } = useAuth();
 
-  // ── KYC guard ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    // Profile loaded and no kycStatus means KYC was never submitted
-    if (profile && !profile.kycStatus) {
-      router.replace("/kyc");
-    }
-  }, [user, profile, router]);
+  // ✅ CORRECT - useAuthGuard at top level
+  const { loading: authGuardLoading } = useAuthGuard("auth-only");
 
-  // Don't render dashboard until we confirm the user has submitted KYC
-  if (!user || !profile || !profile.kycStatus) return null;
-  // ──────────────────────────────────────────────────────────────────────────
+  // Show loading while checking authentication
+  if (authGuardLoading) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        <style>{`@keyframes wfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  // KYC check - redirect if no KYC
+  if (profile && !profile.kycStatus) {
+    router.replace("/kyc");
+    return null;
+  }
+
+  // Don't render dashboard until we have user and profile
+  if (!user || !profile) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        <style>{`@keyframes wfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   const displayName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
   const displayEmail = profile?.email || user?.email || "";

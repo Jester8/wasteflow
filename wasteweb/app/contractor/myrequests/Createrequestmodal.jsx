@@ -86,14 +86,15 @@ function inputStyle(focused, error) {
   };
 }
 
-function FocusInput({ as: Tag = "input", error, style: extraStyle, ...props }) {
+// ✅ FIXED: extraStyle is now properly extracted and merged
+function FocusInput({ as: Tag = "input", error, style, extraStyle, ...props }) {
   const [focused, setFocused] = useState(false);
   return (
     <Tag
       {...props}
       onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
       onBlur={(e)  => { setFocused(false); props.onBlur?.(e);  }}
-      style={{ ...inputStyle(focused, error), ...extraStyle }}
+      style={{ ...inputStyle(focused, error), ...style, ...extraStyle }}
     />
   );
 }

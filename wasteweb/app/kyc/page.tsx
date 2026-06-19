@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { updateUserKYC } from "@/lib/firestore";
+import { useAuthGuard } from "../hooks/Useauthguard ";
 
 type Role = "operator" | "contractor";
 

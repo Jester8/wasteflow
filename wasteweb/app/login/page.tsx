@@ -6,6 +6,7 @@ import Image from "next/image";
 import { signInWithGoogle, signInWithEmail } from "@/lib/auth";
 import { useAuth } from "../context/AuthContext";
 import { useRouter } from "next/navigation";
+import { useAuthGuard } from "../hooks/Useauthguard ";
 
 function useTypewriter(text: string, speed = 45) {
   const [displayed, setDisplayed] = useState("");
@@ -22,7 +23,11 @@ function useTypewriter(text: string, speed = 45) {
     return () => clearInterval(id);
   }, [text, speed]);
   return { displayed, done };
+
+  
 }
+
+
 
 function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }: {
   label?: string; type?: string; placeholder?: string; error?: string;

@@ -1,8 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  collection, query, where, orderBy, onSnapshot, Timestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuthGuard } from "../../hooks/Useauthguard ";
 import Sidebar from "../sidebar";
 import OperatorRequestDetailModal from "../myrequests/Operatorrequestdetailmodal ";
-import CreateRequestModal from "../myrequests/Createrequestmodal";
 
 const TABS = ["All", "Pending", "Accepted", "Arriving", "In Progress", "Completed"];
 
@@ -24,59 +28,69 @@ const WASTE_TYPE_CONFIG = {
   General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-const INITIAL_REQUESTS = [
-  {
-    id: "WF-0041", title: "Concrete debris",
-    wasteType: "Mixed", status: "Arriving",
-    location: "Allen Street, London",
-    dates: "Jun 5 – Jun 10, 2026",
-    weight: "12 Tonnes", note: "Handle with care",
-  },
-  {
-    id: "WF-0040", title: "Concrete removal",
-    wasteType: "Metal", status: "Pending",
-    location: "Kent, United Kingdom",
-    dates: "May 31 – Jul 31, 2026",
-    weight: "23 Tonnes", note: "",
-  },
-  {
-    id: "WF-0039", title: "General waste",
-    wasteType: "Mixed", status: "Completed",
-    location: "854 Bristol Road, Selly Oak",
-    dates: "Feb 25 – Feb 26, 2026",
-    weight: "14 Tonnes", note: "Ring Temi when you arrive",
-  },
-  {
-    id: "WF-0038", title: "Site clearance",
-    wasteType: "Concrete", status: "Accepted",
-    location: "Canary Wharf, E14",
-    dates: "Jun 12 – Jun 14, 2026",
-    weight: "30 Tonnes", note: "Access via rear gate",
-  },
-  {
-    id: "WF-0037", title: "Green waste removal",
-    wasteType: "Green", status: "In Progress",
-    location: "Hackney, E8",
-    dates: "Jun 9 – Jun 9, 2026",
-    weight: "6 Tonnes", note: "",
-  },
-  {
-    id: "WF-0036", title: "Hazardous materials",
-    wasteType: "Hazardous", status: "Declined",
-    location: "Stratford, E15",
-    dates: "Jun 1 – Jun 3, 2026",
-    weight: "4 Tonnes", note: "Requires specialist handling",
-  },
-];
+// Maps Firestore lowercase status values to display labels
+const STATUS_DISPLAY: Record<string, string> = {
+  pending: "Pending",
+  accepted: "Accepted",
+  arriving: "Arriving",
+  in_progress: "In Progress",
+  completed: "Completed",
+  declined: "Declined",
+  cancelled: "Declined",
+};
 
-type RequestItem = typeof INITIAL_REQUESTS[0];
+type FirestoreRequest = {
+  id: string;
+  title: string;
+  wasteType: string;
+  status: string;
+  location: string;
+  windowStart?: string;
+  windowEnd?: string;
+  quantity?: string;
+  notes?: string;
+  contractorId: string;
+  operatorId?: string;
+  operatorName?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
 
-const CreateRequestModalTyped = CreateRequestModal as React.ComponentType<{
-  open: boolean;
-  defaults: RequestItem | null;
-  onClose: () => void;
-  onSubmit: (newReq: RequestItem) => void;
-}>;
+type RequestItem = {
+  id: string;
+  title: string;
+  wasteType: string;
+  status: string;
+  location: string;
+  dates: string;
+  weight: string;
+  note: string;
+  operatorName?: string;
+  operatorId?: string;
+};
+
+function formatDateRange(start?: string, end?: string) {
+  if (!start) return "—";
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (!end || end === start) return fmt(start);
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+function mapDoc(d: FirestoreRequest): RequestItem {
+  return {
+    id: d.id,
+    title: d.title,
+    wasteType: d.wasteType,
+    status: STATUS_DISPLAY[d.status] || "Pending",
+    location: d.location,
+    dates: formatDateRange(d.windowStart, d.windowEnd),
+    weight: d.quantity || "—",
+    note: d.notes || "",
+    operatorName: d.operatorName,
+    operatorId: d.operatorId,
+  };
+}
 
 function StatusBadge({ status }: { status: keyof typeof STATUS_CONFIG }) {
   const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
@@ -135,11 +149,13 @@ function MetaRow({ icon, text, muted }: { icon: React.ReactNode; text: string; m
   );
 }
 
-function RequestCard({ req, onViewDetails }: { req: typeof INITIAL_REQUESTS[0]; onViewDetails: (req: typeof INITIAL_REQUESTS[0]) => void }) {
+function RequestCard({ req, onViewDetails }: { req: RequestItem; onViewDetails: (req: RequestItem) => void }) {
+  const isDeclined = req.status === "Declined";
+  
   return (
     <div className="or-card" style={{
       background: "#ffffff",
-      border: "1px solid #e8f2eb",
+      border: `1px solid ${isDeclined ? '#f5c6c6' : '#e8f2eb'}`,
       borderRadius: 16,
       padding: "20px",
       display: "flex", flexDirection: "column", gap: 14,
@@ -147,6 +163,7 @@ function RequestCard({ req, onViewDetails }: { req: typeof INITIAL_REQUESTS[0]; 
       transition: "box-shadow 0.2s, transform 0.2s",
       fontFamily: "'Quicksand', sans-serif",
       cursor: "default",
+      opacity: isDeclined ? 0.7 : 1,
     }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
@@ -160,7 +177,7 @@ function RequestCard({ req, onViewDetails }: { req: typeof INITIAL_REQUESTS[0]; 
             fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
             fontFamily: "'Quicksand', sans-serif",
             whiteSpace: "nowrap", letterSpacing: "0.04em", flexShrink: 0,
-          }}>{req.id}</span>
+          }}>{req.id.slice(0, 8).toUpperCase()}</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <WasteTypeBadge type={req.wasteType as keyof typeof WASTE_TYPE_CONFIG} />
@@ -203,6 +220,18 @@ function RequestCard({ req, onViewDetails }: { req: typeof INITIAL_REQUESTS[0]; 
             </svg>
           }
         />
+        {req.operatorName && (
+          <MetaRow
+            text={`Operator: ${req.operatorName}`}
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            }
+          />
+        )}
         {req.note && (
           <MetaRow
             text={req.note}
@@ -278,7 +307,7 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
         }}>
           {hasSearch
             ? "Try adjusting your search or switching tabs"
-            : "Create your first pickup request to get started"}
+            : "Your requests will appear here once created"}
         </p>
       </div>
     </div>
@@ -286,15 +315,48 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
 }
 
 export default function MyRequestsPage() {
+  const { user, profile, loading: guardLoading } = useAuthGuard("kyc-complete");
+
   const [collapsed, setCollapsed]       = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [activeTab, setActiveTab]       = useState("All");
   const [search, setSearch]             = useState("");
-  const [requests, setRequests]         = useState(INITIAL_REQUESTS);
-  const [selectedReq, setSelectedReq]   = useState<typeof INITIAL_REQUESTS[0] | null>(null);
-  const [showCreate, setShowCreate]     = useState(false);
-  const [createDefaults, setCreateDefaults] = useState<typeof INITIAL_REQUESTS[0] | null>(null);
+  const [requests, setRequests]         = useState<RequestItem[]>([]);
+  const [loadingReqs, setLoadingReqs]   = useState(true);
+  const [loadError, setLoadError]       = useState("");
+  const [selectedReq, setSelectedReq]   = useState<RequestItem | null>(null);
 
+  // Live Firestore subscription for user's own requests
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "wasteRequests"),
+      where("contractorId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items = snap.docs.map((doc) =>
+          mapDoc({ id: doc.id, ...(doc.data() as Omit<FirestoreRequest, "id">) })
+        );
+        setRequests(items);
+        setLoadingReqs(false);
+        setLoadError("");
+      },
+      (err) => {
+        console.error("Failed to load requests:", err);
+        setLoadError("Couldn't load your requests. Please refresh the page.");
+        setLoadingReqs(false);
+      }
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  // Filter requests based on tab and search
   const filtered = requests.filter((r) => {
     const matchTab = activeTab === "All" || r.status === activeTab;
     const q = search.toLowerCase();
@@ -302,10 +364,12 @@ export default function MyRequestsPage() {
       !q ||
       r.title.toLowerCase().includes(q) ||
       r.location.toLowerCase().includes(q) ||
-      r.wasteType.toLowerCase().includes(q);
+      r.wasteType.toLowerCase().includes(q) ||
+      (r.operatorName && r.operatorName.toLowerCase().includes(q));
     return matchTab && matchSearch;
   });
 
+  // Count requests per status
   const counts = TABS.reduce<Record<string, number>>((acc, tab) => {
     acc[tab] = tab === "All"
       ? requests.length
@@ -313,18 +377,15 @@ export default function MyRequestsPage() {
     return acc;
   }, {});
 
-  function handleSubmit(newReq: typeof INITIAL_REQUESTS[0]) {
-    setRequests((prev) => [newReq, ...prev]);
-  }
-
-  function handleResubmit(req: typeof INITIAL_REQUESTS[0]) {
-    setCreateDefaults(req);
-    setShowCreate(true);
-  }
-
-  function openCreate() {
-    setCreateDefaults(null);
-    setShowCreate(true);
+  if (guardLoading || loadingReqs) {
+    return (
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
+        <style>{`@keyframes wfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      </div>
+    );
   }
 
   return (
@@ -407,17 +468,6 @@ export default function MyRequestsPage() {
           font-weight: 600; font-family: 'Quicksand', sans-serif;
         }
 
-        .or-create-btn {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 11px 20px; border-radius: 12px;
-          background: #1a4d2e; border: none; cursor: pointer;
-          color: #B8D52E; font-size: 0.875rem; font-weight: 700;
-          font-family: 'Quicksand', sans-serif; white-space: nowrap;
-          transition: background 0.18s, color 0.18s, transform 0.15s;
-          flex-shrink: 0;
-        }
-        .or-create-btn:hover { background: #B8D52E; color: #0d2416; transform: translateY(-1px); }
-
         .or-search-row { display: flex; align-items: center; gap: 12px; }
         .or-search-wrap { flex: 1; position: relative; }
         .or-search-icon {
@@ -494,6 +544,15 @@ export default function MyRequestsPage() {
           border-color: #B8D52E !important;
         }
 
+        .or-error-banner {
+          background: #fff5f5; border: 1px solid #f5c6c6; border-radius: 10px;
+          padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px;
+        }
+        .or-error-banner p {
+          font-size: 0.78rem; color: #c0392b; font-weight: 600;
+          font-family: 'Quicksand', sans-serif; margin: 0; line-height: 1.5;
+        }
+
         @media (max-width: 1100px) { .or-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) {
           .or-hamburger { display: flex; }
@@ -505,14 +564,13 @@ export default function MyRequestsPage() {
         @media (max-width: 480px) {
           .or-topbar-date { display: none; }
           .or-page-header { flex-direction: column; }
-          .or-create-btn { width: 100%; justify-content: center; }
         }
       `}</style>
 
       <div className="or-root">
         <Sidebar
-          adminEmail="faluizolaife@gmail.com"
-          adminName="User"
+          adminEmail={profile?.email || ""}
+          adminName={profile?.fullName || "User"}
           onSignOut={() => { window.location.href = "/login"; }}
           collapsed={collapsed}
           onCollapse={() => setCollapsed(true)}
@@ -568,17 +626,18 @@ export default function MyRequestsPage() {
             <div className="or-page-header">
               <div>
                 <h1>My Requests</h1>
-                <p>Track your submitted pickup requests</p>
+                <p>Track your submitted pickup requests in real-time</p>
               </div>
-              <button className="or-create-btn" onClick={openCreate}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                  <line x1="12" y1="5" x2="12" y2="19"/>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Create Request
-              </button>
             </div>
+
+            {loadError && (
+              <div className="or-error-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p>{loadError}</p>
+              </div>
+            )}
 
             <div className="or-search-row">
               <div className="or-search-wrap">
@@ -592,7 +651,7 @@ export default function MyRequestsPage() {
                 <input
                   className="or-search-input"
                   type="text"
-                  placeholder="Search by title, location, or waste type..."
+                  placeholder="Search by title, location, waste type, or operator..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -644,14 +703,7 @@ export default function MyRequestsPage() {
       <OperatorRequestDetailModal
         item={selectedReq}
         onClose={() => setSelectedReq(null)}
-        onResubmit={handleResubmit}
-      />
-
-      <CreateRequestModalTyped
-        open={showCreate}
-        defaults={createDefaults}
-        onClose={() => { setShowCreate(false); setCreateDefaults(null); }}
-        onSubmit={handleSubmit}
+        onResubmit={() => {}}
       />
     </>
   );
