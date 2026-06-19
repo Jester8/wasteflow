@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "./sidebar";
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot,
+  Timestamp 
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon, accent = false }) {
@@ -59,14 +68,26 @@ function StatCard({ label, value, sub, icon, accent = false }) {
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
-  Pending:   { bg: "rgba(184,213,46,0.12)", color: "#5a8a1a", border: "rgba(184,213,46,0.3)" },
-  Approved:  { bg: "rgba(26,77,46,0.08)",   color: "#1a4d2e", border: "rgba(26,77,46,0.2)"  },
-  Collected: { bg: "rgba(59,130,246,0.08)", color: "#2563eb", border: "rgba(59,130,246,0.2)" },
-  Rejected:  { bg: "rgba(224,92,92,0.08)",  color: "#c0392b", border: "rgba(224,92,92,0.2)" },
+  pending:   { bg: "rgba(251,191,36,0.12)", color: "#b45309", border: "rgba(251,191,36,0.3)" },
+  accepted:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.2)" },
+  arriving:  { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.2)" },
+  in_progress: { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.2)" },
+  completed: { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.3)" },
+  declined:  { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.2)" },
+};
+
+const STATUS_DISPLAY = {
+  pending: "Pending",
+  accepted: "Accepted",
+  arriving: "Arriving",
+  in_progress: "In Progress",
+  completed: "Completed",
+  declined: "Declined",
 };
 
 function StatusBadge({ status }) {
-  const s = STATUS_STYLES[status] || STATUS_STYLES.Pending;
+  const s = STATUS_STYLES[status] || STATUS_STYLES.pending;
+  const displayLabel = STATUS_DISPLAY[status] || status;
   return (
     <span style={{
       fontSize: "0.68rem", fontWeight: 700,
@@ -75,7 +96,7 @@ function StatusBadge({ status }) {
       border: `1px solid ${s.border}`,
       fontFamily: "'Quicksand', sans-serif",
       letterSpacing: "0.02em", whiteSpace: "nowrap",
-    }}>{status}</span>
+    }}>{displayLabel}</span>
   );
 }
 
@@ -101,19 +122,59 @@ function KycStatusBadge({ status }) {
   );
 }
 
-const MOCK_REQUESTS = [];
-
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
   const { user, profile } = useAuth();
 
   const displayName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
   const displayEmail = profile?.email || user?.email || "";
   const kycStatus = profile?.kycStatus || "pending";
+
+  // ─── Fetch real data from Firestore ──────────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "wasteRequests"),
+      where("contractorId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const items = snap.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRequests(items);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Failed to load requests:", err);
+        setLoading(false);
+      }
+    );
+
+    return () => unsub();
+  }, [user]);
+
+  // ─── Calculate stats ──────────────────────────────────────────────────────
+  const totalRequests = requests.length;
+  const pendingRequests = requests.filter(r => r.status === "pending").length;
+  const inProgressRequests = requests.filter(r => 
+    r.status === "accepted" || r.status === "arriving" || r.status === "in_progress"
+  ).length;
+  const completedRequests = requests.filter(r => r.status === "completed").length;
+
+  // Get only the 5 most recent requests for the table
+  const recentRequests = requests.slice(0, 5);
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -125,6 +186,13 @@ export default function AdminDashboard() {
       console.error("Sign out failed:", err);
       setSigningOut(false);
     }
+  };
+
+  // Format date for display
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "—";
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   };
 
   return (
@@ -351,16 +419,25 @@ export default function AdminDashboard() {
             </div>
 
             <div className="wf-stats-grid">
-              <StatCard label="Total Requests" value="0" accent
+              <StatCard 
+                label="Total Requests" 
+                value={loading ? "..." : totalRequests} 
+                accent
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>}
               />
-              <StatCard label="Pending" value="0"
+              <StatCard 
+                label="Pending" 
+                value={loading ? "..." : pendingRequests}
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>}
               />
-              <StatCard label="My Pickups" value="0"
+              <StatCard 
+                label="My Pickups" 
+                value={loading ? "..." : inProgressRequests}
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8l5 3-5 3V8z"/></svg>}
               />
-              <StatCard label="Completed" value="0"
+              <StatCard 
+                label="Completed" 
+                value={loading ? "..." : completedRequests}
                 icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>}
               />
             </div>
@@ -379,27 +456,40 @@ export default function AdminDashboard() {
                 <table>
                   <thead>
                     <tr>
-                      <th>ID</th><th>Contractor</th><th>Site</th>
-                      <th>Skip Size</th><th>Date</th><th>Status</th><th></th>
+                      <th>ID</th><th>Title</th><th>Location</th>
+                      <th>Waste Type</th><th>Date</th><th>Status</th><th></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {MOCK_REQUESTS.length === 0 ? (
+                    {loading ? (
                       <tr>
                         <td colSpan={7} style={{ textAlign: "center", padding: "32px 18px", color: "#9ab8a5" }}>
-                          No requests yet.
+                          Loading requests...
+                        </td>
+                      </tr>
+                    ) : recentRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: "center", padding: "32px 18px", color: "#9ab8a5" }}>
+                          No requests yet. Create your first pickup request.
                         </td>
                       </tr>
                     ) : (
-                      MOCK_REQUESTS.map(req => (
+                      recentRequests.map(req => (
                         <tr key={req.id}>
-                          <td><span className="wf-id-cell">{req.id}</span></td>
-                          <td>{req.contractor}</td>
-                          <td>{req.site}</td>
-                          <td>{req.size}</td>
-                          <td style={{ color: "#8aab97" }}>{req.date}</td>
+                          <td><span className="wf-id-cell">{req.id.slice(0, 8).toUpperCase()}</span></td>
+                          <td>{req.title || "—"}</td>
+                          <td>{req.location || "—"}</td>
+                          <td>{req.wasteType || "—"}</td>
+                          <td style={{ color: "#8aab97" }}>{formatDate(req.createdAt)}</td>
                           <td><StatusBadge status={req.status} /></td>
-                          <td><button className="wf-action-btn">Review</button></td>
+                          <td>
+                            <button 
+                              className="wf-action-btn"
+                              onClick={() => router.push(`/admin/requests/${req.id}`)}
+                            >
+                              View
+                            </button>
+                          </td>
                         </tr>
                       ))
                     )}
