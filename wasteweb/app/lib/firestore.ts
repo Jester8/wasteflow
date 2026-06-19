@@ -17,7 +17,6 @@ export async function saveUserProfile(
     fullName: data.fullName,
     email: data.email,
     role: data.role,
-    kycStatus: "pending",
     provider: data.provider ?? "email",
     emailVerified: false,
     createdAt: serverTimestamp(),

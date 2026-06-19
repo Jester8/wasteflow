@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signUp, signInWithGoogle } from "@/lib/auth";
-import { saveUserProfile } from "@/lib/firestore";
+import { saveUserProfile, getUserProfile } from "@/lib/firestore";
 import { sendEmailVerification } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -29,22 +29,13 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{
-          fontSize: "0.78rem", fontWeight: 600,
-          color: "#2a5c38", fontFamily: "'Quicksand',sans-serif",
-          letterSpacing: "0.01em",
-        }}>
+        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", letterSpacing: "0.01em" }}>
           {label}{req && <span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>}
         </label>
       )}
       <div style={{ position: "relative" }}>
         {leftIcon && (
-          <span style={{
-            position: "absolute", left: 13, top: "50%",
-            transform: "translateY(-50%)",
-            color: "#3d6b4d", pointerEvents: "none",
-            display: "flex", alignItems: "center",
-          }}>
+          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
             {leftIcon}
           </span>
         )}
@@ -56,31 +47,16 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
             padding: leftIcon ? "11px 14px 11px 38px" : "11px 14px",
             borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6",
-            color: "#1a2e1f",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "'Quicksand',sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
+            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
+            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => {
-            e.currentTarget.style.border = "1px solid #B8D52E";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)";
-          }}
-          onBlur={e => {
-            e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
+          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
           {...props}
         />
       </div>
-      {error && (
-        <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>
-          {error}
-        </span>
-      )}
+      {error && <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>{error}</span>}
     </div>
   );
 }
@@ -90,20 +66,12 @@ function PasswordInput({ label, placeholder, error, ...props }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{
-          fontSize: "0.78rem", fontWeight: 600,
-          color: "#2a5c38", fontFamily: "'Quicksand',sans-serif",
-        }}>
+        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif" }}>
           {label}<span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
         </label>
       )}
       <div style={{ position: "relative" }}>
-        <span style={{
-          position: "absolute", left: 13, top: "50%",
-          transform: "translateY(-50%)",
-          color: "#3d6b4d", pointerEvents: "none",
-          display: "flex", alignItems: "center",
-        }}>
+        <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -113,39 +81,21 @@ function PasswordInput({ label, placeholder, error, ...props }) {
           type={show ? "text" : "password"}
           placeholder={placeholder}
           style={{
-            width: "100%",
-            padding: "11px 40px 11px 38px",
-            borderRadius: 10,
+            width: "100%", padding: "11px 40px 11px 38px", borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6",
-            color: "#1a2e1f",
-            fontSize: "0.875rem",
-            fontWeight: 600,
-            fontFamily: "'Quicksand',sans-serif",
-            outline: "none",
-            boxSizing: "border-box",
-            transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
+            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
+            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => {
-            e.currentTarget.style.border = "1px solid #B8D52E";
-            e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)";
-          }}
-          onBlur={e => {
-            e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0";
-            e.currentTarget.style.boxShadow = "none";
-          }}
+          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
+          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
           {...props}
         />
         <button
           type="button"
           tabIndex={-1}
           onClick={() => setShow(v => !v)}
-          style={{
-            position: "absolute", right: 12, top: "50%",
-            transform: "translateY(-50%)",
-            background: "none", border: "none", cursor: "pointer",
-            color: "#3d6b4d", padding: 0, display: "flex", alignItems: "center",
-          }}
+          style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#3d6b4d", padding: 0, display: "flex", alignItems: "center" }}
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? (
@@ -162,11 +112,7 @@ function PasswordInput({ label, placeholder, error, ...props }) {
           )}
         </button>
       </div>
-      {error && (
-        <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>
-          {error}
-        </span>
-      )}
+      {error && <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>{error}</span>}
     </div>
   );
 }
@@ -178,37 +124,17 @@ function Button({ children, type = "button", loading, fullWidth, onClick }) {
       disabled={loading}
       onClick={onClick}
       style={{
-        width: fullWidth ? "100%" : "auto",
-        padding: "13px 24px",
-        borderRadius: 10,
-        background: loading ? "#2a5c38" : "#1a4d2e",
-        color: "#e8f5ee",
-        fontSize: "0.9rem",
-        fontWeight: 700,
-        fontFamily: "'Quicksand',sans-serif",
-        border: "none",
-        cursor: loading ? "not-allowed" : "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
+        width: fullWidth ? "100%" : "auto", padding: "13px 24px", borderRadius: 10,
+        background: loading ? "#2a5c38" : "#1a4d2e", color: "#e8f5ee",
+        fontSize: "0.9rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
+        border: "none", cursor: loading ? "not-allowed" : "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
         transition: "background 0.18s, transform 0.15s, box-shadow 0.18s",
-        letterSpacing: "0.01em",
-        opacity: loading ? 0.75 : 1,
+        letterSpacing: "0.01em", opacity: loading ? 0.75 : 1,
       }}
-      onMouseEnter={e => {
-        if (!loading) {
-          e.currentTarget.style.background = "#0f2d1a";
-          e.currentTarget.style.transform = "translateY(-1px)";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(26,77,46,0.25)";
-        }
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = loading ? "#2a5c38" : "#1a4d2e";
-        e.currentTarget.style.transform = "none";
-        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)";
-      }}
+      onMouseEnter={e => { if (!loading) { e.currentTarget.style.background = "#0f2d1a"; e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(26,77,46,0.25)"; } }}
+      onMouseLeave={e => { e.currentTarget.style.background = loading ? "#2a5c38" : "#1a4d2e"; e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)"; }}
     >
       {loading ? (
         <>
@@ -217,9 +143,7 @@ function Button({ children, type = "button", loading, fullWidth, onClick }) {
           </svg>
           Creating account…
         </>
-      ) : (
-        children
-      )}
+      ) : children}
     </button>
   );
 }
@@ -231,35 +155,15 @@ function GoogleButton({ onClick, loading }) {
       onClick={onClick}
       disabled={loading}
       style={{
-        width: "100%",
-        padding: "12px 16px",
-        borderRadius: 10,
-        border: "1.5px solid #c6e2d0",
-        background: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
-        fontSize: "0.875rem",
-        fontWeight: 700,
-        fontFamily: "'Quicksand',sans-serif",
-        color: "#1a2e1f",
-        cursor: loading ? "not-allowed" : "pointer",
-        transition: "all 0.18s",
-        opacity: loading ? 0.65 : 1,
+        width: "100%", padding: "12px 16px", borderRadius: 10,
+        border: "1.5px solid #c6e2d0", background: "#fff",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+        fontSize: "0.875rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
+        color: "#1a2e1f", cursor: loading ? "not-allowed" : "pointer",
+        transition: "all 0.18s", opacity: loading ? 0.65 : 1,
       }}
-      onMouseEnter={e => {
-        if (!loading) {
-          e.currentTarget.style.borderColor = "#1a4d2e";
-          e.currentTarget.style.background = "#f5faf6";
-          e.currentTarget.style.transform = "translateY(-1px)";
-        }
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = "#c6e2d0";
-        e.currentTarget.style.background = "#fff";
-        e.currentTarget.style.transform = "none";
-      }}
+      onMouseEnter={e => { if (!loading) { e.currentTarget.style.borderColor = "#1a4d2e"; e.currentTarget.style.background = "#f5faf6"; e.currentTarget.style.transform = "translateY(-1px)"; } }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = "#c6e2d0"; e.currentTarget.style.background = "#fff"; e.currentTarget.style.transform = "none"; }}
     >
       {loading ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
@@ -286,16 +190,7 @@ function HeroText() {
 
   return (
     <div>
-      <p style={{
-        fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)",
-        fontWeight: 700,
-        color: "#e8f5ee",
-        lineHeight: 1.3,
-        letterSpacing: "-0.02em",
-        fontFamily: "'Quicksand',sans-serif",
-        marginBottom: 12,
-        minHeight: "4.5em",
-      }}>
+      <p style={{ fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", fontWeight: 700, color: "#e8f5ee", lineHeight: 1.3, letterSpacing: "-0.02em", fontFamily: "'Quicksand',sans-serif", marginBottom: 12, minHeight: "4.5em" }}>
         {d1}
         {!done1 && <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />}
         {done1 && (
@@ -303,23 +198,12 @@ function HeroText() {
             <br />
             <span style={{ color: "#B8D52E" }}>
               {d2}
-              {d2.length < line2.length && (
-                <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />
-              )}
+              {d2.length < line2.length && <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />}
             </span>
           </>
         )}
       </p>
-      <p style={{
-        fontSize: "0.875rem",
-        color: "#5a8a6a",
-        fontWeight: 600,
-        lineHeight: 1.65,
-        maxWidth: 340,
-        fontFamily: "'Quicksand',sans-serif",
-        opacity: done1 ? 1 : 0,
-        transition: "opacity 0.6s ease",
-      }}>
+      <p style={{ fontSize: "0.875rem", color: "#5a8a6a", fontWeight: 600, lineHeight: 1.65, maxWidth: 340, fontFamily: "'Quicksand',sans-serif", opacity: done1 ? 1 : 0, transition: "opacity 0.6s ease" }}>
         Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
       </p>
     </div>
@@ -363,8 +247,8 @@ export default function SignupPage() {
       role,
       fullName,
       email,
-      kycStatus: "pending",
       provider: "email",
+      // ✅ No kycStatus field - will be set after KYC submission
     });
 
     if (auth.currentUser) {
@@ -372,327 +256,132 @@ export default function SignupPage() {
     }
 
     setLoading(false);
+    // ✅ Email signup: Go to verify email first, then KYC after verification
     window.location.href = "/verify-email";
   };
 
-const handleGoogleSignup = async () => {
-  setGlobalError("");
-  setGoogleLoading(true);
+  const handleGoogleSignup = async () => {
+    setGlobalError("");
+    setGoogleLoading(true);
 
-  try {
-    const result = await signInWithGoogle();
+    try {
+      const result = await signInWithGoogle();
 
-    if (!result.success) {
-      if (result.error) {
-        setGlobalError(result.error);
-      }
-      setGoogleLoading(false);
-      return;
-    }
-
-    // For new users, save their profile
-    if (result.isNewUser) {
-      // Small delay to ensure auth state is fully updated
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Get the most up-to-date user info
-      const currentUser = auth.currentUser;
-      
-      if (currentUser) {
-        await saveUserProfile(result.uid, {
-          role,
-          fullName: currentUser.displayName || "",
-          email: currentUser.email || "",
-          kycStatus: "pending",
-          provider: "google",
-        });
-      } else {
-        console.error("No current user found after Google signup");
-        setGlobalError("Something went wrong. Please try again.");
+      if (!result.success) {
+        if (result.error) setGlobalError(result.error);
         setGoogleLoading(false);
         return;
       }
-    }
 
-    setGoogleLoading(false);
-    window.location.href = "/kyc";
-  } catch (error) {
-    console.error("Google signup error:", error);
-    setGlobalError("Something went wrong. Please try again.");
-    setGoogleLoading(false);
-  }
-};
+      if (result.isNewUser) {
+        // Brand new user — write profile with selected role, then go to KYC
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await saveUserProfile(result.uid, {
+            role,
+            fullName: currentUser.displayName || "",
+            email: currentUser.email || "",
+            provider: "google",
+            // ✅ No kycStatus field - will be set after KYC submission
+          });
+        } else {
+          setGlobalError("Something went wrong. Please try again.");
+          setGoogleLoading(false);
+          return;
+        }
+        setGoogleLoading(false);
+        // ✅ Google signup: Go directly to KYC (no email verification needed)
+        window.location.href = "/kyc";
+      } else {
+        // Existing user — fetch their profile and route based on kycStatus
+        const existingProfile = await getUserProfile(result.uid);
+        setGoogleLoading(false);
+
+        if (!existingProfile || !existingProfile.kycStatus) {
+          // Account exists but KYC never submitted
+          window.location.href = "/kyc";
+        } else if (existingProfile.kycStatus === "pending" || existingProfile.kycStatus === "approved") {
+          // KYC done — go to their dashboard
+          window.location.href = existingProfile.role === "operator" ? "/operators/" : "/contractor/";
+        } else {
+          window.location.href = "/kyc";
+        }
+      }
+    } catch (err) {
+      console.error("Google signup error:", err);
+      setGlobalError("Something went wrong. Please try again.");
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
-
-        @keyframes wfSpin {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes wfFadeUp {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes wfBlink {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0; }
-        }
-
+        @keyframes wfSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes wfFadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes wfBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .wf-signup-root {
-          height: 100vh;
-          display: flex;
-          overflow: hidden;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-signup-root { height: 100vh; display: flex; overflow: hidden; font-family: 'Quicksand', sans-serif; }
 
-        .wf-hero {
-          display: none;
-          position: relative;
-          flex-direction: column;
-          justify-content: flex-end;
-        }
-        @media (min-width: 1024px) {
-          .wf-hero { display: flex; width: 50%; }
-        }
+        .wf-hero { display: none; position: relative; flex-direction: column; justify-content: flex-end; }
+        @media (min-width: 1024px) { .wf-hero { display: flex; width: 50%; } }
 
-        .wf-hero-scrim {
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(
-            to top,
-            rgba(5,15,8,0.82) 0%,
-            rgba(5,15,8,0.55) 40%,
-            rgba(5,15,8,0.38) 100%
-          );
-          z-index: 1;
-        }
+        .wf-hero-scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,15,8,0.82) 0%, rgba(5,15,8,0.55) 40%, rgba(5,15,8,0.38) 100%); z-index: 1; }
 
-        .wf-hero::after {
-          content: '';
-          position: absolute;
-          top: 0; right: 0;
-          width: 3px; height: 100%;
-          background: linear-gradient(to bottom, transparent, #B8D52E, transparent);
-          opacity: 0.55;
-          z-index: 10;
-        }
+        .wf-hero::after { content: ''; position: absolute; top: 0; right: 0; width: 3px; height: 100%; background: linear-gradient(to bottom, transparent, #B8D52E, transparent); opacity: 0.55; z-index: 10; }
 
-        .wf-hero-content {
-          position: relative;
-          z-index: 2;
-          padding: 48px;
-        }
+        .wf-hero-content { position: relative; z-index: 2; padding: 48px; }
 
-        .wf-form-panel {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          background: #ffffff;
-          overflow: hidden;
-        }
-        @media (min-width: 1024px) {
-          .wf-form-panel { width: 50%; }
-        }
+        .wf-form-panel { width: 100%; display: flex; flex-direction: column; background: #ffffff; overflow: hidden; }
+        @media (min-width: 1024px) { .wf-form-panel { width: 50%; } }
 
-        .wf-form-header {
-          flex-shrink: 0;
-          padding: 22px 32px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          border-bottom: 1px solid #f0f7f2;
-        }
+        .wf-form-header { flex-shrink: 0; padding: 22px 32px; display: flex; align-items: center; justify-content: flex-end; border-bottom: 1px solid #f0f7f2; }
 
-        .wf-form-scroll {
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          align-items: flex-start;
-          justify-content: center;
-          padding: 24px 32px 32px;
-        }
+        .wf-form-scroll { flex: 1; overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; padding: 24px 32px 32px; }
 
-        .wf-form-inner {
-          max-width: 380px;
-          width: 100%;
-          margin: 0 auto;
-          animation: wfFadeUp 0.45s ease both;
-        }
+        .wf-form-inner { max-width: 380px; width: 100%; margin: 0 auto; animation: wfFadeUp 0.45s ease both; }
 
-        .wf-heading {
-          font-size: 1.7rem;
-          font-weight: 700;
-          color: #1a2e1f;
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-          margin-bottom: 6px;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-sub {
-          font-size: 0.875rem;
-          color: #6b8f7a;
-          font-weight: 600;
-          margin-bottom: 26px;
-          line-height: 1.55;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-heading { font-size: 1.7rem; font-weight: 700; color: #1a2e1f; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 6px; font-family: 'Quicksand', sans-serif; }
+        .wf-sub { font-size: 0.875rem; color: #6b8f7a; font-weight: 600; margin-bottom: 26px; line-height: 1.55; font-family: 'Quicksand', sans-serif; }
 
-        .wf-toggle {
-          display: flex;
-          background: #f0f7f2;
-          border-radius: 10px;
-          padding: 4px;
-          margin-bottom: 22px;
-          gap: 2px;
-        }
-        .wf-toggle-btn {
-          flex: 1;
-          padding: 9px 8px;
-          border-radius: 7px;
-          border: none;
-          font-size: 0.8rem;
-          font-weight: 700;
-          font-family: 'Quicksand', sans-serif;
-          cursor: pointer;
-          transition: all 0.2s;
-          background: transparent;
-          color: #6b8f7a;
-          white-space: nowrap;
-        }
-        .wf-toggle-btn.active {
-          background: #ffffff;
-          color: #1a2e1f;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
+        .wf-toggle { display: flex; background: #f0f7f2; border-radius: 10px; padding: 4px; margin-bottom: 22px; gap: 2px; }
+        .wf-toggle-btn { flex: 1; padding: 9px 8px; border-radius: 7px; border: none; font-size: 0.8rem; font-weight: 700; font-family: 'Quicksand', sans-serif; cursor: pointer; transition: all 0.2s; background: transparent; color: #6b8f7a; white-space: nowrap; }
+        .wf-toggle-btn.active { background: #ffffff; color: #1a2e1f; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
 
-        .wf-form-fields {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-          margin-bottom: 20px;
-        }
+        .wf-form-fields { display: flex; flex-direction: column; gap: 14px; margin-bottom: 20px; }
 
-        .wf-google-btn {
-          width: 100%;
-          margin-bottom: 16px;
-        }
+        .wf-google-btn { width: 100%; margin-bottom: 16px; }
 
-        .wf-divider {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin: 18px 0;
-        }
-        .wf-divider-line {
-          flex: 1;
-          height: 1px;
-          background: #e8f2eb;
-        }
-        .wf-divider-text {
-          font-size: 0.72rem;
-          font-weight: 700;
-          color: #9ab8a5;
-          font-family: 'Quicksand', sans-serif;
-          white-space: nowrap;
-        }
+        .wf-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; }
+        .wf-divider-line { flex: 1; height: 1px; background: #e8f2eb; }
+        .wf-divider-text { font-size: 0.72rem; font-weight: 700; color: #9ab8a5; font-family: 'Quicksand', sans-serif; white-space: nowrap; }
 
-        .wf-error-banner {
-          background: #fff5f5;
-          border: 1px solid #f5c6c6;
-          border-radius: 10px;
-          padding: 11px 14px;
-          display: flex;
-          align-items: flex-start;
-          gap: 9px;
-          margin-bottom: 16px;
-        }
-        .wf-error-banner p {
-          font-size: 0.78rem;
-          color: #c0392b;
-          font-weight: 600;
-          font-family: 'Quicksand', sans-serif;
-          line-height: 1.5;
-          margin: 0;
-        }
+        .wf-error-banner { background: #fff5f5; border: 1px solid #f5c6c6; border-radius: 10px; padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px; margin-bottom: 16px; }
+        .wf-error-banner p { font-size: 0.78rem; color: #c0392b; font-weight: 600; font-family: 'Quicksand', sans-serif; line-height: 1.5; margin: 0; }
 
-        .wf-signin-nudge {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: #6b8f7a;
-          font-family: 'Quicksand', sans-serif;
-          margin-top: 16px;
-        }
-        .wf-signin-nudge a {
-          color: #1a4d2e;
-          font-weight: 700;
-          text-decoration: none;
-          transition: color 0.18s;
-        }
+        .wf-signin-nudge { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #6b8f7a; font-family: 'Quicksand', sans-serif; margin-top: 16px; }
+        .wf-signin-nudge a { color: #1a4d2e; font-weight: 700; text-decoration: none; transition: color 0.18s; }
         .wf-signin-nudge a:hover { color: #B8D52E; }
 
-        .wf-footer {
-          flex-shrink: 0;
-          border-top: 1px solid #f0f7f2;
-          padding: 14px 32px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          align-items: center;
-          justify-content: space-between;
-        }
-        @media (min-width: 500px) {
-          .wf-footer { flex-direction: row; }
-        }
-        .wf-footer-copy {
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          font-weight: 600;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-footer-links {
-          display: flex;
-          gap: 16px;
-        }
-        .wf-footer-links a {
-          font-size: 0.72rem;
-          color: #9ab8a5;
-          text-decoration: none;
-          font-weight: 600;
-          transition: color 0.18s;
-          font-family: 'Quicksand', sans-serif;
-        }
+        .wf-footer { flex-shrink: 0; border-top: 1px solid #f0f7f2; padding: 14px 32px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: space-between; }
+        @media (min-width: 500px) { .wf-footer { flex-direction: row; } }
+        .wf-footer-copy { font-size: 0.72rem; color: #9ab8a5; font-weight: 600; font-family: 'Quicksand', sans-serif; }
+        .wf-footer-links { display: flex; gap: 16px; }
+        .wf-footer-links a { font-size: 0.72rem; color: #9ab8a5; text-decoration: none; font-weight: 600; transition: color 0.18s; font-family: 'Quicksand', sans-serif; }
         .wf-footer-links a:hover { color: #1a4d2e; }
       `}</style>
 
       <div className="wf-signup-root">
         <div className="wf-hero">
-          <Image
-            src="/truck2.png"
-            alt="WasteFlow construction truck"
-            fill
-            style={{ objectFit: "cover", objectPosition: "center" }}
-            sizes="50vw"
-            priority
-          />
+          <Image src="/truck2.png" alt="WasteFlow construction truck" fill style={{ objectFit: "cover", objectPosition: "center" }} sizes="50vw" priority />
           <div className="wf-hero-scrim" />
-          <div className="wf-hero-content">
-            <HeroText />
-          </div>
+          <div className="wf-hero-content"><HeroText /></div>
         </div>
 
         <div className="wf-form-panel">
-          <div className="wf-form-header">
-            <div style={{ width: 1 }} />
-          </div>
+          <div className="wf-form-header"><div style={{ width: 1 }} /></div>
 
           <div className="wf-form-scroll">
             <div className="wf-form-inner">
@@ -701,13 +390,8 @@ const handleGoogleSignup = async () => {
 
               <div className="wf-toggle">
                 {["operator", "contractor"].map(r => (
-                  <button
-                    key={r}
-                    type="button"
-                    className={`wf-toggle-btn${role === r ? " active" : ""}`}
-                    onClick={() => setRole(r)}
-                  >
-                    {r === "operator" ? " Operator" : " Contractor"}
+                  <button key={r} type="button" className={`wf-toggle-btn${role === r ? " active" : ""}`} onClick={() => setRole(r)}>
+                    {r === "operator" ? "Operator" : "Contractor"}
                   </button>
                 ))}
               </div>
@@ -733,38 +417,18 @@ const handleGoogleSignup = async () => {
 
               <div className="wf-form-fields">
                 <Input
-                  label="Full Name"
-                  placeholder="John Smith"
-                  required
-                  value={fullName}
-                  onChange={e => setFullName(e.target.value)}
-                  error={errors.fullName}
-                  leftIcon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
-                    </svg>
-                  }
+                  label="Full Name" placeholder="John Smith" required
+                  value={fullName} onChange={e => setFullName(e.target.value)} error={errors.fullName}
+                  leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>}
                 />
                 <Input
-                  label="Email Address"
-                  type="email"
-                  placeholder="you@company.co.uk"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  error={errors.email}
-                  leftIcon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                  }
+                  label="Email Address" type="email" placeholder="you@company.co.uk" required
+                  value={email} onChange={e => setEmail(e.target.value)} error={errors.email}
+                  leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>}
                 />
                 <PasswordInput
-                  label="Password"
-                  placeholder="Create a strong password (8+ chars)"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  error={errors.password}
+                  label="Password" placeholder="Create a strong password (8+ chars)"
+                  value={password} onChange={e => setPassword(e.target.value)} error={errors.password}
                 />
               </div>
 
@@ -773,8 +437,7 @@ const handleGoogleSignup = async () => {
               </Button>
 
               <p className="wf-signin-nudge">
-                Already have an account?{" "}
-                <Link href="/login">Sign in</Link>
+                Already have an account? <Link href="/login">Sign in</Link>
               </p>
 
               <p style={{ textAlign: "center", fontSize: "0.72rem", fontWeight: 600, color: "#9ab8a5", fontFamily: "'Quicksand',sans-serif", marginTop: 16, lineHeight: 1.6 }}>

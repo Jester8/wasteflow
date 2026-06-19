@@ -33,9 +33,10 @@ export async function POST(req: NextRequest) {
       submittedAt: FieldValue.serverTimestamp(),
     });
 
-    // 4. Update user's kycStatus — Admin SDK bypasses Firestore rules
+    // 4. Update user's kycStatus to "pending" (awaiting admin review)
+    // IMPORTANT: must be "pending" — that's what the frontend routing checks for
     await userRef.update({
-      kycStatus: "submitted",
+      kycStatus: "pending",
       kycSubmittedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });

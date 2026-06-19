@@ -7,6 +7,7 @@ import { updateUserKYC } from "@/lib/firestore";
 
 type Role = "operator" | "contractor";
 
+// ── Cloudinary ────────────────────────────────────────────────────────────────
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -39,6 +40,7 @@ async function uploadToCloudinary(
   });
 }
 
+// ── Shared form primitives ────────────────────────────────────────────────────
 function Input({ label, type = "text", placeholder, error, leftIcon, required: req, hint, ...props }: {
   label?: string; type?: string; placeholder?: string; error?: string;
   leftIcon?: React.ReactNode; required?: boolean; hint?: string; [k: string]: any;
@@ -292,6 +294,7 @@ function KycStepIndicator({ current, labels }: { current: number; labels: string
   );
 }
 
+// ── Step components ───────────────────────────────────────────────────────────
 function OperatorBusinessStep({ data, setData, errors }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -437,6 +440,7 @@ function ContractorWasteStep({ data, setData, errors }: any) {
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function KycPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -447,19 +451,12 @@ export default function KycPage() {
   const [uploadProgress, setUploadProgress] = useState("");
 
   useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user) {
-      router.replace("/login");
-      return;
+    if (!authLoading && !user) router.replace("/login");
+    if (!authLoading && profile?.kycStatus === "submitted") {
+      router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
     }
 
-    if (profile) {
-      if (profile.kycStatus === "pending" || profile.kycStatus === "submitted" || profile.kycStatus === "approved") {
-        router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
-      }
-    }
-  }, [user, profile, authLoading, router]);
+      }, [user, profile, authLoading, router]);
 
   if (authLoading || !profile) {
     return (
@@ -556,11 +553,7 @@ export default function KycPage() {
       }
 
       setUploadProgress("Saving your details…");
-      await updateUserKYC(uid, { 
-        ...kycData, 
-        kycStatus: "pending",
-        kycSubmittedAt: new Date().toISOString()
-      });
+      await updateUserKYC(uid, kycData);
 
       setSubmitting(false);
       setUploadProgress("");
