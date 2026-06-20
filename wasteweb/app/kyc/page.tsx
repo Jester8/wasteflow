@@ -625,7 +625,7 @@ export default function KycPage() {
             <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "#9ab8a5", fontFamily: "'Quicksand',sans-serif" }}>Step 3 of 3</span>
 
             <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 20, background: "#f0f7f2", border: "1px solid #c6e2d0" }}>
-              <span style={{ fontSize: "0.78rem" }}>{isOperator ? "🏗" : "🚛"}</span>
+              <span style={{ fontSize: "0.78rem" }}>{isOperator ? "🚛" : "🏗"}</span>
               <span style={{ fontSize: "0.72rem", fontWeight: 700, color: "#3d6b4d", fontFamily: "'Quicksand',sans-serif" }}>
                 {isOperator ? "Operator" : "Contractor"}
               </span>

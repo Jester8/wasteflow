@@ -3,42 +3,105 @@
 import { useEffect } from "react";
 
 const STATUS_CONFIG = {
-  Pending:     { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
-  Scheduled:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
-  Arriving:    { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
-  "In Transit":{ bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
-  Completed:   { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
-  Declined:    { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
+  Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
+  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
+  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
+  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
+  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
 };
 
 const WASTE_TYPE_CONFIG = {
-  Mixed:    { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
-  Metal:    { bg: "rgba(100,116,139,0.10)",color: "#475569", border: "rgba(100,116,139,0.25)" },
-  Concrete: { bg: "rgba(120,113,108,0.10)",color: "#57534e", border: "rgba(120,113,108,0.25)" },
-  Green:    { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)"  },
-  Hazardous:{ bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
-  General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
+  Mixed:     { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
+  Metal:     { bg: "rgba(100,116,139,0.10)",color: "#475569", border: "rgba(100,116,139,0.25)" },
+  Concrete:  { bg: "rgba(120,113,108,0.10)",color: "#57534e", border: "rgba(120,113,108,0.25)" },
+  Green:     { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)"  },
+  Hazardous: { bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
+  General:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-// Which timeline steps are "done" for each status
-const STATUS_STEPS = {
-  Pending:     [true,  false, false, false],
-  Scheduled:   [true,  true,  false, false],
-  Arriving:    [true,  true,  true,  false],
-  "In Transit":[true,  true,  true,  false],
-  Completed:   [true,  true,  true,  true ],
-  Declined:    [true,  false, false, false],
+const STATUS_STEPS: Record<string, boolean[]> = {
+  Pending:      [true,  false, false, false],
+  Scheduled:    [true,  true,  false, false],
+  Arriving:     [true,  true,  true,  false],
+  "In Transit": [true,  true,  true,  false],
+  Completed:    [true,  true,  true,  true ],
+  Declined:     [true,  false, false, false],
 };
 
 const TIMELINE_STEPS = [
-  { label: "Request submitted",  sub: "Operator raised a pickup request"  },
-  { label: "Request accepted",   sub: "Contractor confirmed the job"       },
-  { label: "In transit",         sub: "Contractor collected the waste"     },
-  { label: "Pickup completed",   sub: "Job successfully fulfilled"         },
+  { label: "Request submitted",  sub: "Contractor raised a pickup request"  },
+  { label: "Request accepted",   sub: "Operator confirmed the job"          },
+  { label: "In transit",         sub: "Contractor collected the waste"      },
+  { label: "Pickup completed",   sub: "Job successfully fulfilled"          },
 ];
 
-function StatusBadge({ status }) {
-  const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
+const BANNERS: Record<string, {
+  iconStroke: string;
+  iconPath: React.ReactNode;
+  iconBg: string;
+  iconBorder: string;
+  title: string;
+  sub: string;
+}> = {
+  Pending: {
+    iconStroke: "#f59e0b",
+    iconPath: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
+    iconBg: "#fffbeb", iconBorder: "rgba(251,191,36,0.35)",
+    title: "Awaiting Response",
+    sub: "This request is pending your acceptance",
+  },
+  Scheduled: {
+    iconStroke: "#3b82f6",
+    iconPath: <><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
+    iconBg: "rgba(59,130,246,0.08)", iconBorder: "rgba(59,130,246,0.25)",
+    title: "Pickup Scheduled",
+    sub: "You have confirmed and scheduled this job",
+  },
+  Arriving: {
+    iconStroke: "#06b6d4",
+    iconPath: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    iconBg: "rgba(34,211,238,0.08)", iconBorder: "rgba(34,211,238,0.25)",
+    title: "Contractor Arriving",
+    sub: "Contractor is on the way to the pickup location",
+  },
+  "In Transit": {
+    iconStroke: "#a855f7",
+    iconPath: <><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
+    iconBg: "rgba(168,85,247,0.08)", iconBorder: "rgba(168,85,247,0.25)",
+    title: "Waste In Transit",
+    sub: "Waste has been collected and is being transported",
+  },
+  Completed: {
+    iconStroke: "#B8D52E",
+    iconPath: <polyline points="20 6 9 17 4 12"/>,
+    iconBg: "#1a4d2e", iconBorder: "transparent",
+    title: "Pickup Completed",
+    sub: "This job has been successfully fulfilled",
+  },
+  Declined: {
+    iconStroke: "#ef4444",
+    iconPath: <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    iconBg: "rgba(239,68,68,0.08)", iconBorder: "rgba(239,68,68,0.25)",
+    title: "Request Declined",
+    sub: "This pickup request was not accepted",
+  },
+};
+
+type RequestItem = {
+  id: string;
+  title: string;
+  wasteType: string;
+  status: string;
+  location: string;
+  dates: string;
+  weight: string;
+  note: string;
+  contractorName?: string;
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Pending;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -56,8 +119,8 @@ function StatusBadge({ status }) {
   );
 }
 
-function WasteTypeBadge({ type }) {
-  const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
+function WasteTypeBadge({ type }: { type: string }) {
+  const c = WASTE_TYPE_CONFIG[type as keyof typeof WASTE_TYPE_CONFIG] || WASTE_TYPE_CONFIG.General;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -76,12 +139,18 @@ function WasteTypeBadge({ type }) {
   );
 }
 
-function DetailRow({ icon, label, value, valueColor }) {
+function DetailRow({ icon, label, value, valueColor, last }: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  valueColor?: string;
+  last?: boolean;
+}) {
   return (
     <div style={{
       display: "flex", flexDirection: "column", gap: 4,
       padding: "14px 0",
-      borderBottom: "1px solid #f0f7f2",
+      borderBottom: last ? "none" : "1px solid #f0f7f2",
     }}>
       <span style={{
         fontSize: "0.7rem", fontWeight: 700, color: "#9ab8a5",
@@ -101,79 +170,8 @@ function DetailRow({ icon, label, value, valueColor }) {
   );
 }
 
-// Status-aware banner shown below the badges
-function StatusBanner({ status }) {
-  const banners = {
-    Pending: {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-      ),
-      iconBg: "#fffbeb",
-      iconBorder: "rgba(251,191,36,0.35)",
-      title: "Awaiting Response",
-      sub: "This request is pending your acceptance",
-    },
-    Scheduled: {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-        </svg>
-      ),
-      iconBg: "rgba(59,130,246,0.08)",
-      iconBorder: "rgba(59,130,246,0.25)",
-      title: "Pickup Scheduled",
-      sub: "Contractor has confirmed and scheduled this job",
-    },
-    Arriving: {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-        </svg>
-      ),
-      iconBg: "rgba(34,211,238,0.08)",
-      iconBorder: "rgba(34,211,238,0.25)",
-      title: "Contractor Arriving",
-      sub: "Contractor is on the way to the pickup location",
-    },
-    "In Transit": {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-        </svg>
-      ),
-      iconBg: "rgba(168,85,247,0.08)",
-      iconBorder: "rgba(168,85,247,0.25)",
-      title: "Waste In Transit",
-      sub: "Waste has been collected and is being transported",
-    },
-    Completed: {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-      ),
-      iconBg: "#1a4d2e",
-      iconBorder: "transparent",
-      title: "Pickup Completed",
-      sub: "This job has been successfully fulfilled",
-    },
-    Declined: {
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-        </svg>
-      ),
-      iconBg: "rgba(239,68,68,0.08)",
-      iconBorder: "rgba(239,68,68,0.25)",
-      title: "Request Declined",
-      sub: "This pickup request was not accepted",
-    },
-  };
-
-  const b = banners[status] || banners.Pending;
-
+function StatusBanner({ status }: { status: string }) {
+  const b = BANNERS[status] || BANNERS.Pending;
   return (
     <div style={{
       background: "#f5faf6", border: "1px solid #e8f2eb",
@@ -188,7 +186,9 @@ function StatusBanner({ status }) {
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
       }}>
-        {b.icon}
+        <svg viewBox="0 0 24 24" fill="none" stroke={b.iconStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+          {b.iconPath}
+        </svg>
       </div>
       <div>
         <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
@@ -202,7 +202,17 @@ function StatusBanner({ status }) {
   );
 }
 
-export default function RequestDetailModal({ item, onClose, onAccept, onDecline }) {
+export default function RequestDetailModal({
+  item,
+  onClose,
+  onAccept,
+  onDecline,
+}: {
+  item: RequestItem | null;
+  onClose: () => void;
+  onAccept: (id: string) => void;
+  onDecline: (id: string) => void;
+}) {
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -212,29 +222,23 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
 
   useEffect(() => {
     if (!item) return;
-    const handler = (e) => { if (e.key === "Escape") onClose(); };
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [item, onClose]);
 
   if (!item) return null;
 
-  const isPending = item.status === "Pending";
-  const isDeclined = item.status === "Declined";
+  const isPending   = item.status === "Pending";
+  const isDeclined  = item.status === "Declined";
   const isCompleted = item.status === "Completed";
-  const steps = STATUS_STEPS[item.status] || STATUS_STEPS.Pending;
+  const steps       = STATUS_STEPS[item.status] || STATUS_STEPS.Pending;
 
   return (
     <>
       <style>{`
-        @keyframes wfReqBackdropIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes wfReqDrawerIn {
-          from { transform: translateX(100%); opacity: 0; }
-          to   { transform: translateX(0);    opacity: 1; }
-        }
+        @keyframes wfReqBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes wfReqDrawerIn   { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
         .wf-req-modal-backdrop {
           position: fixed; inset: 0; z-index: 200;
@@ -245,8 +249,7 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
         }
 
         .wf-req-modal-drawer {
-          width: 100%; max-width: 460px;
-          height: 100%;
+          width: 100%; max-width: 460px; height: 100%;
           background: #ffffff;
           display: flex; flex-direction: column;
           animation: wfReqDrawerIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
@@ -255,12 +258,10 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
         }
 
         .wf-req-modal-header {
-          display: flex; align-items: center;
-          justify-content: space-between;
+          display: flex; align-items: center; justify-content: space-between;
           padding: 20px 24px;
           border-bottom: 1px solid #f0f7f2;
-          flex-shrink: 0;
-          background: #ffffff;
+          flex-shrink: 0; background: #ffffff;
         }
 
         .wf-req-modal-close {
@@ -271,68 +272,53 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
           transition: background 0.18s, border-color 0.18s, color 0.18s;
           flex-shrink: 0;
         }
-        .wf-req-modal-close:hover {
-          background: #fee2e2; border-color: #fca5a5; color: #b91c1c;
-        }
+        .wf-req-modal-close:hover { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
 
         .wf-req-modal-body {
           flex: 1; overflow-y: auto; padding: 24px;
-          display: flex; flex-direction: column; gap: 0;
+          display: flex; flex-direction: column;
         }
         .wf-req-modal-body::-webkit-scrollbar { width: 4px; }
         .wf-req-modal-body::-webkit-scrollbar-track { background: transparent; }
         .wf-req-modal-body::-webkit-scrollbar-thumb { background: #c6e2d0; border-radius: 4px; }
 
         .wf-req-modal-footer {
-          flex-shrink: 0;
-          padding: 16px 24px;
-          border-top: 1px solid #f0f7f2;
-          background: #ffffff;
+          flex-shrink: 0; padding: 16px 24px;
+          border-top: 1px solid #f0f7f2; background: #ffffff;
           display: flex; flex-direction: column; gap: 8px;
         }
 
         .wf-req-btn-accept {
-          width: 100%; display: flex; align-items: center;
-          justify-content: center; gap: 8px;
+          width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
           padding: 12px 20px; border-radius: 10px;
           background: #1a4d2e; border: none; cursor: pointer;
           color: #B8D52E; font-size: 0.88rem; font-weight: 700;
           font-family: 'Quicksand', sans-serif;
           transition: background 0.18s, transform 0.15s;
         }
-        .wf-req-btn-accept:hover {
-          background: #B8D52E; color: #0d2416; transform: translateY(-1px);
-        }
+        .wf-req-btn-accept:hover { background: #B8D52E; color: #0d2416; transform: translateY(-1px); }
 
         .wf-req-btn-decline {
-          width: 100%; display: flex; align-items: center;
-          justify-content: center; gap: 8px;
+          width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
           padding: 12px 20px; border-radius: 10px;
           background: none; border: 1px solid #fca5a5; cursor: pointer;
           color: #b91c1c; font-size: 0.88rem; font-weight: 700;
           font-family: 'Quicksand', sans-serif;
           transition: background 0.18s, border-color 0.18s;
         }
-        .wf-req-btn-decline:hover {
-          background: #fee2e2; border-color: #ef4444;
-        }
+        .wf-req-btn-decline:hover { background: #fee2e2; border-color: #ef4444; }
 
         .wf-req-btn-secondary {
-          width: 100%; display: flex; align-items: center;
-          justify-content: center; gap: 8px;
+          width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
           padding: 12px 20px; border-radius: 10px;
           background: none; border: 1px solid #e8f2eb; cursor: pointer;
           color: #1a4d2e; font-size: 0.88rem; font-weight: 700;
           font-family: 'Quicksand', sans-serif;
           transition: background 0.18s, border-color 0.18s;
         }
-        .wf-req-btn-secondary:hover {
-          background: #f0f7f2; border-color: #B8D52E;
-        }
+        .wf-req-btn-secondary:hover { background: #f0f7f2; border-color: #B8D52E; }
 
-        @media (max-width: 480px) {
-          .wf-req-modal-drawer { max-width: 100%; }
-        }
+        @media (max-width: 480px) { .wf-req-modal-drawer { max-width: 100%; } }
       `}</style>
 
       <div
@@ -344,7 +330,6 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
       >
         <div className="wf-req-modal-drawer">
 
-          {/* Header */}
           <div className="wf-req-modal-header">
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <span style={{
@@ -368,10 +353,8 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
             </button>
           </div>
 
-          {/* Body */}
           <div className="wf-req-modal-body">
 
-            {/* Badges + ID */}
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               marginBottom: 20, flexWrap: "wrap", gap: 8,
@@ -384,14 +367,12 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
                 fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
                 fontFamily: "'Quicksand', sans-serif", letterSpacing: "0.04em",
               }}>
-                {item.id}
+                {item.id.slice(0, 8).toUpperCase()}
               </span>
             </div>
 
-            {/* Status banner */}
             <StatusBanner status={item.status} />
 
-            {/* Detail rows */}
             <DetailRow
               label="Location"
               icon={
@@ -433,6 +414,18 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
               valueColor="#1a4d2e"
             />
 
+            {item.contractorName && (
+              <DetailRow
+                label="Contractor"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                }
+                value={item.contractorName}
+              />
+            )}
+
             {item.note && (
               <DetailRow
                 label="Notes"
@@ -443,10 +436,10 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
                 }
                 value={item.note}
                 valueColor="#6b8f7a"
+                last
               />
             )}
 
-            {/* Status Timeline */}
             <div style={{ paddingTop: 14 }}>
               <p style={{
                 fontSize: "0.7rem", fontWeight: 700, color: "#9ab8a5",
@@ -456,22 +449,18 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
               }}>
                 Status Timeline
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div style={{ display: "flex", flexDirection: "column" }}>
                 {TIMELINE_STEPS.map((step, i, arr) => {
-                  const done = steps[i];
-                  // For declined: first step done, rest crossed out
+                  const done     = steps[i];
                   const isDenied = isDeclined && i > 0;
+                  const isLast   = i === arr.length - 1;
                   return (
                     <div key={i} style={{ display: "flex", gap: 12 }}>
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                         <div style={{
                           width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                          background: isDenied
-                            ? "rgba(239,68,68,0.08)"
-                            : done ? "#1a4d2e" : "#f0f7f2",
-                          border: isDenied
-                            ? "2px solid rgba(239,68,68,0.3)"
-                            : done ? "2px solid #1a4d2e" : "2px solid #c6e2d0",
+                          background: isDenied ? "rgba(239,68,68,0.08)" : done ? "#1a4d2e" : "#f0f7f2",
+                          border: isDenied ? "2px solid rgba(239,68,68,0.3)" : done ? "2px solid #1a4d2e" : "2px solid #c6e2d0",
                           display: "flex", alignItems: "center", justifyContent: "center",
                           marginTop: 2,
                         }}>
@@ -485,7 +474,7 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
                             </svg>
                           ) : null}
                         </div>
-                        {i < arr.length - 1 && (
+                        {!isLast && (
                           <div style={{
                             width: 2, flex: 1, minHeight: 24,
                             background: done && !isDenied ? "#1a4d2e" : "#e8f2eb",
@@ -493,7 +482,7 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
                           }} />
                         )}
                       </div>
-                      <div style={{ paddingBottom: i < arr.length - 1 ? 16 : 0, paddingTop: 2 }}>
+                      <div style={{ paddingBottom: isLast ? 0 : 16, paddingTop: 2 }}>
                         <p style={{
                           fontSize: "0.82rem", fontWeight: 700,
                           color: isDenied ? "#b91c1c" : done ? "#1a2e1f" : "#9ab8a5",
@@ -517,13 +506,12 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
 
           </div>
 
-          {/* Footer — context-aware actions */}
           <div className="wf-req-modal-footer">
             {isPending && (
               <>
                 <button
                   className="wf-req-btn-accept"
-                  onClick={() => { onAccept?.(item.id); onClose(); }}
+                  onClick={() => { onAccept(item.id); onClose(); }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                     <polyline points="20 6 9 17 4 12"/>
@@ -532,7 +520,7 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
                 </button>
                 <button
                   className="wf-req-btn-decline"
-                  onClick={() => { onDecline?.(item.id); onClose(); }}
+                  onClick={() => { onDecline(item.id); onClose(); }}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -542,8 +530,8 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
               </>
             )}
 
-            {(isCompleted) && (
-              <button className="wf-req-btn-accept" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+            {isCompleted && (
+              <button className="wf-req-btn-accept">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -553,7 +541,7 @@ export default function RequestDetailModal({ item, onClose, onAccept, onDecline 
               </button>
             )}
 
-            {(!isPending && !isCompleted) && (
+            {!isPending && !isCompleted && (
               <button className="wf-req-btn-secondary" onClick={onClose}>
                 Close
               </button>

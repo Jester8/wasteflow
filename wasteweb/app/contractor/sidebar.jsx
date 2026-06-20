@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "../context/AuthContext"; // Adjust path as needed
 
 const NAV_ITEMS = [
   {
@@ -45,7 +46,7 @@ const NAV_ITEMS = [
   },
   {
     label: "History",
-    href: "/contractor/history",
+    href: "/contractor/histories",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <polyline points="1 4 1 10 7 10" />
@@ -57,8 +58,6 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({
-  adminEmail = "Operator@wasteflow.org",
-  adminName = "Operator",
   onSignOut,
   collapsed,
   onCollapse,
@@ -67,6 +66,11 @@ export default function Sidebar({
   onClose,
 }) {
   const pathname = usePathname();
+  const { user, profile } = useAuth();
+
+  // Get real user data from auth context
+  const adminEmail = profile?.email || user?.email || "Operator@wasteflow.org";
+  const adminName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
 
   const isActive = (href, exact) =>
     exact ? pathname === href : pathname.startsWith(href);
@@ -124,7 +128,7 @@ export default function Sidebar({
             />
           </Link>
         ) : (
-          <Link href="/operator" style={{ display: "flex", alignItems: "center" }}>
+          <Link href="/contractor" style={{ display: "flex", alignItems: "center" }}>
             <Image
               src="/logo.png"
               alt="WasteFlow"

@@ -4,10 +4,10 @@ import { useEffect } from "react";
 
 // ─── Config (mirrors operator card badges in the screenshot) ──────────────────
 const STATUS_CONFIG = {
-  Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Pending"      },
-  Accepted:     { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6",  label: "Accepted"     },
+  "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6",  label: "Scheduled"    },
   Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4",  label: "Arriving"     },
-  "In Progress":{ bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7",  label: "In Progress"  },
+  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7",  label: "In Transit"   },
   Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E",  label: "Completed"    },
   Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444",  label: "Declined"     },
 };
@@ -22,35 +22,35 @@ const WASTE_TYPE_CONFIG = {
 };
 
 // Operator-facing status → timeline progress
-// Steps: Submitted → Accepted → In Transit → Completed
+// Steps: Submitted → Scheduled → In Transit → Completed
 const STATUS_STEPS = {
-  Pending:       [true,  false, false, false],
-  Accepted:      [true,  true,  false, false],
-  Arriving:      [true,  true,  true,  false],
-  "In Progress": [true,  true,  true,  false],
-  Completed:     [true,  true,  true,  true ],
-  Declined:      [true,  false, false, false],
+  "Awaiting Approval": [true,  false, false, false],
+  Scheduled:           [true,  true,  false, false],
+  Arriving:            [true,  true,  true,  false],
+  "In Transit":        [true,  true,  true,  false],
+  Completed:           [true,  true,  true,  true ],
+  Declined:            [true,  false, false, false],
 };
 
 const TIMELINE_STEPS = [
-  { label: "Request submitted",    sub: "You raised this pickup request"          },
-  { label: "Accepted by contractor", sub: "A contractor confirmed the job"        },
-  { label: "Pickup in progress",   sub: "Contractor is collecting the waste"      },
-  { label: "Completed",            sub: "Waste successfully collected"            },
+  { label: "Request submitted",      sub: "You raised this pickup request"      },
+  { label: "Accepted by Operator",  sub: "An operator confirmed the job"      },
+  { label: "Pickup in progress",      sub: "An operator is collecting the waste"  },
+  { label: "Completed",               sub: "Waste successfully collected"        },
 ];
 
 // ─── Status banner config (operator-friendly copy) ───────────────────────────
 const BANNERS = {
-  Pending: {
+  "Awaiting Approval": {
     iconStroke: "#f59e0b",
     iconPath: <>
       <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
     </>,
     iconBg: "#fffbeb", iconBorder: "rgba(251,191,36,0.35)",
-    title: "Awaiting Contractor",
+    title: "Awaiting Approval",
     sub: "Your request has been submitted and is waiting to be accepted",
   },
-  Accepted: {
+  Scheduled: {
     iconStroke: "#3b82f6",
     iconPath: <>
       <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
@@ -68,7 +68,7 @@ const BANNERS = {
     title: "Contractor On the Way",
     sub: "Your contractor is en route to the pickup location",
   },
-  "In Progress": {
+  "In Transit": {
     iconStroke: "#a855f7",
     iconPath: <>
       <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
@@ -106,7 +106,7 @@ function Icon({ path, stroke = "currentColor", size = 15 }) {
 }
 
 function StatusBadge({ status }) {
-  const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
+  const s = STATUS_CONFIG[status] || STATUS_CONFIG["Awaiting Approval"];
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -175,7 +175,7 @@ function DetailRow({ label, icon, value, valueColor, last }) {
 }
 
 function StatusBanner({ status }) {
-  const b = BANNERS[status] || BANNERS.Pending;
+  const b = BANNERS[status] || BANNERS["Awaiting Approval"];
   return (
     <div style={{
       background: "#f5faf6", border: "1px solid #e8f2eb",
@@ -209,7 +209,7 @@ function StatusBanner({ status }) {
 }
 
 function Timeline({ status }) {
-  const steps   = STATUS_STEPS[status] || STATUS_STEPS.Pending;
+  const steps   = STATUS_STEPS[status] || STATUS_STEPS["Awaiting Approval"];
   const declined = status === "Declined";
   return (
     <div style={{ paddingTop: 20 }}>
@@ -308,7 +308,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
   const isCompleted = item.status === "Completed";
   const isDeclined  = item.status === "Declined";
-  const isPending   = item.status === "Pending";
+  const isAwaitingApproval = item.status === "Awaiting Approval";
 
   return (
     <>
@@ -555,7 +555,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               </>
             )}
 
-            {isPending && (
+            {isAwaitingApproval && (
               <>
                 <button className="or-btn-secondary" onClick={onClose}>
                   Close
@@ -574,7 +574,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
             )}
 
             {/* All other active statuses: just close */}
-            {!isCompleted && !isDeclined && !isPending && (
+            {!isCompleted && !isDeclined && !isAwaitingApproval && (
               <button className="or-btn-secondary" onClick={onClose}>Close</button>
             )}
           </div>

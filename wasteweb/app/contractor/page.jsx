@@ -67,20 +67,22 @@ function StatCard({ label, value, sub, icon, accent = false }) {
 }
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
+// Keys match the exact values the operator side writes to Firestore
+// (see RequestsPage.tsx STATUS_WRITE map: pending/scheduled/arriving/in_transit/completed/declined)
 const STATUS_STYLES = {
-  pending:   { bg: "rgba(251,191,36,0.12)", color: "#b45309", border: "rgba(251,191,36,0.3)" },
-  accepted:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.2)" },
-  arriving:  { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.2)" },
-  in_progress: { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.2)" },
-  completed: { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.3)" },
-  declined:  { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.2)" },
+  pending:    { bg: "rgba(251,191,36,0.12)", color: "#b45309", border: "rgba(251,191,36,0.3)" },
+  scheduled:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.2)" },
+  arriving:   { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.2)" },
+  in_transit: { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.2)" },
+  completed:  { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.3)" },
+  declined:   { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.2)" },
 };
 
 const STATUS_DISPLAY = {
   pending: "Pending",
-  accepted: "Accepted",
+  scheduled: "Scheduled",
   arriving: "Arriving",
-  in_progress: "In Progress",
+  in_transit: "In Transit",
   completed: "Completed",
   declined: "Declined",
 };
@@ -169,7 +171,7 @@ export default function AdminDashboard() {
   const totalRequests = requests.length;
   const pendingRequests = requests.filter(r => r.status === "pending").length;
   const inProgressRequests = requests.filter(r => 
-    r.status === "accepted" || r.status === "arriving" || r.status === "in_progress"
+    r.status === "scheduled" || r.status === "arriving" || r.status === "in_transit"
   ).length;
   const completedRequests = requests.filter(r => r.status === "completed").length;
 

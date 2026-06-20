@@ -9,14 +9,6 @@ const WASTE_TYPE_CONFIG = {
   Green:    { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)"  },
   Hazardous:{ bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
   General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
-  Wood:     { bg: "rgba(217,119,6,0.10)",  color: "#b45309", border: "rgba(217,119,6,0.25)"  },
-};
-
-const STATUS_CONFIG = {
-  ARRIVING:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)", label: "Arriving" },
-  "IN TRANSIT":{ bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)", label: "In Transit" },
-  SCHEDULED:  { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)", label: "Scheduled" },
-  COLLECTING: { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)",  label: "Collecting" },
 };
 
 function WasteTypeBadge({ type }) {
@@ -35,24 +27,6 @@ function WasteTypeBadge({ type }) {
         <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
       </svg>
       {type}
-    </span>
-  );
-}
-
-function StatusBadge({ status }) {
-  const c = STATUS_CONFIG[status] || STATUS_CONFIG.SCHEDULED;
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      padding: "4px 10px", borderRadius: 999,
-      background: c.bg, color: c.color,
-      border: `1px solid ${c.border}`,
-      fontFamily: "'Quicksand', sans-serif",
-      whiteSpace: "nowrap",
-    }}>
-      {c.label}
     </span>
   );
 }
@@ -82,7 +56,7 @@ function DetailRow({ icon, label, value, valueColor }) {
   );
 }
 
-export default function PickupDetailModal({ item, onClose }) {
+export default function HistoryDetailModal({ item, onClose }) {
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -98,45 +72,6 @@ export default function PickupDetailModal({ item, onClose }) {
   }, [item, onClose]);
 
   if (!item) return null;
-
-  const statusConfig = STATUS_CONFIG[item.status] || STATUS_CONFIG.SCHEDULED;
-
-  // Different status illustration states
-  const getStatusSteps = (status) => {
-    const steps = [
-      { label: "Request scheduled", sub: "Pickup date confirmed" },
-      { label: "Driver assigned", sub: "Contractor assigned to job" },
-      { label: "In transit", sub: "Driver en route to location" },
-      { label: "Arriving soon", sub: "Driver approaching site" },
-      { label: "Pickup completed", sub: "Waste collected successfully" },
-    ];
-
-    switch (status) {
-      case "ARRIVING":
-        return steps.map((step, idx) => ({
-          ...step,
-          done: idx <= 3,
-        }));
-      case "IN TRANSIT":
-        return steps.map((step, idx) => ({
-          ...step,
-          done: idx <= 2,
-        }));
-      case "COLLECTING":
-        return steps.map((step, idx) => ({
-          ...step,
-          done: idx <= 4,
-        }));
-      case "SCHEDULED":
-      default:
-        return steps.map((step, idx) => ({
-          ...step,
-          done: idx <= 0,
-        }));
-    }
-  };
-
-  const statusSteps = getStatusSteps(item.status);
 
   return (
     <>
@@ -202,12 +137,10 @@ export default function PickupDetailModal({ item, onClose }) {
           padding: 16px 24px;
           border-top: 1px solid #f0f7f2;
           background: #ffffff;
-          display: flex;
-          gap: 12px;
         }
 
-        .wf-modal-primary-btn {
-          flex: 1; display: flex; align-items: center;
+        .wf-modal-dl-btn {
+          width: 100%; display: flex; align-items: center;
           justify-content: center; gap: 8px;
           padding: 12px 20px; border-radius: 10px;
           background: #1a4d2e; border: none; cursor: pointer;
@@ -215,26 +148,15 @@ export default function PickupDetailModal({ item, onClose }) {
           font-family: "'Quicksand', sans-serif";
           transition: background 0.18s, transform 0.15s;
         }
-        .wf-modal-primary-btn:hover {
+        .wf-modal-dl-btn:hover:not(:disabled) {
           background: #0f2d1a; transform: translateY(-1px);
         }
-
-        .wf-modal-secondary-btn {
-          flex: 1; display: flex; align-items: center;
-          justify-content: center; gap: 8px;
-          padding: 12px 20px; border-radius: 10px;
-          background: #ffffff; border: 1px solid #e8f2eb;
-          cursor: pointer; color: #1a4d2e; font-size: 0.88rem; font-weight: 700;
-          font-family: "'Quicksand', sans-serif";
-          transition: background 0.18s, border-color 0.18s;
-        }
-        .wf-modal-secondary-btn:hover {
-          background: #f5faf6; border-color: #B8D52E;
+        .wf-modal-dl-btn:disabled:hover {
+          transform: none;
         }
 
         @media (max-width: 480px) {
           .wf-modal-drawer { max-width: 100%; }
-          .wf-modal-footer { flex-direction: column; }
         }
       `}</style>
 
@@ -278,68 +200,52 @@ export default function PickupDetailModal({ item, onClose }) {
             }}>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 <WasteTypeBadge type={item.wasteType} />
-                <StatusBadge status={item.status} />
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                  padding: "4px 10px", borderRadius: 999,
+                  background: "rgba(184,213,46,0.12)", color: "#3a6b00",
+                  border: "1px solid rgba(184,213,46,0.35)",
+                  fontFamily: "'Quicksand', sans-serif",
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  Completed
+                </span>
               </div>
               <span style={{
                 fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
                 fontFamily: "'Quicksand', sans-serif", letterSpacing: "0.04em",
               }}>
-                {item.id}
+                {item.id.slice ? item.id.slice(0, 8).toUpperCase() : item.id}
               </span>
             </div>
 
-            {/* Status illustration based on current status */}
             <div style={{
-              background: statusConfig.bg,
-              border: `1px solid ${statusConfig.border}`,
+              background: "#f5faf6", border: "1px solid #e8f2eb",
               borderRadius: 12, padding: "14px 16px",
               display: "flex", alignItems: "center", gap: 12,
               marginBottom: 20,
             }}>
               <div style={{
                 width: 40, height: 40, borderRadius: 10,
-                background: statusConfig.color,
+                background: "#1a4d2e",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 flexShrink: 0,
               }}>
-                {item.status === "ARRIVING" && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                )}
-                {item.status === "IN TRANSIT" && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                    <rect x="1" y="3" width="15" height="13" rx="1"/>
-                    <path d="M16 8h4l3 5v3h-7V8z"/>
-                    <circle cx="5.5" cy="18.5" r="2.5"/>
-                    <circle cx="18.5" cy="18.5" r="2.5"/>
-                  </svg>
-                )}
-                {item.status === "COLLECTING" && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                )}
-                {item.status === "SCHEDULED" && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                )}
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
               </div>
               <div>
-                <p style={{ fontSize: "0.78rem", fontWeight: 700, color: statusConfig.color, fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
-                  {statusConfig.label}
+                <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
+                  Pickup Completed
                 </p>
                 <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
-                  {item.status === "ARRIVING" && "Driver is almost at your location"}
-                  {item.status === "IN TRANSIT" && "Driver is on the way to pickup site"}
-                  {item.status === "COLLECTING" && "Waste collection is in progress"}
-                  {item.status === "SCHEDULED" && "Pickup has been scheduled"}
+                  This job has been successfully fulfilled
                 </p>
               </div>
             </div>
@@ -385,6 +291,18 @@ export default function PickupDetailModal({ item, onClose }) {
               valueColor="#1a4d2e"
             />
 
+            {item.operatorName && (
+              <DetailRow
+                label="Operator"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                }
+                value={item.operatorName}
+              />
+            )}
+
             {item.note && (
               <DetailRow
                 label="Notes"
@@ -408,7 +326,12 @@ export default function PickupDetailModal({ item, onClose }) {
                 Status Timeline
               </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                {statusSteps.map((step, i, arr) => (
+                {[
+                  { label: "Request submitted",  sub: "You raised this pickup request",      done: true  },
+                  { label: "Request accepted",   sub: "Operator confirmed the job",           done: true  },
+                  { label: "In transit",         sub: "You collected the waste",              done: true  },
+                  { label: "Pickup completed",   sub: "Job successfully fulfilled",           done: true  },
+                ].map((step, i, arr) => (
                   <div key={i} style={{ display: "flex", gap: 12 }}>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                       <div style={{
@@ -433,7 +356,7 @@ export default function PickupDetailModal({ item, onClose }) {
                       )}
                     </div>
                     <div style={{ paddingBottom: i < arr.length - 1 ? 16 : 0, paddingTop: 2 }}>
-                      <p style={{ fontSize: "0.82rem", fontWeight: 700, color: step.done ? "#1a2e1f" : "#9ab8a5", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
+                      <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>
                         {step.label}
                       </p>
                       <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", fontFamily: "'Quicksand', sans-serif", margin: 0, marginTop: 2 }}>
@@ -448,20 +371,24 @@ export default function PickupDetailModal({ item, onClose }) {
           </div>
 
           <div className="wf-modal-footer">
-            <button className="wf-modal-secondary-btn" style={{ fontFamily: "'Quicksand', sans-serif" }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                <circle cx="12" cy="12" r="3"/>
-              </svg>
-              Track Live
-            </button>
-            <button className="wf-modal-primary-btn" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+            <button
+              className="wf-modal-dl-btn"
+              style={{
+                fontFamily: "'Quicksand', sans-serif",
+                opacity: item.receiptUrl ? 1 : 0.5,
+                cursor: item.receiptUrl ? "pointer" : "not-allowed",
+              }}
+              disabled={!item.receiptUrl}
+              onClick={() => {
+                if (item.receiptUrl) window.open(item.receiptUrl, "_blank");
+              }}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              Download Details
+              {item.receiptUrl ? "Download Receipt" : "Receipt Unavailable"}
             </button>
           </div>
 

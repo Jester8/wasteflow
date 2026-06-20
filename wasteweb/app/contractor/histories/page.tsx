@@ -1,8 +1,25 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
-import HistoryDetailModal from "./components/historydetailmodal";
+import HistoryDetailModal from "./components/HistoryDetailModal";
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+export type HistoryItem = {
+  id: string;
+  title: string;
+  wasteType: string;
+  location: string;
+  dates: string;
+  weight: string;
+  note: string;
+  operatorName?: string;
+  receiptUrl?: string;
+  createdAt?: string;
+};
 
 const WASTE_TYPE_CONFIG = {
   Mixed:    { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
@@ -13,62 +30,15 @@ const WASTE_TYPE_CONFIG = {
   General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-export const MOCK_HISTORY = [
-  {
-    id: "WF-0039",
-    title: "Concrete Debris",
-    wasteType: "Mixed",
-    location: "Allen Street, London",
-    dates: "Jan 25 – Jan 28, 2026",
-    weight: "1 Ton",
-    note: "",
-  },
-  {
-    id: "WF-0035",
-    title: "Demolition Site Debris",
-    wasteType: "Concrete",
-    location: "Lagos, NGA",
-    dates: "Jan 25 – Jan 27, 2026",
-    weight: "3 Tons",
-    note: "Take for Recycle",
-  },
-  {
-    id: "WF-0031",
-    title: "General waste clearance",
-    wasteType: "General",
-    location: "854 Bristol Road, Selly Oak",
-    dates: "Dec 10 – Dec 11, 2025",
-    weight: "8 Tonnes",
-    note: "Ring Temi when you arrive",
-  },
-  {
-    id: "WF-0028",
-    title: "Metal scrap removal",
-    wasteType: "Metal",
-    location: "Canary Wharf, E14",
-    dates: "Nov 20 – Nov 21, 2025",
-    weight: "14 Tonnes",
-    note: "",
-  },
-  {
-    id: "WF-0024",
-    title: "Green waste disposal",
-    wasteType: "Green",
-    location: "Hackney, E8",
-    dates: "Oct 5 – Oct 5, 2025",
-    weight: "5 Tonnes",
-    note: "",
-  },
-  {
-    id: "WF-0019",
-    title: "Site clearance — Phase 2",
-    wasteType: "Mixed",
-    location: "Stratford, E15",
-    dates: "Sep 14 – Sep 16, 2025",
-    weight: "22 Tonnes",
-    note: "Access via rear gate only",
-  },
-];
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDateRange(start?: string, end?: string) {
+  if (!start) return "—";
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (!end || end === start) return fmt(start);
+  return `${fmt(start)} – ${fmt(end)}`;
+}
 
 function WasteTypeBadge({ type }) {
   const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
@@ -149,7 +119,7 @@ function HistoryCard({ item, onViewDetails }) {
             fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
             fontFamily: "'Quicksand', sans-serif",
             whiteSpace: "nowrap", letterSpacing: "0.04em",
-          }}>{item.id}</span>
+          }}>{item.id.slice(0, 8).toUpperCase()}</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <WasteTypeBadge type={item.wasteType} />
@@ -175,6 +145,13 @@ function HistoryCard({ item, onViewDetails }) {
             <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
         } text={item.weight} />
+        {item.operatorName && (
+          <MetaRow icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          } text={`Operator: ${item.operatorName}`} />
+        )}
         {item.note && (
           <MetaRow icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
@@ -207,13 +184,79 @@ function HistoryCard({ item, onViewDetails }) {
   );
 }
 
+function SkeletonCard() {
+  return (
+    <div style={{
+      background: "#ffffff", border: "1px solid #e8f2eb",
+      borderRadius: 16, padding: "20px",
+      display: "flex", flexDirection: "column", gap: 14,
+    }}>
+      {[["70%", 14], ["50%", 10], ["90%", 10], ["60%", 10], ["40%", 10]].map(([w, h], i) => (
+        <div key={i} style={{
+          height: h as number, width: w as string, borderRadius: 6,
+          background: "#f0f7f2", animation: "wfPulse 1.4s ease-in-out infinite",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
 export default function HistoryPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
-  const filtered = MOCK_HISTORY.filter((item) => {
+  const { user, profile } = useAuth();
+
+  // ── Firestore: only this contractor's own completed requests ─────────────
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "wasteRequests"),
+      where("contractorId", "==", user.uid),
+      where("status", "==", "completed"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setHistory(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            title:        data.title       || "Untitled",
+            wasteType:    data.wasteType   || "General",
+            location:     data.location    || "—",
+            dates:        formatDateRange(data.windowStart, data.windowEnd),
+            weight:       data.quantity    || "—",
+            note:         data.notes       || "",
+            operatorName: data.operatorName,
+            receiptUrl:   data.receiptUrl,
+            createdAt:    data.createdAt,
+          } as HistoryItem;
+        })
+      );
+      setLoading(false);
+    }, (err) => {
+      console.error("History error:", err);
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  // Keep modal data live — find the latest version of the selected item
+  const liveSelectedItem = selectedItem
+    ? history.find((h) => h.id === selectedItem.id) ?? selectedItem
+    : null;
+
+  const filtered = history.filter((item) => {
     const q = search.toLowerCase();
     return !q ||
       item.title.toLowerCase().includes(q) ||
@@ -221,10 +264,14 @@ export default function HistoryPage() {
       item.wasteType.toLowerCase().includes(q);
   });
 
+  const displayName  = profile?.fullName || user?.email?.split("@")[0] || "Contractor";
+  const displayEmail = profile?.email    || user?.email || "";
+
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
+        @keyframes wfPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         .wf-admin-root {
@@ -371,8 +418,8 @@ export default function HistoryPage() {
 
       <div className="wf-admin-root">
         <Sidebar
-          adminEmail="admin@wasteflow.org"
-          adminName="Admin"
+          adminEmail={displayEmail}
+          adminName={displayName}
           onSignOut={() => { window.location.href = "/login"; }}
           collapsed={collapsed}
           onCollapse={() => setCollapsed(true)}
@@ -410,8 +457,8 @@ export default function HistoryPage() {
           <div className="wf-content">
 
             <div className="wf-page-header">
-              <h1>Completed Pickups</h1>
-              <p>View your completed pickup assignments</p>
+              <h1>My Completed Pickups</h1>
+              <p>View your completed pickup history</p>
             </div>
 
             <div className="wf-search-row">
@@ -440,12 +487,14 @@ export default function HistoryPage() {
                 fontSize: "0.8rem", fontWeight: 700,
                 color: "#1a4d2e", fontFamily: "'Quicksand', sans-serif",
               }}>
-                {MOCK_HISTORY.length} completed pickups
+                {loading ? "—" : `${history.length} completed pickup${history.length !== 1 ? "s" : ""}`}
               </span>
             </div>
 
             <div className="wf-hist-grid">
-              {filtered.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
+              ) : filtered.length === 0 ? (
                 <div className="wf-empty">
                   <div style={{
                     width: 52, height: 52, borderRadius: 14,
@@ -458,10 +507,10 @@ export default function HistoryPage() {
                     </svg>
                   </div>
                   <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>
-                    No completed pickups found
+                    {search ? "No completed pickups match your search" : "You haven't completed any pickups yet"}
                   </p>
                   <p style={{ fontSize: "0.8rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}>
-                    Try adjusting your search
+                    {search ? "Try adjusting your search" : "Pickups you complete will appear here"}
                   </p>
                 </div>
               ) : (
@@ -480,7 +529,7 @@ export default function HistoryPage() {
       </div>
 
       <HistoryDetailModal
-        item={selectedItem}
+        item={liveSelectedItem}
         onClose={() => setSelectedItem(null)}
       />
     </>

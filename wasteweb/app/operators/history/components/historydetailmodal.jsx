@@ -148,8 +148,11 @@ export default function HistoryDetailModal({ item, onClose }) {
           font-family: "'Quicksand', sans-serif";
           transition: background 0.18s, transform 0.15s;
         }
-        .wf-modal-dl-btn:hover {
+        .wf-modal-dl-btn:hover:not(:disabled) {
           background: #0f2d1a; transform: translateY(-1px);
+        }
+        .wf-modal-dl-btn:disabled:hover {
+          transform: none;
         }
 
         @media (max-width: 480px) {
@@ -217,7 +220,7 @@ export default function HistoryDetailModal({ item, onClose }) {
                 fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
                 fontFamily: "'Quicksand', sans-serif", letterSpacing: "0.04em",
               }}>
-                {item.id}
+                {item.id.slice ? item.id.slice(0, 8).toUpperCase() : item.id}
               </span>
             </div>
 
@@ -288,6 +291,18 @@ export default function HistoryDetailModal({ item, onClose }) {
               valueColor="#1a4d2e"
             />
 
+            {item.contractorName && (
+              <DetailRow
+                label="Contractor"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                }
+                value={item.contractorName}
+              />
+            )}
+
             {item.note && (
               <DetailRow
                 label="Notes"
@@ -356,13 +371,24 @@ export default function HistoryDetailModal({ item, onClose }) {
           </div>
 
           <div className="wf-modal-footer">
-            <button className="wf-modal-dl-btn" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+            <button
+              className="wf-modal-dl-btn"
+              style={{
+                fontFamily: "'Quicksand', sans-serif",
+                opacity: item.receiptUrl ? 1 : 0.5,
+                cursor: item.receiptUrl ? "pointer" : "not-allowed",
+              }}
+              disabled={!item.receiptUrl}
+              onClick={() => {
+                if (item.receiptUrl) window.open(item.receiptUrl, "_blank");
+              }}
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
-              Download Receipt
+              {item.receiptUrl ? "Download Receipt" : "Receipt Unavailable"}
             </button>
           </div>
 

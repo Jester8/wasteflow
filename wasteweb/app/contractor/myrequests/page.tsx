@@ -8,15 +8,15 @@ import { useAuthGuard } from "../../hooks/Useauthguard ";
 import Sidebar from "../sidebar";
 import OperatorRequestDetailModal from "../myrequests/Operatorrequestdetailmodal ";
 
-const TABS = ["All", "Pending", "Accepted", "Arriving", "In Progress", "Completed"];
+const TABS = ["All", "Awaiting Approval", "Scheduled", "Arriving", "In Transit", "Completed"];
 
 const STATUS_CONFIG = {
-  Pending:       { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b"  },
-  Accepted:      { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6"  },
-  Arriving:      { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4"  },
-  "In Progress": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7"  },
-  Completed:     { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E"  },
-  Declined:      { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444"  },
+  "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b"  },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6"  },
+  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4"  },
+  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7"  },
+  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E"  },
+  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444"  },
 };
 
 const WASTE_TYPE_CONFIG = {
@@ -30,10 +30,10 @@ const WASTE_TYPE_CONFIG = {
 
 // Maps Firestore lowercase status values to display labels
 const STATUS_DISPLAY: Record<string, string> = {
-  pending: "Pending",
-  accepted: "Accepted",
+  pending: "Awaiting Approval",
+  scheduled: "Scheduled",
   arriving: "Arriving",
-  in_progress: "In Progress",
+  in_transit: "In Transit",
   completed: "Completed",
   declined: "Declined",
   cancelled: "Declined",
@@ -82,7 +82,7 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     id: d.id,
     title: d.title,
     wasteType: d.wasteType,
-    status: STATUS_DISPLAY[d.status] || "Pending",
+    status: STATUS_DISPLAY[d.status] || "Awaiting Approval",
     location: d.location,
     dates: formatDateRange(d.windowStart, d.windowEnd),
     weight: d.quantity || "—",
@@ -93,7 +93,7 @@ function mapDoc(d: FirestoreRequest): RequestItem {
 }
 
 function StatusBadge({ status }: { status: keyof typeof STATUS_CONFIG }) {
-  const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
+  const s = STATUS_CONFIG[status] || STATUS_CONFIG["Awaiting Approval"];
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -568,9 +568,8 @@ export default function MyRequestsPage() {
       `}</style>
 
       <div className="or-root">
+        {/* Sidebar now fetches its own data - no need to pass adminEmail and adminName */}
         <Sidebar
-          adminEmail={profile?.email || ""}
-          adminName={profile?.fullName || "User"}
           onSignOut={() => { window.location.href = "/login"; }}
           collapsed={collapsed}
           onCollapse={() => setCollapsed(true)}

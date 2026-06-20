@@ -1,18 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
-import RequestDetailModal from "./components/RequestDetailModal";
+import HistoryDetailModal from "./components/historydetailmodal";
 
-const TABS = ["All", "Pending", "Scheduled", "Arriving", "In Transit", "Completed", "Declined"];
+// ── Types ────────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG = {
-  Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
-  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
-  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
-  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
-  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
-  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
+export type HistoryItem = {
+  id: string;
+  title: string;
+  wasteType: string;
+  location: string;
+  dates: string;
+  weight: string;
+  note: string;
+  contractorName?: string;
+  receiptUrl?: string;
+  createdAt?: string;
 };
 
 const WASTE_TYPE_CONFIG = {
@@ -24,68 +31,14 @@ const WASTE_TYPE_CONFIG = {
   General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-const MOCK_REQUESTS = [
-  {
-    id: "WF-0041", title: "Concrete debris",
-    wasteType: "Mixed", status: "Arriving",
-    location: "Allen Street, London",
-    dates: "Jun 5 – Jun 10, 2026",
-    weight: "12 Tons", note: "Handle with care",
-  },
-  {
-    id: "WF-0040", title: "Concrete removal",
-    wasteType: "Metal", status: "Pending",
-    location: "Kent, United Kingdom",
-    dates: "May 31 – Jul 31, 2026",
-    weight: "23 Tonnes", note: "",
-  },
-  {
-    id: "WF-0039", title: "General waste",
-    wasteType: "Mixed", status: "Completed",
-    location: "854 Bristol Road, Selly Oak",
-    dates: "Feb 25 – Feb 26, 2026",
-    weight: "14 Tonnes", note: "Ring Temi when you arrive",
-  },
-  {
-    id: "WF-0038", title: "Site clearance",
-    wasteType: "Concrete", status: "Scheduled",
-    location: "Canary Wharf, E14",
-    dates: "Jun 12 – Jun 14, 2026",
-    weight: "30 Tonnes", note: "Access via rear gate",
-  },
-  {
-    id: "WF-0037", title: "Green waste removal",
-    wasteType: "Green", status: "In Transit",
-    location: "Hackney, E8",
-    dates: "Jun 9 – Jun 9, 2026",
-    weight: "6 Tonnes", note: "",
-  },
-  {
-    id: "WF-0036", title: "Hazardous materials",
-    wasteType: "Hazardous", status: "Declined",
-    location: "Stratford, E15",
-    dates: "Jun 1 – Jun 3, 2026",
-    weight: "4 Tonnes", note: "Requires specialist handling",
-  },
-];
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }) {
-  const s = STATUS_CONFIG[status] || STATUS_CONFIG.Pending;
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      padding: "3px 9px", borderRadius: 999,
-      background: s.bg, color: s.color,
-      border: `1px solid ${s.border}`,
-      fontFamily: "'Quicksand', sans-serif",
-      whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
-      {status}
-    </span>
-  );
+function formatDateRange(start?: string, end?: string) {
+  if (!start) return "—";
+  const fmt = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (!end || end === start) return fmt(start);
+  return `${fmt(start)} – ${fmt(end)}`;
 }
 
 function WasteTypeBadge({ type }) {
@@ -108,6 +61,27 @@ function WasteTypeBadge({ type }) {
   );
 }
 
+function CompletedBadge() {
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
+      textTransform: "uppercase",
+      padding: "3px 9px", borderRadius: 999,
+      background: "rgba(184,213,46,0.12)", color: "#3a6b00",
+      border: "1px solid rgba(184,213,46,0.35)",
+      fontFamily: "'Quicksand', sans-serif",
+      whiteSpace: "nowrap",
+    }}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      Completed
+    </span>
+  );
+}
+
 function MetaRow({ icon, text, muted }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -122,11 +96,9 @@ function MetaRow({ icon, text, muted }) {
   );
 }
 
-function RequestCard({ req, onAccept, onDecline, onViewDetails }) {
-  const isPending = req.status === "Pending";
-
+function HistoryCard({ item, onViewDetails }) {
   return (
-    <div className="wf-card" style={{
+    <div className="wf-hist-card" style={{
       background: "#ffffff",
       border: "1px solid #e8f2eb",
       borderRadius: 16,
@@ -136,7 +108,6 @@ function RequestCard({ req, onAccept, onDecline, onViewDetails }) {
       transition: "box-shadow 0.2s, transform 0.2s",
       fontFamily: "'Quicksand', sans-serif",
     }}>
-      {/* Title + ID */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <h3 style={{
@@ -144,93 +115,57 @@ function RequestCard({ req, onAccept, onDecline, onViewDetails }) {
             color: "#1a2e1f", margin: 0,
             fontFamily: "'Quicksand', sans-serif",
             lineHeight: 1.3,
-          }}>{req.title}</h3>
+          }}>{item.title}</h3>
           <span style={{
             fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
             fontFamily: "'Quicksand', sans-serif",
             whiteSpace: "nowrap", letterSpacing: "0.04em",
-          }}>{req.id}</span>
+          }}>{item.id.slice(0, 8).toUpperCase()}</span>
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <WasteTypeBadge type={req.wasteType} />
-          <StatusBadge status={req.status} />
+          <WasteTypeBadge type={item.wasteType} />
+          <CompletedBadge />
         </div>
       </div>
 
-      {/* Divider */}
       <div style={{ height: 1, background: "#f0f7f2" }} />
 
-      {/* Meta */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <MetaRow icon={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
           </svg>
-        } text={req.location} />
+        } text={item.location} />
         <MetaRow icon={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-        } text={req.dates} />
+        } text={item.dates} />
         <MetaRow icon={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
             <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
-        } text={req.weight} />
-        {req.note && (
+        } text={item.weight} />
+        {item.contractorName && (
+          <MetaRow icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          } text={`Contractor: ${item.contractorName}`} />
+        )}
+        {item.note && (
           <MetaRow icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-          } text={req.note} muted />
+          } text={item.note} muted />
         )}
       </div>
 
-      {/* Actions */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 2 }}>
-        {isPending ? (
-          <>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => onAccept(req.id)}
-                className="wf-btn-accept"
-                style={{
-                  flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                  padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
-                  background: "#1a4d2e", color: "#B8D52E",
-                  fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
-                  transition: "background 0.18s, transform 0.15s",
-                }}
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                Accept
-              </button>
-            </div>
-            <button
-              onClick={() => onDecline(req.id)}
-              className="wf-btn-decline"
-              style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                padding: "10px 16px", borderRadius: 10, border: "none", cursor: "pointer",
-                background: "#ef4444", color: "#fff",
-                fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif",
-                transition: "background 0.18s",
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-              Decline
-            </button>
-          </>
-        ) : null}
-
-        {/* View Details — always shown */}
+      <div style={{ marginTop: 2 }}>
         <button
-          className="wf-btn-view"
-          onClick={() => onViewDetails(req)}
+          className="wf-hist-btn-view"
+          onClick={() => onViewDetails(item)}
           style={{
             width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
             padding: "10px 16px", borderRadius: 10, cursor: "pointer",
@@ -250,58 +185,93 @@ function RequestCard({ req, onAccept, onDecline, onViewDetails }) {
   );
 }
 
-export default function RequestsPage() {
+function SkeletonCard() {
+  return (
+    <div style={{
+      background: "#ffffff", border: "1px solid #e8f2eb",
+      borderRadius: 16, padding: "20px",
+      display: "flex", flexDirection: "column", gap: 14,
+    }}>
+      {[["70%", 14], ["50%", 10], ["90%", 10], ["60%", 10], ["40%", 10]].map(([w, h], i) => (
+        <div key={i} style={{
+          height: h as number, width: w as string, borderRadius: 6,
+          background: "#f0f7f2", animation: "wfPulse 1.4s ease-in-out infinite",
+        }} />
+      ))}
+    </div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function HistoryPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("All");
   const [search, setSearch] = useState("");
-  const [requests, setRequests] = useState(MOCK_REQUESTS);
-  const [selectedReq, setSelectedReq] = useState(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
-  const filtered = requests.filter((r) => {
-    const matchTab = activeTab === "All" || r.status === activeTab;
+  const { user, profile } = useAuth();
+
+  // ── Firestore: only completed requests ───────────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(
+      collection(db, "wasteRequests"),
+      where("status", "==", "completed"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setHistory(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            title:          data.title        || "Untitled",
+            wasteType:      data.wasteType    || "General",
+            location:       data.location     || "—",
+            dates:          formatDateRange(data.windowStart, data.windowEnd),
+            weight:         data.quantity     || "—",
+            note:           data.notes        || "",
+            contractorName: data.contractorName,
+            receiptUrl:     data.receiptUrl,
+            createdAt:      data.createdAt,
+          } as HistoryItem;
+        })
+      );
+      setLoading(false);
+    }, (err) => {
+      console.error("History error:", err);
+      setLoading(false);
+    });
+
+    return () => unsub();
+  }, [user]);
+
+  // Keep modal data live — find the latest version of the selected item
+  const liveSelectedItem = selectedItem
+    ? history.find((h) => h.id === selectedItem.id) ?? selectedItem
+    : null;
+
+  const filtered = history.filter((item) => {
     const q = search.toLowerCase();
-    const matchSearch = !q ||
-      r.title.toLowerCase().includes(q) ||
-      r.location.toLowerCase().includes(q) ||
-      r.wasteType.toLowerCase().includes(q);
-    return matchTab && matchSearch;
+    return !q ||
+      item.title.toLowerCase().includes(q) ||
+      item.location.toLowerCase().includes(q) ||
+      item.wasteType.toLowerCase().includes(q);
   });
 
-  const handleAccept = (id) => {
-    setRequests((prev) =>
-      prev.map((r) => r.id === id ? { ...r, status: "Scheduled" } : r)
-    );
-  };
-
-  const handleDecline = (id) => {
-    setRequests((prev) =>
-      prev.map((r) => r.id === id ? { ...r, status: "Declined" } : r)
-    );
-  };
-
-  // Keep modal in sync if status changes while open
-  const handleAcceptWithSync = (id) => {
-    handleAccept(id);
-    setSelectedReq((prev) => prev?.id === id ? { ...prev, status: "Scheduled" } : prev);
-  };
-
-  const handleDeclineWithSync = (id) => {
-    handleDecline(id);
-    setSelectedReq((prev) => prev?.id === id ? { ...prev, status: "Declined" } : prev);
-  };
-
-  const counts = TABS.reduce((acc, tab) => {
-    acc[tab] = tab === "All"
-      ? requests.length
-      : requests.filter((r) => r.status === tab).length;
-    return acc;
-  }, {});
+  const displayName  = profile?.fullName || user?.email?.split("@")[0] || "Operator";
+  const displayEmail = profile?.email    || user?.email || "";
 
   return (
     <>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
+        @keyframes wfPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         .wf-admin-root {
@@ -399,67 +369,29 @@ export default function RequestsPage() {
           box-shadow: 0 0 0 3px rgba(184,213,46,0.12);
         }
 
-        .wf-filter-btn {
-          display: flex; align-items: center; gap: 7px;
-          padding: 11px 18px; border-radius: 12px;
-          border: 1px solid #e8f2eb; background: #ffffff;
-          color: #3a5a45; font-size: 0.875rem; font-weight: 700;
-          font-family: 'Quicksand', sans-serif; cursor: pointer;
-          white-space: nowrap; transition: border 0.18s, background 0.18s;
-          flex-shrink: 0;
-        }
-        .wf-filter-btn:hover { border-color: #B8D52E; background: #f5faf6; }
-
-        .wf-tabs-wrap {
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-        .wf-tabs-wrap::-webkit-scrollbar { display: none; }
-
-        .wf-tabs {
-          display: flex; gap: 4px;
+        .wf-summary-strip {
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 18px; border-radius: 12px;
           background: #ffffff; border: 1px solid #e8f2eb;
-          border-radius: 12px; padding: 5px;
-          width: fit-content; min-width: 100%;
+          width: fit-content;
         }
 
-        .wf-tab {
-          display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 9px;
-          border: none; background: none; cursor: pointer;
-          font-size: 0.8rem; font-weight: 700;
-          font-family: 'Quicksand', sans-serif;
-          color: #6b8f7a; white-space: nowrap;
-          transition: background 0.15s, color 0.15s;
-        }
-        .wf-tab:hover { background: #f0f7f2; color: #1a4d2e; }
-        .wf-tab.active { background: #1a4d2e; color: #B8D52E; }
-
-        .wf-tab-count {
-          font-size: 0.65rem; font-weight: 700;
-          padding: 1px 6px; border-radius: 999px;
-          background: rgba(255,255,255,0.15);
-          color: inherit;
-        }
-        .wf-tab:not(.active) .wf-tab-count {
-          background: #f0f7f2; color: #8aab97;
-        }
-
-        .wf-cards-grid {
+        .wf-hist-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 16px;
           align-items: start;
         }
 
-        .wf-card:hover {
+        .wf-hist-card:hover {
           box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important;
           transform: translateY(-2px);
         }
 
-        .wf-btn-accept:hover { background: #B8D52E !important; color: #0d2416 !important; }
-        .wf-btn-decline:hover { background: #dc2626 !important; }
-        .wf-btn-view:hover { background: #f0f7f2 !important; border-color: #B8D52E !important; }
+        .wf-hist-btn-view:hover {
+          background: #f0f7f2 !important;
+          border-color: #B8D52E !important;
+        }
 
         .wf-empty {
           grid-column: 1 / -1;
@@ -469,15 +401,14 @@ export default function RequestsPage() {
         }
 
         @media (max-width: 1100px) {
-          .wf-cards-grid { grid-template-columns: repeat(2, 1fr); }
+          .wf-hist-grid { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {
           .wf-hamburger { display: flex; }
           .wf-topbar { padding: 0 16px; }
           .wf-content { padding: 16px; gap: 16px; }
-          .wf-cards-grid { grid-template-columns: 1fr; }
-          .wf-filter-btn span { display: none; }
+          .wf-hist-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 480px) {
@@ -487,8 +418,8 @@ export default function RequestsPage() {
 
       <div className="wf-admin-root">
         <Sidebar
-          adminEmail="admin@wasteflow.org"
-          adminName="Admin"
+          adminEmail={displayEmail}
+          adminName={displayName}
           onSignOut={() => { window.location.href = "/login"; }}
           collapsed={collapsed}
           onCollapse={() => setCollapsed(true)}
@@ -507,13 +438,10 @@ export default function RequestsPage() {
                   <line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
               </button>
-              <span className="wf-topbar-title">All Requests</span>
+              <span className="wf-topbar-title">History</span>
             </div>
             <div className="wf-topbar-right">
-              <span
-                style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}
-                className="wf-topbar-date"
-              >
+              <span style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }} className="wf-topbar-date">
                 {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
               </span>
               <button className="wf-notif-btn" aria-label="Notifications">
@@ -529,8 +457,8 @@ export default function RequestsPage() {
           <div className="wf-content">
 
             <div className="wf-page-header">
-              <h1>All Pickup Requests</h1>
-              <p>Review and manage incoming pickup requests</p>
+              <h1>Completed Pickups</h1>
+              <p>View your completed pickup assignments</p>
             </div>
 
             <div className="wf-search-row">
@@ -543,38 +471,30 @@ export default function RequestsPage() {
                 <input
                   className="wf-search-input"
                   type="text"
-                  placeholder="Search by title, location, or waste type..."
+                  placeholder="Search by title, location, or waste type…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <button className="wf-filter-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                </svg>
-                <span>Filters</span>
-              </button>
             </div>
 
-            <div className="wf-tabs-wrap">
-              <div className="wf-tabs">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab}
-                    className={`wf-tab${activeTab === tab ? " active" : ""}`}
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab}
-                    {counts[tab] > 0 && (
-                      <span className="wf-tab-count">{counts[tab]}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+            <div className="wf-summary-strip">
+              <span style={{
+                width: 8, height: 8, borderRadius: "50%",
+                background: "#B8D52E", flexShrink: 0,
+              }} />
+              <span style={{
+                fontSize: "0.8rem", fontWeight: 700,
+                color: "#1a4d2e", fontFamily: "'Quicksand', sans-serif",
+              }}>
+                {loading ? "—" : `${history.length} completed pickup${history.length !== 1 ? "s" : ""}`}
+              </span>
             </div>
 
-            <div className="wf-cards-grid">
-              {filtered.length === 0 ? (
+            <div className="wf-hist-grid">
+              {loading ? (
+                Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
+              ) : filtered.length === 0 ? (
                 <div className="wf-empty">
                   <div style={{
                     width: 52, height: 52, borderRadius: 14,
@@ -587,20 +507,18 @@ export default function RequestsPage() {
                     </svg>
                   </div>
                   <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>
-                    No requests found
+                    {search ? "No completed pickups match your search" : "No completed pickups yet"}
                   </p>
                   <p style={{ fontSize: "0.8rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}>
-                    Try adjusting your search or filter
+                    {search ? "Try adjusting your search" : "Completed jobs will appear here"}
                   </p>
                 </div>
               ) : (
-                filtered.map((req) => (
-                  <RequestCard
-                    key={req.id}
-                    req={req}
-                    onAccept={handleAccept}
-                    onDecline={handleDecline}
-                    onViewDetails={setSelectedReq}
+                filtered.map((item) => (
+                  <HistoryCard
+                    key={item.id}
+                    item={item}
+                    onViewDetails={setSelectedItem}
                   />
                 ))
               )}
@@ -610,11 +528,9 @@ export default function RequestsPage() {
         </main>
       </div>
 
-      <RequestDetailModal
-        item={selectedReq}
-        onClose={() => setSelectedReq(null)}
-        onAccept={handleAcceptWithSync}
-        onDecline={handleDeclineWithSync}
+      <HistoryDetailModal
+        item={liveSelectedItem}
+        onClose={() => setSelectedItem(null)}
       />
     </>
   );
