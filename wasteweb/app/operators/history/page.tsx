@@ -31,6 +31,8 @@ const WASTE_TYPE_CONFIG = {
   General:  { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
+type WasteType = keyof typeof WASTE_TYPE_CONFIG;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDateRange(start?: string, end?: string) {
@@ -41,8 +43,8 @@ function formatDateRange(start?: string, end?: string) {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
-function WasteTypeBadge({ type }) {
-  const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
+function WasteTypeBadge({ type }: { type: string }) {
+  const c = WASTE_TYPE_CONFIG[type as WasteType] || WASTE_TYPE_CONFIG.General;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -82,7 +84,7 @@ function CompletedBadge() {
   );
 }
 
-function MetaRow({ icon, text, muted }) {
+function MetaRow({ icon, text, muted }: { icon: React.ReactNode; text: string; muted?: boolean }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
       <span style={{ color: "#8aab97", marginTop: 1, flexShrink: 0 }}>{icon}</span>
@@ -96,7 +98,7 @@ function MetaRow({ icon, text, muted }) {
   );
 }
 
-function HistoryCard({ item, onViewDetails }) {
+function HistoryCard({ item, onViewDetails }: { item: HistoryItem; onViewDetails: (item: HistoryItem) => void }) {
   return (
     <div className="wf-hist-card" style={{
       background: "#ffffff",
