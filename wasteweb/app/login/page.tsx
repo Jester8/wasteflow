@@ -269,17 +269,25 @@ const ROLE_CONFIG: Record<Role, { label: string; emoji: string; placeholder: str
 
 function routeAfterAuth(
   router: ReturnType<typeof useRouter>,
-  profile: any
+  profile: any,
+  selectedRole: Role
 ) {
   const { kycStatus, role } = profile || {};
 
-  // No KYC record yet
+  // Role mismatch
+  if (role !== selectedRole) {
+    throw new Error(
+      `This account is registered as ${
+        role === "operator" ? "Operator" : "Contractor"
+      }.`
+    );
+  }
+
   if (!kycStatus) {
     router.push("/kyc");
     return;
   }
 
-  // Allow both pending and approved users
   if (kycStatus === "pending" || kycStatus === "approved") {
     router.push(
       role === "operator"
@@ -289,7 +297,6 @@ function routeAfterAuth(
     return;
   }
 
-  // rejected, incomplete, etc.
   router.push("/kyc");
 }
 
@@ -308,21 +315,17 @@ export default function LoginPage() {
   const config = ROLE_CONFIG[role];
 
 useEffect(() => {
-  
   if (!postSignInPending) return;
-
-
   if (authLoading) return;
-
-
   if (!user) return;
-
-
   if (!profile) return;
 
-  routeAfterAuth(router, profile);
+  try {
+    routeAfterAuth(router, profile, role);
+  } catch (err: any) {
+    setGlobalError(err.message);
+  }
 
- 
   setPostSignInPending(false);
 }, [
   postSignInPending,
@@ -330,6 +333,7 @@ useEffect(() => {
   user,
   profile,
   router,
+  role,
 ]);
 
   const validate = () => {

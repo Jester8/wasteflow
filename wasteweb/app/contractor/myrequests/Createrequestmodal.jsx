@@ -187,8 +187,10 @@ const EMPTY_FORM = {
   location: "",
   dateFrom: "",
   dateTo: "",
-  weight: "",
-  weightUnit: "Tonnes",
+  volume: "",
+  volumeUnit: "Yards",
+  availableFromTime: "",
+  availableToTime: "",
   note: "",
 };
 
@@ -229,22 +231,35 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
     setTimeout(() => { setStep(0); setForm(EMPTY_FORM); setErrors({}); setSubmitted(false); }, 300);
   }
 
-  function validateStep(s) {
-    const e = {};
-    if (s === 0) {
-      if (!form.title.trim())    e.title    = "Job title is required";
-      if (!form.wasteType)       e.wasteType = "Please select a waste type";
-      if (!form.location.trim()) e.location = "Location is required";
-      if (!form.weight.trim())   e.weight   = "Estimated weight is required";
-    }
-    if (s === 1) {
-      if (!form.dateFrom) e.dateFrom = "Start date is required";
-      if (!form.dateTo)   e.dateTo   = "End date is required";
-      if (form.dateFrom && form.dateTo && form.dateTo < form.dateFrom)
-        e.dateTo = "End date must be after start date";
-    }
-    return e;
+ function validateStep(s) {
+  const e = {};
+
+  if (s === 0) {
+    if (!form.title.trim()) e.title = "Job title is required";
+    if (!form.wasteType) e.wasteType = "Please select a waste type";
+    if (!form.location.trim()) e.location = "Location is required";
+    if (!form.volume?.trim()) e.volume = "Estimated volume is required";
   }
+
+  if (s === 1) {
+    if (!form.dateFrom) e.dateFrom = "Start date is required";
+    if (!form.dateTo) e.dateTo = "End date is required";
+    if (!form.availableFromTime)
+      e.availableFromTime = "Start time is required";
+    if (!form.availableToTime)
+      e.availableToTime = "End time is required";
+
+    if (
+      form.dateFrom &&
+      form.dateTo &&
+      form.dateTo < form.dateFrom
+    ) {
+      e.dateTo = "End date must be after start date";
+    }
+  }
+
+  return e;
+}
 
   function next() {
     const e = validateStep(step);
@@ -259,17 +274,22 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
   }
 
   function submit() {
-    const id = `WF-${String(Math.floor(1000 + Math.random() * 9000))}`;
-    const payload = {
-      ...form,
-      id,
-      status: "Pending",
-      dates: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`,
-      weight: `${form.weight} ${form.weightUnit}`,
-    };
-    onSubmit?.(payload);
-    setSubmitted(true);
-  }
+  const id = `WF-${String(
+    Math.floor(1000 + Math.random() * 9000)
+  )}`;
+
+  const payload = {
+    ...form,
+    id,
+    status: "Pending",
+    dates: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`,
+    availability: `${form.availableFromTime} - ${form.availableToTime}`,
+    volume: `${form.volume} ${form.volumeUnit}`,
+  };
+
+  onSubmit?.(payload);
+  setSubmitted(true);
+}
 
   function fmt(iso) {
     if (!iso) return "";
@@ -473,17 +493,41 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                 display: "flex", flexDirection: "column", gap: 10,
               }}>
                 {[
-                  { icon: "📍", label: form.location },
-                  { icon: "📅", label: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}` },
-                  { icon: "⚖️", label: `${form.weight} ${form.weightUnit}` },
-                ].map(({ icon, label }) => (
-                  <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: "0.85rem" }}>{icon}</span>
-                    <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>
-                      {label}
-                    </span>
-                  </div>
-                ))}
+  { icon: "📍", label: form.location },
+  {
+    icon: "📅",
+    label: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`
+  },
+  {
+    icon: "🕒",
+    label: `${form.availableFromTime} - ${form.availableToTime}`
+  },
+  {
+    icon: "🚛",
+    label: `${form.volume} ${form.volumeUnit}`
+  },
+].map(({ icon, label }) => (
+  <div
+    key={label}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+    }}
+  >
+    <span style={{ fontSize: "0.85rem" }}>{icon}</span>
+    <span
+      style={{
+        fontSize: "0.82rem",
+        fontWeight: 600,
+        color: "#3a5a45",
+        fontFamily: "'Quicksand', sans-serif",
+      }}
+    >
+      {label}
+    </span>
+  </div>
+))}
               </div>
 
               <p style={{
@@ -558,6 +602,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                         value={form.weightUnit}
                         onChange={set("weightUnit")}
                       >
+                         <option>Yards</option>
                         <option>Tonnes</option>
                         <option>Tons</option>
                         <option>kg</option>
@@ -630,6 +675,44 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                 </>
               )}
 
+              <div className="cr-row">
+  <div className="cr-field">
+    <Label required>Available From</Label>
+    <FocusInput
+      type="time"
+      value={form.availableFromTime}
+      onChange={set("availableFromTime")}
+      error={!!errors.availableFromTime}
+    />
+    {errors.availableFromTime && (
+      <span className="cr-error">
+        {errors.availableFromTime}
+      </span>
+    )}
+  </div>
+
+  <div className="cr-field">
+    <Label required>Available To</Label>
+    <FocusInput
+      type="time"
+      value={form.availableToTime}
+      onChange={set("availableToTime")}
+      error={!!errors.availableToTime}
+    />
+    {errors.availableToTime && (
+      <span className="cr-error">
+        {errors.availableToTime}
+      </span>
+    )}
+  </div>
+</div>
+
+<FieldHint>
+  Let Operators know what time they can access the site.
+</FieldHint>
+
+
+
               {/* ── Step 2: Review & Notes ── */}
               {step === 2 && (
                 <>
@@ -641,11 +724,22 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                       marginBottom: 10,
                     }}>Summary</p>
                     <div className="cr-review-box">
-                      <ReviewRow label="Job"      value={form.title} />
-                      <ReviewRow label="Type"     value={form.wasteType} />
-                      <ReviewRow label="Location" value={form.location} />
-                      <ReviewRow label="Window"   value={`${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`} />
-                      <ReviewRow label="Weight"   value={`${form.weight} ${form.weightUnit}`} accent />
+                     <ReviewRow label="Job" value={form.title} />
+<ReviewRow label="Type" value={form.wasteType} />
+<ReviewRow label="Location" value={form.location} />
+<ReviewRow
+  label="Window"
+  value={`${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`}
+/>
+<ReviewRow
+  label="Access Time"
+  value={`${form.availableFromTime} - ${form.availableToTime}`}
+/>
+<ReviewRow
+  label="Volume"
+  value={`${form.volume} ${form.volumeUnit}`}
+  accent
+/>
                     </div>
                   </div>
 
