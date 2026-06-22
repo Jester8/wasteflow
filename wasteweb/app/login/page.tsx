@@ -267,24 +267,30 @@ const ROLE_CONFIG: Record<Role, { label: string; emoji: string; placeholder: str
   contractor: { label: "Contractor", emoji: "", placeholder: "you@haulage.co.uk" },
 };
 
-function routeAfterAuth(router: ReturnType<typeof useRouter>, profile: any) {
-  if (!profile) {
-    router.push("/kyc");
-    return;
-  }
+function routeAfterAuth(
+  router: ReturnType<typeof useRouter>,
+  profile: any
+) {
+  const { kycStatus, role } = profile || {};
 
-  const { kycStatus, role } = profile;
-
+  // No KYC record yet
   if (!kycStatus) {
     router.push("/kyc");
     return;
   }
 
+  // Allow both pending and approved users
   if (kycStatus === "pending" || kycStatus === "approved") {
-    router.push(role === "operator" ? "/operators/" : "/contractor/");
-  } else {
-    router.push("/kyc");
+    router.push(
+      role === "operator"
+        ? "/operators"
+        : "/contractor"
+    );
+    return;
   }
+
+  // rejected, incomplete, etc.
+  router.push("/kyc");
 }
 
 export default function LoginPage() {
@@ -301,11 +307,30 @@ export default function LoginPage() {
 
   const config = ROLE_CONFIG[role];
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) return;
-    routeAfterAuth(router, profile);
-  }, [authLoading, user, profile, router, postSignInPending]);
+useEffect(() => {
+  
+  if (!postSignInPending) return;
+
+
+  if (authLoading) return;
+
+
+  if (!user) return;
+
+
+  if (!profile) return;
+
+  routeAfterAuth(router, profile);
+
+ 
+  setPostSignInPending(false);
+}, [
+  postSignInPending,
+  authLoading,
+  user,
+  profile,
+  router,
+]);
 
   const validate = () => {
     const errs: Record<string, string> = {};
