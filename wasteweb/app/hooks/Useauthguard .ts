@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 
 type GuardType = "guest-only" | "auth-only" | "kyc-complete";
+type Role = "operator" | "contractor";
 
-export function useAuthGuard(type: GuardType) {
+export function useAuthGuard(type: GuardType, requiredRole?: Role) {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
 
@@ -37,7 +38,13 @@ export function useAuthGuard(type: GuardType) {
         return;
       }
     }
-  }, [user, profile, loading, router, type]);
+
+    // ── Role enforcement (new) ──────────────────────────────────────────
+    if (requiredRole && profile && profile.role !== requiredRole) {
+      router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
+      return;
+    }
+  }, [user, profile, loading, router, type, requiredRole]);
 
   return { user, profile, loading };
 }

@@ -1,8 +1,6 @@
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-// ── Create user profile on signup ─────────────────────────────────────────────
-// Writes to /users/{uid} — kycStatus must be 'pending' to satisfy rules
 export async function saveUserProfile(
   uid: string,
   data: {
@@ -18,7 +16,7 @@ export async function saveUserProfile(
     fullName: data.fullName,
     email: data.email,
     role: data.role,
-    kycStatus: "pending",          // always starts as pending — rules enforce this
+    kycStatus: "pending",
     provider: data.provider ?? "email",
     emailVerified: false,
     createdAt: serverTimestamp(),
@@ -26,7 +24,6 @@ export async function saveUserProfile(
   });
 }
 
-// ── Read user profile ─────────────────────────────────────────────────────────
 export async function getUserProfile(uid: string) {
   const userRef = doc(db, "users", uid);
   const snap = await getDoc(userRef);
@@ -34,10 +31,6 @@ export async function getUserProfile(uid: string) {
   return null;
 }
 
-// ── Submit KYC ────────────────────────────────────────────────────────────────
-// Writes to /kyc/{uid} — NOT /users/{uid}
-// A Cloud Function listening to /kyc/{uid} onCreate will set
-// kycStatus = 'submitted' on /users/{uid} via the Admin SDK
 export async function updateUserKYC(uid: string, kycData: Record<string, any>) {
   const kycRef = doc(db, "kyc", uid);
   await setDoc(kycRef, {
@@ -45,13 +38,19 @@ export async function updateUserKYC(uid: string, kycData: Record<string, any>) {
     uid,
     submittedAt: serverTimestamp(),
   });
-  // ⚠️ Do NOT touch /users/{uid} here — kycStatus is set server-side only
 }
 
-// ── Read KYC submission ───────────────────────────────────────────────────────
 export async function getKycSubmission(uid: string) {
   const kycRef = doc(db, "kyc", uid);
   const snap = await getDoc(kycRef);
   if (snap.exists()) return snap.data();
   return null;
+}
+
+export async function markKycSubmitted(uid: string) {
+  const userRef = doc(db, "users", uid);
+  await setDoc(userRef, {
+    kycStatus: "submitted",
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }

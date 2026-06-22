@@ -3,18 +3,16 @@
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useAuthGuard } from "../hooks/Useauthguard ";
 import Sidebar from "../components/Sidebar";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 type WasteRequest = {
   id: string;
   title: string;
-  status: string;        // firestore value: pending, scheduled, arriving, in_transit, completed, declined
+  status: string;
   location: string;
   contractorName?: string;
   quantity?: string;
@@ -22,8 +20,6 @@ type WasteRequest = {
   createdAt?: string;
   windowStart?: string;
 };
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const STATUS_DISPLAY: Record<string, string> = {
   pending:    "Pending",
@@ -48,8 +44,6 @@ function getGreeting() {
   if (h < 17) return "Good afternoon";
   return "Good evening";
 }
-
-// ── Sub-components ───────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, icon, accent = false, loading = false }: {
   label: string; value: string | number; sub?: string;
@@ -159,8 +153,6 @@ function KycStatusBadge({ status }: { status: string }) {
   );
 }
 
-// ── Skeleton row ─────────────────────────────────────────────────────────────
-
 function SkeletonRow() {
   return (
     <tr>
@@ -176,22 +168,40 @@ function SkeletonRow() {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function OperatorDashboard() {
-  const [collapsed, setCollapsed]   = useState(false);
+  const [collapsed, setCollapsed]     = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
-  const [requests, setRequests]     = useState<WasteRequest[]>([]);
+  const [signingOut, setSigningOut]   = useState(false);
+  const [requests, setRequests]       = useState<WasteRequest[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
 
   const router = useRouter();
-  const { user, profile } = useAuth();
-  const { loading: authGuardLoading } = useAuthGuard("auth-only");
+  const { user: authUser, profile: authProfile } = useAuth();
+  
+  // ─── Authentication Guard with operator role ──────────────────────────────
+  const { user, profile, loading: authGuardLoading } = useAuthGuard("auth-only", "operator");
 
-  // ── Firestore: all wasteRequests (operators can read all) ─────────────────
+  // ─── Redirect if KYC missing or wrong role (in useEffect to avoid render error) ──
   useEffect(() => {
-    if (!user) return;
+    if (authGuardLoading) return;
+    if (!user || !profile) return;
+    
+    if (!profile.kycStatus) {
+      router.replace("/kyc");
+      return;
+    }
+    
+    if (profile.role !== "operator") {
+      router.replace("/contractor/");
+      return;
+    }
+  }, [profile, user, authGuardLoading, router]);
+
+  // ─── Fetch data from Firestore ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !profile) return;
+    if (!profile.kycStatus) return;
+    if (profile.role !== "operator") return;
 
     const q = query(
       collection(db, "wasteRequests"),
@@ -212,21 +222,21 @@ export default function OperatorDashboard() {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, profile]);
 
-  // ── Auth / KYC guards ─────────────────────────────────────────────────────
-  if (authGuardLoading) {
-    return <Spinner />;
-  }
-
-  if (profile && !profile.kycStatus) {
-    router.replace("/kyc");
+  // ─── Show loading state while auth guard is checking ──────────────────
+  if (authGuardLoading) return <Spinner />;
+  
+  // ─── Check conditions before rendering dashboard ──────────────────────
+  // If user/profile are missing, show spinner
+  if (!user || !profile) return <Spinner />;
+  
+  // If KYC missing or wrong role, the useEffect will handle redirect
+  // But we should still prevent rendering the dashboard
+  if (!profile.kycStatus || profile.role !== "operator") {
     return null;
   }
 
-  if (!user || !profile) return <Spinner />;
-
-  // ── Derived stats ─────────────────────────────────────────────────────────
   const total     = requests.length;
   const pending   = requests.filter((r) => r.status === "pending").length;
   const active    = requests.filter((r) =>
@@ -234,11 +244,10 @@ export default function OperatorDashboard() {
   ).length;
   const completed = requests.filter((r) => r.status === "completed").length;
 
-  // Recent 8 for the table
   const recent = requests.slice(0, 8);
 
-  const displayName  = profile?.fullName || user?.email?.split("@")[0] || "Operator";
-  const displayEmail = profile?.email || user?.email || "";
+  const displayName  = profile?.fullName || authUser?.email?.split("@")[0] || "Operator";
+  const displayEmail = profile?.email || authUser?.email || "";
   const kycStatus    = profile?.kycStatus || "pending";
 
   const handleSignOut = async () => {
@@ -296,19 +305,16 @@ export default function OperatorDashboard() {
       `}</style>
 
       <div className="wf-admin-root">
-        <Sidebar
-          adminEmail={displayEmail}
-          adminName={displayName}
-          onSignOut={handleSignOut}
-          collapsed={collapsed}
-          onCollapse={() => setCollapsed(true)}
-          onExpand={() => setCollapsed(false)}
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+      <Sidebar
+  onSignOut={handleSignOut}
+  collapsed={collapsed}
+  onCollapse={() => setCollapsed(true)}
+  onExpand={() => setCollapsed(false)}
+  isOpen={sidebarOpen}
+  onClose={() => setSidebarOpen(false)}
+/>
 
         <main className="wf-admin-main">
-          {/* Topbar */}
           <div className="wf-topbar">
             <div className="wf-topbar-left">
               <button className="wf-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
@@ -333,7 +339,6 @@ export default function OperatorDashboard() {
           </div>
 
           <div className="wf-content">
-            {/* Greeting */}
             <div className="wf-greeting" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
               <div>
                 <h1>{getGreeting()}, {displayName.split(" ")[0]} 👋</h1>
@@ -342,7 +347,6 @@ export default function OperatorDashboard() {
               <KycStatusBadge status={kycStatus} />
             </div>
 
-            {/* Stats */}
             <div className="wf-stats-grid">
               <StatCard
                 label="Total Requests" value={total} accent loading={dataLoading}
@@ -366,7 +370,6 @@ export default function OperatorDashboard() {
               />
             </div>
 
-            {/* Recent Requests Table */}
             <div className="wf-table-card">
               <div className="wf-table-header">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>

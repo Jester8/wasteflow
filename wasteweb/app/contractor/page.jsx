@@ -6,6 +6,8 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "./sidebar";
+import { useAuthGuard } from "../hooks/Useauthguard ";
+
 import { 
   collection, 
   query, 
@@ -132,11 +134,16 @@ export default function AdminDashboard() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const { user, profile } = useAuth();
+  
+  // ─── Authentication Guard ──────────────────────────────────────────────
+  const { user, profile, loading: authGuardLoading } = useAuthGuard("auth-only", "contractor");
+  
+  // ─── Use Auth Context for additional user data ─────────────────────────
+  const { user: authUser, profile: authProfile } = useAuth();
 
-  const displayName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
-  const displayEmail = profile?.email || user?.email || "";
-  const kycStatus = profile?.kycStatus || "pending";
+  const displayName = profile?.fullName || authProfile?.fullName || authUser?.email?.split("@")[0] || "Operator";
+  const displayEmail = profile?.email || authProfile?.email || authUser?.email || "";
+  const kycStatus = profile?.kycStatus || authProfile?.kycStatus || "pending";
 
   // ─── Fetch real data from Firestore ──────────────────────────────────────
   useEffect(() => {
@@ -196,6 +203,24 @@ export default function AdminDashboard() {
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   };
+
+  // Show loading state while auth guard is checking
+  if (authGuardLoading) {
+    return (
+      <div style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        minHeight: "100vh",
+        fontFamily: "'Quicksand', sans-serif",
+        color: "#1a4d2e",
+        fontSize: "1rem",
+        fontWeight: 600,
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <>

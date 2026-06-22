@@ -3,12 +3,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
-import { updateUserKYC } from "@/lib/firestore";
+import { updateUserKYC, markKycSubmitted } from "@/lib/firestore";
 import { useAuthGuard } from "../hooks/Useauthguard ";
 
 type Role = "operator" | "contractor";
 
-// ── Cloudinary ────────────────────────────────────────────────────────────────
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -41,7 +40,6 @@ async function uploadToCloudinary(
   });
 }
 
-// ── Shared form primitives ────────────────────────────────────────────────────
 function Input({ label, type = "text", placeholder, error, leftIcon, required: req, hint, ...props }: {
   label?: string; type?: string; placeholder?: string; error?: string;
   leftIcon?: React.ReactNode; required?: boolean; hint?: string; [k: string]: any;
@@ -295,7 +293,6 @@ function KycStepIndicator({ current, labels }: { current: number; labels: string
   );
 }
 
-// ── Step components ───────────────────────────────────────────────────────────
 function OperatorBusinessStep({ data, setData, errors }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -441,7 +438,6 @@ function ContractorWasteStep({ data, setData, errors }: any) {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function KycPage() {
   const { user, profile, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -452,12 +448,15 @@ export default function KycPage() {
   const [uploadProgress, setUploadProgress] = useState("");
 
   useEffect(() => {
-    if (!authLoading && !user) router.replace("/login");
-    if (!authLoading && profile?.kycStatus === "submitted") {
+    if (authLoading) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (profile?.kycStatus === "submitted") {
       router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
     }
-
-      }, [user, profile, authLoading, router]);
+  }, [user, profile, authLoading, router]);
 
   if (authLoading || !profile) {
     return (
@@ -555,6 +554,7 @@ export default function KycPage() {
 
       setUploadProgress("Saving your details…");
       await updateUserKYC(uid, kycData);
+      await markKycSubmitted(uid);
 
       setSubmitting(false);
       setUploadProgress("");
@@ -605,8 +605,6 @@ export default function KycPage() {
 
         .kyc-back-btn { background: none; border: 1.5px solid #c6e2d0; border-radius: 10px; padding: 13px 18px; font-size: 0.88rem; font-weight: 700; font-family: 'Quicksand', sans-serif; color: #3d6b4d; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.18s; }
         .kyc-back-btn:hover { border-color: #1a4d2e; background: #f5faf6; }
-
-        .kyc-role-badge { display: inline-flex; align-items: center; gap: 6px; padding: "5px 10px"; border-radius: 20px; background: #f0f7f2; border: 1px solid #c6e2d0; font-size: 0.72rem; font-weight: 700; color: #3d6b4d; font-family: 'Quicksand', sans-serif; }
 
         .kyc-progress { display: flex; align-items: center; gap: 6px; }
         .kyc-progress-dot { width: 6px; height: 6px; border-radius: 50%; background: #c6e2d0; }

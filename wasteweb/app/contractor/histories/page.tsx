@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { collection, query, orderBy, onSnapshot, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
-import Sidebar from "../../components/Sidebar";
+import Sidebar from "../sidebar";
 import HistoryDetailModal from "./components/HistoryDetailModal";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -419,16 +419,14 @@ export default function HistoryPage() {
       `}</style>
 
       <div className="wf-admin-root">
-        <Sidebar
-          adminEmail={displayEmail}
-          adminName={displayName}
-          onSignOut={() => { window.location.href = "/login"; }}
-          collapsed={collapsed}
-          onCollapse={() => setCollapsed(true)}
-          onExpand={() => setCollapsed(false)}
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+    <Sidebar
+  onSignOut={() => { window.location.href = "/login"; }}
+  collapsed={collapsed}
+  onCollapse={() => setCollapsed(true)}
+  onExpand={() => setCollapsed(false)}
+  isOpen={sidebarOpen}
+  onClose={() => setSidebarOpen(false)}
+/>  
 
         <main className="wf-admin-main">
           <div className="wf-topbar">

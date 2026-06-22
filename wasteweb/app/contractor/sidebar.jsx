@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "../context/AuthContext"; // Adjust path as needed
+import { useAuth } from "../context/AuthContext";
+ 
 
 const NAV_ITEMS = [
   {
@@ -21,7 +22,7 @@ const NAV_ITEMS = [
   },
   {
     label: "Create Requests",
-    href: "/contractor/requests",
+    href: "/contractor/myrequests",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -34,7 +35,7 @@ const NAV_ITEMS = [
   },
   {
     label: "My Requests",
-    href: "/contractor/myrequests",
+    href: "/contractor/requests",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16, flexShrink: 0 }}>
         <rect x="1" y="3" width="15" height="13" rx="2" />
@@ -69,8 +70,8 @@ export default function Sidebar({
   const { user, profile } = useAuth();
 
   // Get real user data from auth context
-  const adminEmail = profile?.email || user?.email || "Operator@wasteflow.org";
-  const adminName = profile?.fullName || user?.email?.split("@")[0] || "Operator";
+  const adminEmail = profile?.email || user?.email || "Contractor@wasteflow.org";
+  const adminName = profile?.fullName || user?.email?.split("@")[0] || "Contractor";
 
   const isActive = (href, exact) =>
     exact ? pathname === href : pathname.startsWith(href);

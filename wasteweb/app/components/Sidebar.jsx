@@ -1,9 +1,10 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
   {
@@ -58,9 +59,6 @@ const NAV_ITEMS = [
 ];
 
 export default function Sidebar({
-  adminEmail = "admin@wasteflow.org",
-  adminName = "Admin",
-  onSignOut,
   collapsed,
   onCollapse,
   onExpand,
@@ -68,11 +66,33 @@ export default function Sidebar({
   onClose,
 }) {
   const pathname = usePathname();
+  const { user, profile } = useAuth();
+
+
+  const router = useRouter();
+const [signingOut, setSigningOut] = useState(false);
+
+const handleSignOut = async () => {
+  if (signingOut) return;
+
+  setSigningOut(true);
+
+  try {
+    await signOut(auth);
+    router.replace("/login");
+  } catch (error) {
+    console.error("Sign out failed:", error);
+    setSigningOut(false);
+  }
+};
+
+  const operatorEmail = profile?.email || user?.email || "operator@wasteflow.org";
+  const operatorName  = profile?.fullName || user?.email?.split("@")[0] || "Operator";
 
   const isActive = (href, exact) =>
     exact ? pathname === href : pathname.startsWith(href);
 
-  const initial = adminName.charAt(0).toUpperCase();
+  const initial = operatorName.charAt(0).toUpperCase();
 
   const sidebarContent = (
     <div style={{
@@ -244,16 +264,16 @@ export default function Sidebar({
                 color: "#e8f5ee", margin: 0,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 fontFamily: "'Quicksand', sans-serif",
-              }}>{adminName}</p>
+              }}>{operatorName}</p>
               <p style={{
                 fontSize: "0.68rem", color: "#4a7a5a", margin: 0,
                 whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 fontFamily: "'Quicksand', sans-serif",
-              }}>{adminEmail}</p>
+              }}>{operatorEmail}</p>
             </div>
             {/* Sign out */}
             <button
-              onClick={onSignOut}
+          onClick={handleSignOut}
               className="wf-signout-btn"
               title="Sign out"
               style={{
@@ -273,7 +293,7 @@ export default function Sidebar({
           </div>
         ) : (
           <button
-            onClick={onSignOut}
+         onClick={handleSignOut}
             className="wf-signout-btn"
             title="Sign out"
             style={{
