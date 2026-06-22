@@ -419,14 +419,13 @@ export default function HistoryPage() {
       `}</style>
 
       <div className="wf-admin-root">
-       <Sidebar
+      <Sidebar
   collapsed={collapsed}
   onCollapse={() => setCollapsed(true)}
   onExpand={() => setCollapsed(false)}
   isOpen={sidebarOpen}
   onClose={() => setSidebarOpen(false)}
 />
-
         <main className="wf-admin-main">
           <div className="wf-topbar">
             <div className="wf-topbar-left">

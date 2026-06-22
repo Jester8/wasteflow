@@ -306,7 +306,6 @@ export default function OperatorDashboard() {
 
       <div className="wf-admin-root">
       <Sidebar
-  onSignOut={handleSignOut}
   collapsed={collapsed}
   onCollapse={() => setCollapsed(true)}
   onExpand={() => setCollapsed(false)}

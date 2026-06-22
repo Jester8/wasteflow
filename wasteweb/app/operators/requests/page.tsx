@@ -747,14 +747,12 @@ export default function RequestsPage() {
 
       <div className="wf-admin-root">
        <Sidebar
-  onSignOut={() => { window.location.href = "/login"; }}
   collapsed={collapsed}
   onCollapse={() => setCollapsed(true)}
   onExpand={() => setCollapsed(false)}
   isOpen={sidebarOpen}
   onClose={() => setSidebarOpen(false)}
 />
-
         <main className="wf-admin-main">
           <div className="wf-topbar">
             <div className="wf-topbar-left">
