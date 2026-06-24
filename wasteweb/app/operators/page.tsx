@@ -402,46 +402,52 @@ export default function OperatorDashboard() {
     return () => unsub();
   }, [user, profile]);
 
-  useEffect(() => {
-    if (!user || !profile) return;
-    if (!profile.kycStatus) return;
-    if (profile.role !== "operator") return;
-
-    const q = query(
-      collection(db, "notifications", user.uid, "items"),
-      orderBy("createdAt", "desc"),
-      limit(25)
-    );
-
-    const unsub = onSnapshot(q, (snap) => {
-      setNotifications(
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<NotificationItem, "id">),
-        }))
-      );
-    }, (err) => {
-      console.error("Notifications error:", err);
-    });
-
-    return () => unsub();
-  }, [user, profile]);
+  // Notifications temporarily disabled
+  // useEffect(() => {
+  //   if (!user || !profile) return;
+  //   if (!profile.kycStatus) return;
+  //   if (profile.role !== "operator") return;
+  //
+  //   const q = query(
+  //     collection(db, "notifications", user.uid, "items"),
+  //     orderBy("createdAt", "desc"),
+  //     limit(25)
+  //   );
+  //
+  //   const unsub = onSnapshot(q, (snap) => {
+  //     setNotifications(
+  //       snap.docs.map((d) => ({
+  //         id: d.id,
+  //         ...(d.data() as Omit<NotificationItem, "id">),
+  //       }))
+  //     );
+  //   }, (err) => {
+  //     console.error("Notifications error:", err);
+  //   });
+  //
+  //   return () => unsub();
+  // }, [user, profile]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  async function markAllNotificationsRead() {
-    const unread = notifications.filter((n) => !n.read);
-    if (unread.length === 0) return;
-    try {
-      const batch = writeBatch(db);
-      unread.forEach((n) => {
-        batch.update(doc(db, "notifications", user.uid, "items", n.id), { read: true });
-      });
-      await batch.commit();
-    } catch (err) {
-      console.error("Failed to mark notifications read:", err);
-    }
-  }
+  // async function markAllNotificationsRead() {
+  //   const unread = notifications.filter((n) => !n.read);
+  //   if (unread.length === 0) return;
+  //   try {
+  //     const batch = writeBatch(db);
+  //     unread.forEach((n) => {
+  //       batch.update(doc(db, "notifications", user?.uid, "items", n.id), { read: true });
+  //     });
+  //     await batch.commit();
+  //   } catch (err) {
+  //     console.error("Failed to mark notifications read:", err);
+  //   }
+  // }
+
+  const markAllNotificationsRead = async () => {
+    // Temporarily disabled
+    console.log("Mark all notifications read - temporarily disabled");
+  };
 
   if (authGuardLoading) return <Spinner />;
   
