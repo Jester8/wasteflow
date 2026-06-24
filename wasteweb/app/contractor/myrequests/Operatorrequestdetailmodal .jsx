@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 
-// ─── Config (mirrors operator card badges in the screenshot) ──────────────────
 const STATUS_CONFIG = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
   Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6",  label: "Scheduled"    },
@@ -21,8 +20,6 @@ const WASTE_TYPE_CONFIG = {
   General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-// Operator-facing status → timeline progress
-// Steps: Submitted → Scheduled → In Transit → Completed
 const STATUS_STEPS = {
   "Awaiting Approval": [true,  false, false, false],
   Scheduled:           [true,  true,  false, false],
@@ -33,13 +30,12 @@ const STATUS_STEPS = {
 };
 
 const TIMELINE_STEPS = [
-  { label: "Request submitted",      sub: "You raised this pickup request"      },
-  { label: "Accepted by Operator",  sub: "An operator confirmed the job"      },
-  { label: "Pickup in progress",      sub: "An operator is collecting the waste"  },
-  { label: "Completed",               sub: "Waste successfully collected"        },
+  { label: "Request submitted",     sub: "You raised this pickup request"         },
+  { label: "Accepted by Operator", sub: "An operator confirmed the job"          },
+  { label: "Pickup in progress",   sub: "An operator is collecting the waste"    },
+  { label: "Completed",            sub: "Waste successfully collected"           },
 ];
 
-// ─── Status banner config (operator-friendly copy) ───────────────────────────
 const BANNERS = {
   "Awaiting Approval": {
     iconStroke: "#f59e0b",
@@ -94,16 +90,6 @@ const BANNERS = {
     sub: "No contractor accepted this request. You can submit a new one.",
   },
 };
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-function Icon({ path, stroke = "currentColor", size = 15 }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.8"
-      strokeLinecap="round" strokeLinejoin="round" style={{ width: size, height: size }}>
-      {path}
-    </svg>
-  );
-}
 
 function StatusBadge({ status }) {
   const s = STATUS_CONFIG[status] || STATUS_CONFIG["Awaiting Approval"];
@@ -209,7 +195,7 @@ function StatusBanner({ status }) {
 }
 
 function Timeline({ status }) {
-  const steps   = STATUS_STEPS[status] || STATUS_STEPS["Awaiting Approval"];
+  const steps    = STATUS_STEPS[status] || STATUS_STEPS["Awaiting Approval"];
   const declined = status === "Declined";
   return (
     <div style={{ paddingTop: 20 }}>
@@ -223,21 +209,16 @@ function Timeline({ status }) {
       </p>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {TIMELINE_STEPS.map((step, i, arr) => {
-          const done    = steps[i];
+          const done     = steps[i];
           const isDenied = declined && i > 0;
-          const isLast  = i === arr.length - 1;
+          const isLast   = i === arr.length - 1;
           return (
             <div key={i} style={{ display: "flex", gap: 12 }}>
-              {/* Track */}
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <div style={{
                   width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                  background: isDenied
-                    ? "rgba(239,68,68,0.08)"
-                    : done ? "#1a4d2e" : "#f0f7f2",
-                  border: isDenied
-                    ? "2px solid rgba(239,68,68,0.3)"
-                    : done ? "2px solid #1a4d2e" : "2px solid #c6e2d0",
+                  background: isDenied ? "rgba(239,68,68,0.08)" : done ? "#1a4d2e" : "#f0f7f2",
+                  border: isDenied ? "2px solid rgba(239,68,68,0.3)" : done ? "2px solid #1a4d2e" : "2px solid #c6e2d0",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   marginTop: 2,
                 }}>
@@ -261,7 +242,6 @@ function Timeline({ status }) {
                   }} />
                 )}
               </div>
-              {/* Label */}
               <div style={{ paddingBottom: isLast ? 0 : 16, paddingTop: 2 }}>
                 <p style={{
                   fontSize: "0.82rem", fontWeight: 700, margin: 0,
@@ -286,9 +266,7 @@ function Timeline({ status }) {
   );
 }
 
-// ─── Main export ──────────────────────────────────────────────────────────────
 export default function OperatorRequestDetailModal({ item, onClose, onResubmit }) {
-  // Scroll lock
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -296,7 +274,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
     return () => { document.body.style.overflow = prev; };
   }, [item]);
 
-  // Escape key
   useEffect(() => {
     if (!item) return;
     const fn = (e) => { if (e.key === "Escape") onClose?.(); };
@@ -306,9 +283,16 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
   if (!item) return null;
 
-  const isCompleted = item.status === "Completed";
-  const isDeclined  = item.status === "Declined";
+  const isCompleted        = item.status === "Completed";
+  const isDeclined         = item.status === "Declined";
   const isAwaitingApproval = item.status === "Awaiting Approval";
+
+  // Normalize image data in case it comes as an array or a single string
+  const imagesArray = Array.isArray(item.images) 
+    ? item.images 
+    : item.images || item.imageUrl 
+      ? [item.images || item.imageUrl] 
+      : [];
 
   return (
     <>
@@ -325,7 +309,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           animation:orBackdropIn 0.22s ease both;
           display:flex; justify-content:flex-end;
         }
-
         .or-drawer {
           width:100%; max-width:460px; height:100%;
           background:#ffffff;
@@ -334,14 +317,12 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           box-shadow:-8px 0 40px rgba(0,0,0,0.12);
           overflow:hidden;
         }
-
         .or-header {
           display:flex; align-items:center; justify-content:space-between;
           padding:20px 24px;
           border-bottom:1px solid #f0f7f2;
           flex-shrink:0; background:#ffffff;
         }
-
         .or-close {
           width:34px; height:34px; border-radius:9px;
           background:#f5faf6; border:1px solid #e8f2eb;
@@ -351,7 +332,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           flex-shrink:0;
         }
         .or-close:hover { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
-
         .or-body {
           flex:1; overflow-y:auto; padding:24px;
           display:flex; flex-direction:column;
@@ -359,13 +339,11 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
         .or-body::-webkit-scrollbar { width:4px; }
         .or-body::-webkit-scrollbar-track { background:transparent; }
         .or-body::-webkit-scrollbar-thumb { background:#c6e2d0; border-radius:4px; }
-
         .or-footer {
           flex-shrink:0; padding:16px 24px;
           border-top:1px solid #f0f7f2; background:#ffffff;
           display:flex; flex-direction:column; gap:8px;
         }
-
         .or-btn-primary {
           width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
           padding:12px 20px; border-radius:10px;
@@ -375,7 +353,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           transition:background 0.18s, color 0.18s, transform 0.15s;
         }
         .or-btn-primary:hover { background:#B8D52E; color:#0d2416; transform:translateY(-1px); }
-
         .or-btn-secondary {
           width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
           padding:12px 20px; border-radius:10px;
@@ -385,7 +362,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           transition:background 0.18s, border-color 0.18s;
         }
         .or-btn-secondary:hover { background:#f0f7f2; border-color:#B8D52E; }
-
         .or-btn-danger {
           width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
           padding:12px 20px; border-radius:10px;
@@ -395,7 +371,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           transition:background 0.18s, border-color 0.18s;
         }
         .or-btn-danger:hover { background:#fee2e2; border-color:#ef4444; }
-
         @media (max-width:480px) {
           .or-drawer { max-width:100%; }
         }
@@ -410,7 +385,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
       >
         <div className="or-drawer">
 
-          {/* ── Header ── */}
           <div className="or-header">
             <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <span style={{
@@ -435,10 +409,8 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
             </button>
           </div>
 
-          {/* ── Body ── */}
           <div className="or-body">
 
-            {/* Badges row */}
             <div style={{
               display: "flex", alignItems: "center",
               justifyContent: "space-between",
@@ -450,10 +422,8 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               </div>
             </div>
 
-            {/* Status banner */}
             <StatusBanner status={item.status} />
 
-            {/* Detail rows */}
             <div style={{ marginTop: 8 }}>
               <DetailRow
                 label="Location"
@@ -479,6 +449,21 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                 }
                 value={item.dates}
               />
+
+              {item.availability && (
+                <DetailRow
+                  label="Access Time"
+                  icon={
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  }
+                  value={item.availability}
+                />
+              )}
+
               <DetailRow
                 label="Waste Type"
                 icon={
@@ -492,7 +477,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                 value={item.wasteType}
               />
               <DetailRow
-                label="Total Weight"
+                label="Total Volume"
                 icon={
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
                     strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
@@ -500,7 +485,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                   </svg>
                 }
-                value={item.weight}
+                value={item.volume}
                 valueColor="#1a4d2e"
               />
               {item.note && (
@@ -519,12 +504,71 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               )}
             </div>
 
-            {/* Timeline */}
+            {/* ── NEW: SITE IMAGES SECTION ── */}
+            {imagesArray.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <p style={{
+                  fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5",
+                  fontFamily: "'Quicksand', sans-serif",
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  marginBottom: 10,
+                }}>
+                  Site Documentation Images
+                </p>
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", 
+                  gap: 10 
+                }}>
+                  {imagesArray.map((imgSrc, index) => (
+                    <div key={index} style={{ 
+                      aspectRatio: "1", borderRadius: 8, overflow: "hidden", 
+                      background: "#f5faf6", border: "1px solid #e8f2eb" 
+                    }}>
+                      <img 
+                        src={imgSrc} 
+                        alt={`Waste preview ${index + 1}`} 
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <Timeline status={item.status} />
+
+            {/* ── NEW: SIGNATURE SECTION ── */}
+            {item.signature && (
+              <div style={{ 
+                marginTop: 24, padding: "16px", background: "#f5faf6", 
+                borderRadius: 12, border: "1px solid #e8f2eb" 
+              }}>
+                <p style={{
+                  fontSize: "0.68rem", fontWeight: 700, color: "#4a7a5a",
+                  fontFamily: "'Quicksand', sans-serif",
+                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  margin: "0 0 10px 0",
+                }}>
+                  Operator Signature / Confirmation
+                </p>
+                <div style={{ 
+                  background: "#ffffff", borderRadius: 8, padding: 8, 
+                  display: "flex", justifyContent: "center", alignItems: "center",
+                  border: "1px dashed #c6e2d0", height: 80
+                }}>
+                  <img 
+                    src={item.signature} 
+                    alt="Digital Signature" 
+                    style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} 
+                  />
+                </div>
+              </div>
+            )}
 
           </div>
 
-          {/* ── Footer — context-aware ── */}
           <div className="or-footer">
             {isCompleted && (
               <button className="or-btn-primary">
@@ -557,9 +601,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
             {isAwaitingApproval && (
               <>
-                <button className="or-btn-secondary" onClick={onClose}>
-                  Close
-                </button>
+                <button className="or-btn-secondary" onClick={onClose}>Close</button>
                 <button className="or-btn-danger" onClick={onClose}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                     strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
@@ -573,7 +615,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               </>
             )}
 
-            {/* All other active statuses: just close */}
             {!isCompleted && !isDeclined && !isAwaitingApproval && (
               <button className="or-btn-secondary" onClick={onClose}>Close</button>
             )}

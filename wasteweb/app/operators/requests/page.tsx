@@ -56,11 +56,11 @@ export type FirestoreRequest = {
   location: string;
   windowStart?: string;
   windowEnd?: string;
-  quantity?: string;
+  availability?: string;
+  volume?: string;
   notes?: string;
   contractorId: string;
   contractorName?: string;
-  createdAt?: string;
 };
 
 export type RequestItem = {
@@ -70,19 +70,38 @@ export type RequestItem = {
   status: string;
   location: string;
   dates: string;
-  weight: string;
+  yards: string;
   note: string;
   contractorName?: string;
   contractorId?: string;
-  createdAt?: string;
 };
 
-function formatDateRange(start?: string, end?: string) {
+function formatDateRange(start?: string, end?: string, availability?: string) {
   if (!start) return "—";
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  if (!end || end === start) return fmt(start);
-  return `${fmt(start)} – ${fmt(end)}`;
+
+  // availability is stored as a single string like "09:00 - 17:00"
+  let startTime = "";
+  let endTime = "";
+  if (availability) {
+    const parts = availability.split("-").map((p) => p.trim());
+    startTime = parts[0] || "";
+    endTime   = parts[1] || parts[0] || "";
+  }
+
+  const fmt = (iso: string, time: string) => {
+    const datePart = new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return time ? `${datePart}, ${time}` : datePart;
+  };
+
+  if (!end || end === start) {
+    // Single-day window: still show start–end time if both present
+    if (startTime && endTime && startTime !== endTime) {
+      return `${fmt(start, startTime)} – ${endTime}`;
+    }
+    return fmt(start, startTime);
+  }
+
+  return `${fmt(start, startTime)} – ${fmt(end, endTime)}`;
 }
 
 function mapDoc(d: FirestoreRequest): RequestItem {
@@ -92,12 +111,11 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     wasteType: d.wasteType,
     status: STATUS_DISPLAY[d.status] ?? "Pending",
     location: d.location,
-    dates: formatDateRange(d.windowStart, d.windowEnd),
-    weight: d.quantity || "—",
+    dates: formatDateRange(d.windowStart, d.windowEnd, d.availability),
+    yards: d.volume || "—",
     note: d.notes || "",
     contractorName: d.contractorName,
     contractorId: d.contractorId,
-    createdAt: d.createdAt,
   };
 }
 
@@ -211,7 +229,7 @@ function RequestCard({
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
             <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
-        } text={req.weight} />
+        } text={req.yards} />
         {req.contractorName && (
           <MetaRow icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
@@ -426,7 +444,7 @@ function RequestActionModal({
               { label: "Waste Type", value: item.wasteType },
               { label: "Location", value: item.location },
               { label: "Collection Window", value: item.dates },
-              { label: "Estimated Weight", value: item.weight },
+              { label: "Estimated Yards", value: item.yards },
               ...(item.contractorName ? [{ label: "Contractor", value: item.contractorName }] : []),
               ...(item.note ? [{ label: "Notes", value: item.note }] : []),
             ].map(({ label, value }) => (
@@ -872,7 +890,7 @@ export default function RequestsPage() {
         }}
       />
 
-      {/* Existing RequestDetailModal — keep if used for read-only detail view */}
+
       <RequestDetailModal
         item={liveDetailModalReq}
         onClose={() => setDetailModalReq(null)}

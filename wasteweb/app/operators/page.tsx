@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useAuthGuard } from "../hooks/Useauthguard ";
@@ -19,6 +19,17 @@ type WasteRequest = {
   wasteType?: string;
   createdAt?: string;
   windowStart?: string;
+};
+
+type NotificationItem = {
+  id: string;
+  requestId: string;
+  requestTitle: string;
+  newStatus: string;
+  dates: string;
+  location: string;
+  createdAt: any;
+  read: boolean;
 };
 
 const STATUS_DISPLAY: Record<string, string> = {
@@ -43,6 +54,30 @@ function getGreeting() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
+}
+
+function timeAgo(ts: any): string {
+  if (!ts) return "";
+  let date: Date;
+  if (typeof ts?.toDate === "function") {
+    date = ts.toDate();
+  } else if (typeof ts === "object" && typeof ts.seconds === "number") {
+    date = new Date(ts.seconds * 1000);
+  } else {
+    date = new Date(ts);
+  }
+  if (isNaN(date.getTime())) return "";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 function StatCard({ label, value, sub, icon, accent = false, loading = false }: {
@@ -168,20 +203,164 @@ function SkeletonRow() {
   );
 }
 
+const NOTIF_STATUS_CONFIG: Record<string, { bg: string; color: string; icon: React.ReactNode }> = {
+  Scheduled: {
+    bg: "rgba(59,130,246,0.10)", color: "#1d4ed8",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+  },
+  Arriving: {
+    bg: "rgba(34,211,238,0.10)", color: "#0e7490",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+      </svg>
+    ),
+  },
+  "In Transit": {
+    bg: "rgba(168,85,247,0.10)", color: "#7c3aed",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    ),
+  },
+  Completed: {
+    bg: "rgba(184,213,46,0.12)", color: "#3a6b00",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    ),
+  },
+  Declined: {
+    bg: "rgba(239,68,68,0.10)", color: "#b91c1c",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    ),
+  },
+};
+
+function NotificationPanel({
+  notifications,
+  open,
+  onClose,
+  onMarkAllRead,
+}: {
+  notifications: NotificationItem[];
+  open: boolean;
+  onClose: () => void;
+  onMarkAllRead: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 90 }}
+      />
+      <div style={{
+        position: "absolute", top: "calc(100% + 10px)", right: 0, zIndex: 91,
+        width: 340, maxHeight: 420,
+        background: "#ffffff", border: "1px solid #e8f2eb",
+        borderRadius: 16, boxShadow: "0 16px 40px rgba(0,0,0,0.16)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        fontFamily: "'Quicksand', sans-serif",
+      }}>
+        <div style={{
+          padding: "14px 16px", borderBottom: "1px solid #f0f7f2",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1a2e1f" }}>Notifications</span>
+          {notifications.some((n) => !n.read) && (
+            <button
+              onClick={onMarkAllRead}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                fontSize: "0.7rem", fontWeight: 700, color: "#1a4d2e",
+                fontFamily: "'Quicksand', sans-serif",
+              }}
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+        <div style={{ overflowY: "auto", flex: 1 }}>
+          {notifications.length === 0 ? (
+            <div style={{ padding: "32px 16px", textAlign: "center" }}>
+              <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#9ab8a5", margin: 0 }}>
+                No notifications yet
+              </p>
+            </div>
+          ) : (
+            notifications.map((n) => {
+              const cfg = NOTIF_STATUS_CONFIG[n.newStatus] || NOTIF_STATUS_CONFIG.Scheduled;
+              return (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: "12px 16px",
+                    borderBottom: "1px solid #f5faf6",
+                    display: "flex", gap: 10, alignItems: "flex-start",
+                    background: n.read ? "transparent" : "rgba(184,213,46,0.05)",
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                    background: cfg.bg, color: cfg.color,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {cfg.icon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: 0, lineHeight: 1.4 }}>
+                      "{n.requestTitle}" {n.newStatus.toLowerCase()}
+                    </p>
+                    {n.dates && (
+                      <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a", margin: "3px 0 0", lineHeight: 1.4 }}>
+                        {n.dates}
+                      </p>
+                    )}
+                    <p style={{ fontSize: "0.68rem", fontWeight: 600, color: "#9ab8a5", margin: "4px 0 0" }}>
+                      {timeAgo(n.createdAt)}
+                    </p>
+                  </div>
+                  {!n.read && (
+                    <span style={{
+                      width: 7, height: 7, borderRadius: "50%",
+                      background: "#B8D52E", flexShrink: 0, marginTop: 4,
+                    }} />
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function OperatorDashboard() {
   const [collapsed, setCollapsed]     = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [signingOut, setSigningOut]   = useState(false);
   const [requests, setRequests]       = useState<WasteRequest[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
 
   const router = useRouter();
   const { user: authUser, profile: authProfile } = useAuth();
   
-  // ─── Authentication Guard with operator role ──────────────────────────────
   const { user, profile, loading: authGuardLoading } = useAuthGuard("auth-only", "operator");
 
-  // ─── Redirect if KYC missing or wrong role (in useEffect to avoid render error) ──
   useEffect(() => {
     if (authGuardLoading) return;
     if (!user || !profile) return;
@@ -197,7 +376,6 @@ export default function OperatorDashboard() {
     }
   }, [profile, user, authGuardLoading, router]);
 
-  // ─── Fetch data from Firestore ──────────────────────────────────────────────
   useEffect(() => {
     if (!user || !profile) return;
     if (!profile.kycStatus) return;
@@ -224,15 +402,51 @@ export default function OperatorDashboard() {
     return () => unsub();
   }, [user, profile]);
 
-  // ─── Show loading state while auth guard is checking ──────────────────
+  useEffect(() => {
+    if (!user || !profile) return;
+    if (!profile.kycStatus) return;
+    if (profile.role !== "operator") return;
+
+    const q = query(
+      collection(db, "notifications", user.uid, "items"),
+      orderBy("createdAt", "desc"),
+      limit(25)
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setNotifications(
+        snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<NotificationItem, "id">),
+        }))
+      );
+    }, (err) => {
+      console.error("Notifications error:", err);
+    });
+
+    return () => unsub();
+  }, [user, profile]);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  async function markAllNotificationsRead() {
+    const unread = notifications.filter((n) => !n.read);
+    if (unread.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      unread.forEach((n) => {
+        batch.update(doc(db, "notifications", user.uid, "items", n.id), { read: true });
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error("Failed to mark notifications read:", err);
+    }
+  }
+
   if (authGuardLoading) return <Spinner />;
   
-  // ─── Check conditions before rendering dashboard ──────────────────────
-  // If user/profile are missing, show spinner
   if (!user || !profile) return <Spinner />;
   
-  // If KYC missing or wrong role, the useEffect will handle redirect
-  // But we should still prevent rendering the dashboard
   if (!profile.kycStatus || profile.role !== "operator") {
     return null;
   }
@@ -276,11 +490,13 @@ export default function OperatorDashboard() {
         .wf-hamburger { display: none; background: none; border: none; cursor: pointer; color: #1a4d2e; padding: 6px; border-radius: 8px; align-items: center; justify-content: center; transition: background 0.18s; flex-shrink: 0; }
         .wf-hamburger:hover { background: rgba(184,213,46,0.12); }
         .wf-topbar-title { font-size: 1rem; font-weight: 700; color: #1a2e1f; font-family: 'Quicksand', sans-serif; }
-        .wf-topbar-right { display: flex; align-items: center; gap: 10px; }
+        .wf-topbar-right { display: flex; align-items: center; gap: 10px; position: relative; }
         .wf-topbar-date { font-size: 0.75rem; color: #8aab97; font-weight: 600; font-family: 'Quicksand', sans-serif; }
+        .wf-notif-wrap { position: relative; }
         .wf-notif-btn { width: 34px; height: 34px; border-radius: 9px; background: #ffffff; border: 1px solid #e8f2eb; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4a7a5a; position: relative; transition: border 0.18s, color 0.18s; }
         .wf-notif-btn:hover { border-color: #B8D52E; color: #1a4d2e; }
         .wf-notif-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #B8D52E; border: 1.5px solid #f5faf6; }
+        .wf-notif-badge { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; border-radius: 999px; background: #ef4444; color: #fff; font-size: 0.62rem; font-weight: 800; display: flex; align-items: center; justify-content: center; border: 1.5px solid #f5faf6; padding: 0 3px; font-family: 'Quicksand', sans-serif; }
         .wf-content { padding: 28px; display: flex; flex-direction: column; gap: 28px; }
         .wf-greeting h1 { font-size: clamp(1.2rem, 2vw, 1.5rem); font-weight: 700; color: #1a2e1f; letter-spacing: -0.02em; margin-bottom: 4px; font-family: 'Quicksand', sans-serif; }
         .wf-greeting p { font-size: 0.875rem; color: #6b8f7a; font-weight: 600; font-family: 'Quicksand', sans-serif; }
@@ -327,13 +543,29 @@ export default function OperatorDashboard() {
               <span className="wf-topbar-date">
                 {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
               </span>
-              <button className="wf-notif-btn" aria-label="Notifications">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                <span className="wf-notif-dot" />
-              </button>
+              <div className="wf-notif-wrap">
+                <button
+                  className="wf-notif-btn"
+                  aria-label="Notifications"
+                  onClick={() => setNotifPanelOpen((o) => !o)}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                  </svg>
+                  {unreadCount > 0 ? (
+                    <span className="wf-notif-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                  ) : (
+                    <span className="wf-notif-dot" />
+                  )}
+                </button>
+                <NotificationPanel
+                  notifications={notifications}
+                  open={notifPanelOpen}
+                  onClose={() => setNotifPanelOpen(false)}
+                  onMarkAllRead={markAllNotificationsRead}
+                />
+              </div>
             </div>
           </div>
 

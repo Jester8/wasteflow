@@ -16,38 +16,35 @@ import Sidebar from "../sidebar";
 import CreateRequestModal from "./Createrequestmodal";
 import OperatorRequestDetailModal from "./Operatorrequestdetailmodal ";
 
-// ── Types ────────────────────────────────────────────────────────────────────
-
 export type RequestItem = {
   id: string;
   title: string;
   wasteType: string;
   location: string;
   dates: string;
-  weight: string;
+  availability: string;
+  volume: string;
   note: string;
-  status: string; // display label, e.g. "Awaiting Approval"
-  rawStatus: string; // raw Firestore status, e.g. "pending"
-  createdAt?: string;
+  status: string;
+  rawStatus: string;
+  createdAt: string;
+  imageUrl?: string;      // Added optional image URL field
+  signatureUrl?: string; // Added optional signature URL field
 };
 
-// Maps Firestore's lowercase status → the capitalized display label
-// that OperatorRequestDetailModal's STATUS_CONFIG / STATUS_STEPS / BANNERS expect.
 const STATUS_DISPLAY_MAP: Record<string, string> = {
-  pending: "Awaiting Approval",
-  scheduled: "Scheduled",
-  arriving: "Arriving",
+  pending:     "Awaiting Approval",
+  scheduled:  "Scheduled",
+  arriving:   "Arriving",
   in_transit: "In Transit",
-  completed: "Completed",
-  declined: "Declined",
-  cancelled: "Declined", // closest visual treatment; adjust if a distinct state is added later
+  completed:  "Completed",
+  declined:   "Declined",
+  cancelled:  "Declined",
 };
 
 function toDisplayStatus(rawStatus: string): string {
   return STATUS_DISPLAY_MAP[rawStatus] || "Awaiting Approval";
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDateRange(start?: string, end?: string) {
   if (!start) return "—";
@@ -57,24 +54,46 @@ function formatDateRange(start?: string, end?: string) {
   return `${fmt(start)} – ${fmt(end)}`;
 }
 
+function formatTimestamp(ts: any): string {
+  if (!ts) return "—";
+
+  let date: Date;
+  if (typeof ts?.toDate === "function") {
+    // Real Firestore Timestamp instance
+    date = ts.toDate();
+  } else if (typeof ts === "object" && typeof ts.seconds === "number") {
+    // Plain { seconds, nanoseconds } object — happens with cached/pending
+    // writes or anytime a Timestamp gets serialized to a plain object
+    date = new Date(ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6));
+  } else {
+    date = new Date(ts);
+  }
+
+  if (isNaN(date.getTime())) return "—";
+  return (
+    date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " +
+    date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+  );
+}
 const WASTE_TYPE_CONFIG = {
-  Mixed: { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
-  Metal: { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
-  Concrete: { bg: "rgba(120,113,108,0.10)", color: "#57534e", border: "rgba(120,113,108,0.25)" },
-  Green: { bg: "rgba(34,197,94,0.10)", color: "#15803d", border: "rgba(34,197,94,0.25)" },
+  Mixed:     { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
+  Metal:     { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
+  Concrete:  { bg: "rgba(120,113,108,0.10)", color: "#57534e", border: "rgba(120,113,108,0.25)" },
+  Green:     { bg: "rgba(34,197,94,0.10)", color: "#15803d", border: "rgba(34,197,94,0.25)" },
   Hazardous: { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.25)" },
-  General: { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
+  General:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
 type WasteType = keyof typeof WASTE_TYPE_CONFIG;
 
 const STATUS_BADGE_CONFIG: Record<string, { bg: string; color: string; border: string; dot: string }> = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)", color: "#b45309", border: "rgba(251,191,36,0.35)", dot: "#f59e0b" },
-  Scheduled: { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.3)", dot: "#3b82f6" },
-  Arriving: { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.3)", dot: "#06b6d4" },
-  "In Transit": { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.3)", dot: "#a855f7" },
-  Completed: { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.35)", dot: "#B8D52E" },
-  Declined: { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.25)", dot: "#ef4444" },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.3)",  dot: "#3b82f6" },
+  Arriving:     { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.3)",  dot: "#06b6d4" },
+  "In Transit": { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.3)",  dot: "#a855f7" },
+  Completed:    { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.35)", dot: "#B8D52E" },
+  Declined:     { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.25)",    dot: "#ef4444" },
 };
 
 function WasteTypeBadge({ type }: { type: string }) {
@@ -179,7 +198,18 @@ function RequestCard({ item, onViewDetails }: { item: RequestItem; onViewDetails
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
             <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
-        } text={item.weight} />
+        } text={item.volume} />
+        {item.createdAt && item.createdAt !== "—" && (
+          <MetaRow
+            icon={
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+            }
+            text={item.createdAt}
+            muted
+          />
+        )}
       </div>
 
       <div style={{ marginTop: 2 }}>
@@ -222,20 +252,17 @@ function SkeletonCard() {
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function MyRequestsPage() {
-  const [collapsed, setCollapsed] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed]       = useState(false);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [search, setSearch]             = useState("");
+  const [requests, setRequests]         = useState<RequestItem[]>([]);
+  const [loading, setLoading]           = useState(true);
   const [selectedItem, setSelectedItem] = useState<RequestItem | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen]     = useState(false);
 
   const { user, profile } = useAuth();
 
-  // ── Firestore: this contractor's own requests, live ───────────────────────
   useEffect(() => {
     if (!user) return;
 
@@ -250,19 +277,22 @@ export default function MyRequestsPage() {
       (snap) => {
         setRequests(
           snap.docs.map((d) => {
-            const data = d.data();
+            const data      = d.data();
             const rawStatus = data.status || "pending";
             return {
-              id: d.id,
-              title: data.title || "Untitled",
-              wasteType: data.wasteType || "General",
-              location: data.location || "—",
-              dates: formatDateRange(data.windowStart, data.windowEnd),
-              weight: data.quantity ? `${data.quantity} ${data.weightUnit || ""}`.trim() : "—",
-              note: data.notes || "",
-              status: toDisplayStatus(rawStatus),
+              id:           d.id,
+              title:        data.title        || "Untitled",
+              wasteType:    data.wasteType    || "General",
+              location:     data.location     || "—",
+              dates:        formatDateRange(data.windowStart, data.windowEnd),
+              availability: data.availability || "—",
+              volume:       data.volume       || "—",
+              note:         data.notes        || "—",
+              status:       toDisplayStatus(rawStatus),
               rawStatus,
-              createdAt: data.createdAt,
+              createdAt:    formatTimestamp(data.createdAt),
+              imageUrl:     data.imageUrl     || "", // Fetches from doc payload
+              signatureUrl: data.signatureUrl || "", // Fetches from doc payload
             } as RequestItem;
           })
         );
@@ -277,7 +307,6 @@ export default function MyRequestsPage() {
     return () => unsub();
   }, [user]);
 
-  // Keep modal data live — find the latest version of the selected item
   const liveSelectedItem = selectedItem
     ? requests.find((r) => r.id === selectedItem.id) ?? selectedItem
     : null;
@@ -290,38 +319,30 @@ export default function MyRequestsPage() {
       item.wasteType.toLowerCase().includes(q);
   });
 
-  // ── Create: writes to Firestore with the shape the security rules require ──
-  // Rule requires: contractorId == auth.uid, status == 'pending' (lowercase).
   async function handleCreateSubmit(formPayload: any) {
     if (!user) return;
     try {
       await addDoc(collection(db, "wasteRequests"), {
-        title: formPayload.title,
-        wasteType: formPayload.wasteType,
-        location: formPayload.location,
-        windowStart: formPayload.dateFrom,
-        windowEnd: formPayload.dateTo,
-        quantity: formPayload.weight,
-        weightUnit: formPayload.weightUnit,
-        notes: formPayload.note,
+        title:        formPayload.title,
+        wasteType:    formPayload.wasteType,
+        location:     formPayload.location,
+        windowStart:  formPayload.dateFrom,
+        windowEnd:    formPayload.dateTo,
+        availability: formPayload.availability,
+        volume:       `${formPayload.volume} ${formPayload.volumeUnit}`.trim(),
+        notes:        formPayload.note,
         contractorId: user.uid,
-        status: "pending", // lowercase — required by Firestore rules on create
-        createdAt: serverTimestamp(),
+        status:       "pending",
+        createdAt:    serverTimestamp(),
       });
     } catch (err) {
       console.error("Failed to create request:", err);
     }
   }
 
-  // ── Resubmit a declined request: same path as create, prefilled ───────────
   function handleResubmit(item: RequestItem) {
-    // Reopen the create modal; CreateRequestModal currently starts from an
-    // empty form, so prefill wiring can be added there if needed later.
     setCreateOpen(true);
   }
-
-  const displayName = profile?.fullName || user?.email?.split("@")[0] || "Contractor";
-  const displayEmail = profile?.email || user?.email || "";
 
   return (
     <>
@@ -335,13 +356,11 @@ export default function MyRequestsPage() {
           background: #f5faf6;
           font-family: 'Quicksand', sans-serif;
         }
-
         .wf-admin-main {
           flex: 1; min-width: 0;
           display: flex; flex-direction: column;
           height: 100vh; overflow-y: auto;
         }
-
         .wf-topbar {
           position: sticky; top: 0; z-index: 10;
           background: rgba(245,250,246,0.92);
@@ -351,9 +370,7 @@ export default function MyRequestsPage() {
           display: flex; align-items: center;
           justify-content: space-between; flex-shrink: 0;
         }
-
         .wf-topbar-left { display: flex; align-items: center; gap: 14px; }
-
         .wf-hamburger {
           display: none;
           background: none; border: none; cursor: pointer;
@@ -362,12 +379,10 @@ export default function MyRequestsPage() {
           transition: background 0.18s; flex-shrink: 0;
         }
         .wf-hamburger:hover { background: rgba(184,213,46,0.12); }
-
         .wf-topbar-title {
           font-size: 1rem; font-weight: 700;
           color: #1a2e1f; font-family: 'Quicksand', sans-serif;
         }
-
         .wf-new-btn {
           display: flex; align-items: center; gap: 7;
           padding: 9px 16px; border-radius: 10px; cursor: pointer;
@@ -377,12 +392,10 @@ export default function MyRequestsPage() {
           transition: background 0.18s, color 0.18s;
         }
         .wf-new-btn:hover { background: #B8D52E; color: #0d2416; }
-
         .wf-content {
           padding: 28px;
           display: flex; flex-direction: column; gap: 24px;
         }
-
         .wf-page-header {
           display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
         }
@@ -396,17 +409,14 @@ export default function MyRequestsPage() {
           font-size: 0.875rem; color: #6b8f7a;
           font-weight: 600; font-family: 'Quicksand', sans-serif;
         }
-
         .wf-search-row { display: flex; align-items: center; gap: 12px; }
         .wf-search-wrap { flex: 1; position: relative; }
-
         .wf-search-icon {
           position: absolute; left: 14px; top: 50%;
           transform: translateY(-50%);
           color: #8aab97; pointer-events: none;
           display: flex; align-items: center;
         }
-
         .wf-search-input {
           width: 100%; padding: 11px 14px 11px 40px;
           border: 1px solid #e8f2eb; border-radius: 12px;
@@ -420,35 +430,29 @@ export default function MyRequestsPage() {
           border-color: #B8D52E;
           box-shadow: 0 0 0 3px rgba(184,213,46,0.12);
         }
-
         .wf-req-grid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 16px;
           align-items: start;
         }
-
         .wf-req-card:hover {
           box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important;
           transform: translateY(-2px);
         }
-
         .wf-req-btn-view:hover {
           background: #f0f7f2 !important;
           border-color: #B8D52E !important;
         }
-
         .wf-empty {
           grid-column: 1 / -1;
           display: flex; flex-direction: column;
           align-items: center; justify-content: center;
           padding: 64px 24px; gap: 12px; text-align: center;
         }
-
         @media (max-width: 1100px) {
           .wf-req-grid { grid-template-columns: repeat(2, 1fr); }
         }
-
         @media (max-width: 768px) {
           .wf-hamburger { display: flex; }
           .wf-topbar { padding: 0 16px; }
@@ -482,7 +486,6 @@ export default function MyRequestsPage() {
           </div>
 
           <div className="wf-content">
-
             <div className="wf-page-header">
               <div>
                 <h1>My Requests</h1>
@@ -545,7 +548,6 @@ export default function MyRequestsPage() {
                 ))
               )}
             </div>
-
           </div>
         </main>
       </div>

@@ -95,9 +95,10 @@ type RequestItem = {
   status: string;
   location: string;
   dates: string;
-  weight: string;
+  yards: string;
   note: string;
   contractorName?: string;
+  createdAt?: string;
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -383,6 +384,19 @@ export default function RequestDetailModal({
               value={item.location}
             />
 
+            {item.createdAt && (
+              <DetailRow
+                label="Submitted"
+                icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                }
+                value={item.createdAt}
+                valueColor="#6b8f7a"
+              />
+            )}
+
             <DetailRow
               label="Pickup Period"
               icon={
@@ -404,13 +418,13 @@ export default function RequestDetailModal({
             />
 
             <DetailRow
-              label="Total Weight"
+              label="Total Yards"
               icon={
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                   <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                 </svg>
               }
-              value={item.weight}
+              value={item.yards}
               valueColor="#1a4d2e"
             />
 
