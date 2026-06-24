@@ -231,7 +231,7 @@ function PhotoCapture({ preview, onSelect, onClear, error }) {
             Take or upload a photo
           </span>
           <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9ab8a5", fontFamily: "'Quicksand', sans-serif" }}>
-            Optional — helps contractors assess the site
+            Optional — helps operators assess the site
           </span>
         </button>
       )}
@@ -673,7 +673,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                   Request submitted!
                 </p>
                 <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#6b8f7a", fontFamily: "'Quicksand', sans-serif", lineHeight: 1.55 }}>
-                  Your pickup request for <strong style={{ color: "#1a4d2e" }}>{form.title || "your job"}</strong> has been submitted and is pending contractor review.
+                  Your pickup request for <strong style={{ color: "#1a4d2e" }}>{form.title || "your job"}</strong> has been submitted and is pending operator review.
                 </p>
               </div>
               <div style={{
@@ -698,7 +698,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                 ))}
               </div>
               <p style={{ fontSize: "0.75rem", fontWeight: 600, color: "#9ab8a5", fontFamily: "'Quicksand', sans-serif" }}>
-                You'll be notified when a contractor accepts your request.
+                You'll be notified when an operator accepts your request.
               </p>
             </div>
           ) : (
@@ -748,7 +748,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                       error={!!errors.location}
                     />
                     {errors.location && <span className="cr-error">{errors.location}</span>}
-                    <FieldHint>Full address or postcode helps contractors find you.</FieldHint>
+                    <FieldHint>Full address or postcode helps operators find you.</FieldHint>
                   </div>
 
                   <div className="cr-field">
@@ -790,7 +790,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                       <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
                     <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif", lineHeight: 1.5, margin: 0 }}>
-                      Set the window during which you'd like the pickup to happen. Contractors will use this to schedule their visit.
+                      Set the window during which you'd like the pickup to happen. Operators will use this to schedule their visit.
                     </p>
                   </div>
 
