@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   collection, query, orderBy, onSnapshot, doc, updateDoc,
 } from "firebase/firestore";
@@ -48,6 +48,29 @@ const STATUS_WRITE: Record<string, string> = {
   Declined:     "declined",
 };
 
+// ── Cloudinary config ───────────────────────────────────────────────────────
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+async function uploadToCloudinary(file: Blob, filename: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file, filename);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Cloudinary upload failed: ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.secure_url as string;
+}
+
 export type FirestoreRequest = {
   id: string;
   title: string;
@@ -61,6 +84,10 @@ export type FirestoreRequest = {
   notes?: string;
   contractorId: string;
   contractorName?: string;
+  operatorName?: string;
+  proofPhotoUrl?: string;
+  signatureUrl?: string;
+  declineReason?: string;
 };
 
 export type RequestItem = {
@@ -74,6 +101,10 @@ export type RequestItem = {
   note: string;
   contractorName?: string;
   contractorId?: string;
+  operatorName?: string;
+  proofPhotoUrl?: string;
+  signatureUrl?: string;
+  declineReason?: string;
 };
 
 function formatDateRange(start?: string, end?: string, availability?: string) {
@@ -116,6 +147,10 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     note: d.notes || "",
     contractorName: d.contractorName,
     contractorId: d.contractorId,
+    operatorName: d.operatorName,
+    proofPhotoUrl: d.proofPhotoUrl,
+    signatureUrl: d.signatureUrl,
+    declineReason: d.declineReason,
   };
 }
 
@@ -269,9 +304,438 @@ function RequestCard({
   );
 }
 
+// ── Signature Pad ────────────────────────────────────────────────────────────
+
+function SignaturePad({
+  onChange,
+}: {
+  onChange: (hasSignature: boolean) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Expose a way for the parent to grab the signature blob on submit
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // High-DPI setup
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1a2e1f";
+  }, []);
+
+  const getPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    drawingRef.current = true;
+    lastPointRef.current = getPoint(e);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !lastPointRef.current) return;
+
+    const point = getPoint(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    lastPointRef.current = point;
+
+    if (!hasDrawnRef.current) {
+      hasDrawnRef.current = true;
+      onChange(true);
+    }
+  };
+
+  const handlePointerUp = () => {
+    drawingRef.current = false;
+    lastPointRef.current = null;
+  };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawnRef.current = false;
+    onChange(false);
+  };
+
+  // Allow parent to read the canvas via a ref method pattern — simplest is
+  // to expose the canvas element itself through a data attribute lookup.
+  (SignaturePad as any)._getCanvas = () => canvasRef.current;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{
+        position: "relative",
+        border: "1.5px dashed #c6e2d0",
+        borderRadius: 10,
+        background: "#fbfdfb",
+        overflow: "hidden",
+      }}>
+        <canvas
+          ref={canvasRef}
+          data-signature-canvas
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          style={{
+            width: "100%",
+            height: 140,
+            display: "block",
+            cursor: "crosshair",
+            touchAction: "none",
+          }}
+        />
+        {!hasDrawnRef.current && (
+          <span style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.78rem", fontWeight: 600, color: "#9ab8a5",
+            fontFamily: "'Quicksand', sans-serif",
+            pointerEvents: "none",
+          }}>
+            Sign here
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={clear}
+        style={{
+          alignSelf: "flex-end",
+          background: "none", border: "none", cursor: "pointer",
+          fontSize: "0.74rem", fontWeight: 700, color: "#8aab97",
+          fontFamily: "'Quicksand', sans-serif",
+          padding: "2px 4px",
+        }}
+      >
+        Clear signature
+      </button>
+    </div>
+  );
+}
+
+// ── Schedule Confirmation Form (Pending → Scheduled) ────────────────────────
+
+function ScheduleConfirmForm({
+  loading,
+  onCancel,
+  onSubmit,
+}: {
+  loading: boolean;
+  onCancel: () => void;
+  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => void;
+}) {
+  const [operatorName, setOperatorName] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async () => {
+    if (!operatorName.trim()) {
+      setError("Enter the operator's name.");
+      return;
+    }
+    if (!photoFile) {
+      setError("Upload a photo before scheduling.");
+      return;
+    }
+    if (!hasSignature) {
+      setError("Add a signature before scheduling.");
+      return;
+    }
+    setError(null);
+
+    const canvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
+    if (!canvas) {
+      setError("Signature pad not ready — try again.");
+      return;
+    }
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        setError("Could not read signature — try signing again.");
+        return;
+      }
+      onSubmit({ operatorName: operatorName.trim(), photoFile, signatureBlob: blob });
+    }, "image/png");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>
+          Confirm scheduling
+        </p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>
+          Add your name, a site photo, and your signature to confirm this pickup.
+        </p>
+      </div>
+
+      {/* Operator name */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
+          Operator name
+        </label>
+        <input
+          type="text"
+          value={operatorName}
+          onChange={(e) => setOperatorName(e.target.value)}
+          placeholder="e.g. John Adeyemi"
+          style={{
+            padding: "9px 12px", borderRadius: 9,
+            border: "1px solid #e8f2eb", fontSize: "0.84rem",
+            fontWeight: 600, color: "#1a2e1f",
+            fontFamily: "'Quicksand', sans-serif",
+            outline: "none",
+          }}
+        />
+      </div>
+
+      {/* Photo upload */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
+          Site photo
+        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhotoChange}
+          style={{ display: "none" }}
+        />
+        {photoPreview ? (
+          <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
+            <img src={photoPreview} alt="Selected proof" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                position: "absolute", bottom: 8, right: 8,
+                background: "rgba(26,46,31,0.75)", color: "#fff",
+                border: "none", borderRadius: 8, padding: "5px 10px",
+                fontSize: "0.7rem", fontWeight: 700, cursor: "pointer",
+                fontFamily: "'Quicksand', sans-serif",
+              }}
+            >
+              Change photo
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6,
+              height: 100, borderRadius: 10,
+              border: "1.5px dashed #c6e2d0", background: "#fbfdfb",
+              color: "#6b8f7a", cursor: "pointer",
+              fontFamily: "'Quicksand', sans-serif",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700 }}>Tap to add a photo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Signature */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
+          Signature
+        </label>
+        <SignaturePad onChange={setHasSignature} />
+      </div>
+
+      {error && (
+        <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+          style={{
+            flex: 1, padding: "11px 16px", borderRadius: 10,
+            border: "1px solid #e8f2eb", background: "none",
+            color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{
+            flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+            padding: "11px 16px", borderRadius: 10, border: "none",
+            background: "#1a4d2e", color: "#B8D52E",
+            fontSize: "0.82rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              Uploading…
+            </>
+          ) : (
+            "Confirm & Schedule"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Decline Reason Form ─────────────────────────────────────────────────────
+
+function DeclineReasonForm({
+  loading,
+  onCancel,
+  onSubmit,
+}: {
+  loading: boolean;
+  onCancel: () => void;
+  onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = () => {
+    if (!reason.trim()) {
+      setError("Add a reason for declining this request.");
+      return;
+    }
+    setError(null);
+    onSubmit(reason.trim());
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div>
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>
+          Decline this request
+        </p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>
+          Let the contractor know why this pickup can't go ahead.
+        </p>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
+          Reason
+        </label>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Outside our service area, or capacity unavailable this week"
+          rows={4}
+          style={{
+            padding: "10px 12px", borderRadius: 9,
+            border: "1px solid #e8f2eb", fontSize: "0.84rem",
+            fontWeight: 600, color: "#1a2e1f",
+            fontFamily: "'Quicksand', sans-serif",
+            outline: "none", resize: "vertical",
+          }}
+        />
+      </div>
+
+      {error && (
+        <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>
+          {error}
+        </p>
+      )}
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={loading}
+          style={{
+            flex: 1, padding: "11px 16px", borderRadius: 10,
+            border: "1px solid #e8f2eb", background: "none",
+            color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={loading}
+          style={{
+            flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+            padding: "11px 16px", borderRadius: 10, border: "none",
+            background: "#fef2f2", color: "#b91c1c",
+            outline: "1.5px solid #b91c1c22",
+            fontSize: "0.82rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+          }}
+        >
+          {loading ? (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              Declining…
+            </>
+          ) : (
+            "Confirm Decline"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Inline Action Modal ─────────────────────────────────────────────────────
-// Full-featured modal so you don't have to touch RequestDetailModal if it's
-// already used elsewhere. Pass onStatusChange up if you want it unified later.
 
 const STATUS_FLOW: { label: string; value: string; color: string; bg: string; icon: React.ReactNode }[] = [
   {
@@ -346,18 +810,29 @@ function RequestActionModal({
   item,
   onClose,
   onStatusChange,
+  onScheduleConfirm,
+  onDeclineConfirm,
 }: {
   item: RequestItem | null;
   onClose: () => void;
   onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
+  onScheduleConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  onDeclineConfirm: (id: string, reason: string) => Promise<void>;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
+  // Which sub-form is showing, if any: "schedule" | "decline" | null
+  const [activeForm, setActiveForm] = useState<"schedule" | "decline" | null>(null);
+
+  // Reset the sub-form whenever a different request is opened
+  useEffect(() => {
+    setActiveForm(null);
+  }, [item?.id]);
 
   if (!item) return null;
 
   const allowed = ALLOWED_TRANSITIONS[item.status] ?? [];
 
-  const handle = async (displayStatus: string) => {
+  const handleSimpleAction = async (displayStatus: string) => {
     setLoading(displayStatus);
     try {
       await onStatusChange(item.id, displayStatus);
@@ -366,12 +841,45 @@ function RequestActionModal({
     }
   };
 
+  const handleActionClick = (value: string) => {
+    if (value === "Scheduled") {
+      setActiveForm("schedule");
+      return;
+    }
+    if (value === "Declined") {
+      setActiveForm("decline");
+      return;
+    }
+    handleSimpleAction(value);
+  };
+
+  const handleScheduleSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+    setLoading("Scheduled");
+    try {
+      await onScheduleConfirm(item.id, data);
+      setActiveForm(null);
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const handleDeclineSubmit = async (reason: string) => {
+    setLoading("Declined");
+    try {
+      await onDeclineConfirm(item.id, reason);
+      setActiveForm(null);
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const statusCfg = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Pending;
+  const isBusy = loading !== null;
 
   return (
     <>
       <div
-        onClick={onClose}
+        onClick={isBusy ? undefined : onClose}
         style={{
           position: "fixed", inset: 0, zIndex: 50,
           background: "rgba(10,26,15,0.45)",
@@ -389,15 +897,17 @@ function RequestActionModal({
           background: "#ffffff",
           borderRadius: 20,
           width: "100%", maxWidth: 480,
+          maxHeight: "calc(100vh - 32px)",
+          overflowY: "auto",
           boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
           fontFamily: "'Quicksand', sans-serif",
-          overflow: "hidden",
         }}>
           {/* Modal header */}
           <div style={{
             padding: "20px 24px 16px",
             borderBottom: "1px solid #f0f7f2",
             display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12,
+            position: "sticky", top: 0, background: "#ffffff", zIndex: 1,
           }}>
             <div>
               <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
@@ -408,11 +918,12 @@ function RequestActionModal({
               </h2>
             </div>
             <button
-              onClick={onClose}
+              onClick={isBusy ? undefined : onClose}
               style={{
-                background: "#f0f7f2", border: "none", borderRadius: 8, cursor: "pointer",
+                background: "#f0f7f2", border: "none", borderRadius: 8, cursor: isBusy ? "not-allowed" : "pointer",
                 width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#4a7a5a", flexShrink: 0,
+                opacity: isBusy ? 0.5 : 1,
               }}
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
@@ -421,88 +932,133 @@ function RequestActionModal({
             </button>
           </div>
 
-          {/* Details */}
-          <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
-            {/* Status row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#6b8f7a" }}>Current Status</span>
-              <span style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
-                padding: "3px 10px", borderRadius: 999,
-                background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}`,
-              }}>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: statusCfg.dot }} />
-                {item.status}
-              </span>
-            </div>
-
-            <div style={{ height: 1, background: "#f0f7f2" }} />
-
-            {/* Info rows */}
-            {[
-              { label: "Waste Type", value: item.wasteType },
-              { label: "Location", value: item.location },
-              { label: "Collection Window", value: item.dates },
-              { label: "Estimated Yards", value: item.yards },
-              ...(item.contractorName ? [{ label: "Contractor", value: item.contractorName }] : []),
-              ...(item.note ? [{ label: "Notes", value: item.note }] : []),
-            ].map(({ label, value }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#8aab97", flexShrink: 0 }}>{label}</span>
-                <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1a2e1f", textAlign: "right" }}>{value}</span>
+          {/* Details — hidden while a sub-form is active, to keep focus on the task */}
+          {!activeForm && (
+            <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {/* Status row */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#6b8f7a" }}>Current Status</span>
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
+                  fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                  padding: "3px 10px", borderRadius: 999,
+                  background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}`,
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: statusCfg.dot }} />
+                  {item.status}
+                </span>
               </div>
-            ))}
-          </div>
 
-          {/* Actions */}
-          {allowed.length > 0 ? (
-            <div style={{ padding: "12px 24px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#8aab97", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                Update Status
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {STATUS_FLOW.filter((a) => allowed.includes(a.value)).map((action) => (
-                  <button
-                    key={action.value}
-                    onClick={() => handle(action.value)}
-                    disabled={!!loading}
-                    style={{
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                      padding: "11px 16px", borderRadius: 10, border: "none", cursor: loading ? "not-allowed" : "pointer",
-                      background: action.value === "Declined" ? "#fef2f2" : action.bg,
-                      color: action.color,
-                      fontSize: "0.84rem", fontWeight: 700,
-                      fontFamily: "'Quicksand', sans-serif",
-                      opacity: loading && loading !== action.value ? 0.5 : 1,
-                      transition: "opacity 0.15s, filter 0.15s",
-                      filter: loading === action.value ? "brightness(0.92)" : "none",
-                      outline: `1.5px solid ${action.color}22`,
-                    }}
-                  >
-                    {loading === action.value ? (
-                      <>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}>
-                          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                        </svg>
-                        Updating…
-                      </>
-                    ) : (
-                      <>
-                        {action.icon}
-                        {action.label}
-                      </>
-                    )}
-                  </button>
-                ))}
+              <div style={{ height: 1, background: "#f0f7f2" }} />
+
+              {/* Info rows */}
+              {[
+                { label: "Waste Type", value: item.wasteType },
+                { label: "Location", value: item.location },
+                { label: "Collection Window", value: item.dates },
+                { label: "Estimated Yards", value: item.yards },
+                ...(item.contractorName ? [{ label: "Contractor", value: item.contractorName }] : []),
+                ...(item.note ? [{ label: "Notes", value: item.note }] : []),
+                ...(item.operatorName ? [{ label: "Operator", value: item.operatorName }] : []),
+                ...(item.declineReason ? [{ label: "Decline Reason", value: item.declineReason }] : []),
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#8aab97", flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1a2e1f", textAlign: "right" }}>{value}</span>
+                </div>
+              ))}
+
+              {/* Proof photo + signature preview, once scheduled */}
+              {(item.proofPhotoUrl || item.signatureUrl) && (
+                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+                  {item.proofPhotoUrl && (
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5", marginBottom: 5 }}>Site Photo</p>
+                      <img src={item.proofPhotoUrl} alt="Site proof" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid #e8f2eb" }} />
+                    </div>
+                  )}
+                  {item.signatureUrl && (
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5", marginBottom: 5 }}>Signature</p>
+                      <img src={item.signatureUrl} alt="Operator signature" style={{ width: "100%", height: 90, objectFit: "contain", borderRadius: 8, border: "1px solid #e8f2eb", background: "#fbfdfb" }} />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-forms */}
+          {activeForm === "schedule" && (
+            <div style={{ padding: "8px 24px 24px" }}>
+              <ScheduleConfirmForm
+                loading={loading === "Scheduled"}
+                onCancel={() => setActiveForm(null)}
+                onSubmit={handleScheduleSubmit}
+              />
+            </div>
+          )}
+
+          {activeForm === "decline" && (
+            <div style={{ padding: "8px 24px 24px" }}>
+              <DeclineReasonForm
+                loading={loading === "Declined"}
+                onCancel={() => setActiveForm(null)}
+                onSubmit={handleDeclineSubmit}
+              />
+            </div>
+          )}
+
+          {/* Action buttons — only when no sub-form is active */}
+          {!activeForm && (
+            allowed.length > 0 ? (
+              <div style={{ padding: "12px 24px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
+                <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#8aab97", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                  Update Status
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {STATUS_FLOW.filter((a) => allowed.includes(a.value)).map((action) => (
+                    <button
+                      key={action.value}
+                      onClick={() => handleActionClick(action.value)}
+                      disabled={isBusy}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                        padding: "11px 16px", borderRadius: 10, border: "none", cursor: isBusy ? "not-allowed" : "pointer",
+                        background: action.value === "Declined" ? "#fef2f2" : action.bg,
+                        color: action.color,
+                        fontSize: "0.84rem", fontWeight: 700,
+                        fontFamily: "'Quicksand', sans-serif",
+                        opacity: isBusy && loading !== action.value ? 0.5 : 1,
+                        transition: "opacity 0.15s, filter 0.15s",
+                        filter: loading === action.value ? "brightness(0.92)" : "none",
+                        outline: `1.5px solid ${action.color}22`,
+                      }}
+                    >
+                      {loading === action.value ? (
+                        <>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}>
+                            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                          </svg>
+                          Updating…
+                        </>
+                      ) : (
+                        <>
+                          {action.icon}
+                          {action.label}
+                        </>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
-            <div style={{ padding: "12px 24px 24px" }}>
-              <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#8aab97", textAlign: "center" }}>
-                No further actions available for this request.
-              </p>
-            </div>
+            ) : (
+              <div style={{ padding: "12px 24px 24px" }}>
+                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#8aab97", textAlign: "center" }}>
+                  No further actions available for this request.
+                </p>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -544,6 +1100,37 @@ export default function RequestsPage() {
     if (!firestoreValue) return;
     await updateDoc(doc(db, "wasteRequests", id), {
       status: firestoreValue,
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  // Pending → Scheduled: upload photo + signature to Cloudinary first,
+  // then write everything (operator name, urls, status) in a single update.
+  const confirmSchedule = async (
+    id: string,
+    data: { operatorName: string; photoFile: File; signatureBlob: Blob }
+  ) => {
+    const [proofPhotoUrl, signatureUrl] = await Promise.all([
+      uploadToCloudinary(data.photoFile, `proof_${id}_${Date.now()}.jpg`),
+      uploadToCloudinary(data.signatureBlob, `signature_${id}_${Date.now()}.png`),
+    ]);
+
+    await updateDoc(doc(db, "wasteRequests", id), {
+      status: STATUS_WRITE["Scheduled"],
+      operatorName: data.operatorName,
+      proofPhotoUrl,
+      signatureUrl,
+      scheduledAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  };
+
+  // Any status → Declined, with a required reason
+  const confirmDecline = async (id: string, reason: string) => {
+    await updateDoc(doc(db, "wasteRequests", id), {
+      status: STATUS_WRITE["Declined"],
+      declineReason: reason,
+      declinedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   };
@@ -886,10 +1473,10 @@ export default function RequestsPage() {
         onClose={() => setSelectedReq(null)}
         onStatusChange={async (id, displayStatus) => {
           await updateStatus(id, displayStatus);
-          // Keep modal open; liveSelectedReq will refresh via onSnapshot
         }}
+        onScheduleConfirm={confirmSchedule}
+        onDeclineConfirm={confirmDecline}
       />
-
 
       <RequestDetailModal
         item={liveDetailModalReq}
