@@ -35,10 +35,9 @@ const STATUS_DISPLAY: Record<string, string> = {
   in_transit: "In Transit",
   completed:  "Completed",
   declined:   "Declined",
-  cancelled:  "Declined", // map cancelled → Declined display for now
+  cancelled:  "Declined",
 };
 
-// All valid write values — what gets stored in Firestore
 const STATUS_WRITE: Record<string, string> = {
   Pending:      "pending",
   Scheduled:    "scheduled",
@@ -48,7 +47,6 @@ const STATUS_WRITE: Record<string, string> = {
   Declined:     "declined",
 };
 
-// ── Cloudinary config ───────────────────────────────────────────────────────
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -110,7 +108,6 @@ export type RequestItem = {
 function formatDateRange(start?: string, end?: string, availability?: string) {
   if (!start) return "—";
 
-  // availability is stored as a single string like "09:00 - 17:00"
   let startTime = "";
   let endTime = "";
   if (availability) {
@@ -125,7 +122,6 @@ function formatDateRange(start?: string, end?: string, availability?: string) {
   };
 
   if (!end || end === start) {
-    // Single-day window: still show start–end time if both present
     if (startTime && endTime && startTime !== endTime) {
       return `${fmt(start, startTime)} – ${endTime}`;
     }
@@ -225,7 +221,6 @@ function RequestCard({
       transition: "box-shadow 0.2s, transform 0.2s",
       fontFamily: "'Quicksand', sans-serif",
     }}>
-      {/* Header */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
           <h3 style={{
@@ -248,7 +243,6 @@ function RequestCard({
 
       <div style={{ height: 1, background: "#f0f7f2" }} />
 
-      {/* Meta */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <MetaRow icon={
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
@@ -281,7 +275,6 @@ function RequestCard({
         )}
       </div>
 
-      {/* Single action — always "View Details" */}
       <button
         className="wf-btn-view"
         onClick={() => onViewDetails(req)}
@@ -304,8 +297,6 @@ function RequestCard({
   );
 }
 
-// ── Signature Pad ────────────────────────────────────────────────────────────
-
 function SignaturePad({
   onChange,
 }: {
@@ -316,14 +307,12 @@ function SignaturePad({
   const hasDrawnRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  // Expose a way for the parent to grab the signature blob on submit
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // High-DPI setup
     const ratio = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * ratio;
@@ -381,8 +370,6 @@ function SignaturePad({
     onChange(false);
   };
 
-  // Allow parent to read the canvas via a ref method pattern — simplest is
-  // to expose the canvas element itself through a data attribute lookup.
   (SignaturePad as any)._getCanvas = () => canvasRef.current;
 
   return (
@@ -438,9 +425,7 @@ function SignaturePad({
   );
 }
 
-// ── Schedule Confirmation Form (Pending → Scheduled) ────────────────────────
-
-function ScheduleConfirmForm({
+function CompleteForm({
   loading,
   onCancel,
   onSubmit,
@@ -469,11 +454,11 @@ function ScheduleConfirmForm({
       return;
     }
     if (!photoFile) {
-      setError("Upload a photo before scheduling.");
+      setError("Upload a photo before completing.");
       return;
     }
     if (!hasSignature) {
-      setError("Add a signature before scheduling.");
+      setError("Add a signature before completing.");
       return;
     }
     setError(null);
@@ -496,14 +481,13 @@ function ScheduleConfirmForm({
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>
-          Confirm scheduling
+          Complete this job
         </p>
         <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>
-          Add your name, a site photo, and your signature to confirm this pickup.
+          Add the operator's name, a site photo, and signature to mark as completed.
         </p>
       </div>
 
-      {/* Operator name */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
           Operator name
@@ -523,7 +507,6 @@ function ScheduleConfirmForm({
         />
       </div>
 
-      {/* Photo upload */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
           Site photo
@@ -573,7 +556,6 @@ function ScheduleConfirmForm({
         )}
       </div>
 
-      {/* Signature */}
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>
           Signature
@@ -623,15 +605,13 @@ function ScheduleConfirmForm({
               Uploading…
             </>
           ) : (
-            "Confirm & Schedule"
+            "Confirm & Complete"
           )}
         </button>
       </div>
     </div>
   );
 }
-
-// ── Decline Reason Form ─────────────────────────────────────────────────────
 
 function DeclineReasonForm({
   loading,
@@ -735,8 +715,6 @@ function DeclineReasonForm({
   );
 }
 
-// ── Inline Action Modal ─────────────────────────────────────────────────────
-
 const STATUS_FLOW: { label: string; value: string; color: string; bg: string; icon: React.ReactNode }[] = [
   {
     label: "Schedule",
@@ -796,7 +774,6 @@ const STATUS_FLOW: { label: string; value: string; color: string; bg: string; ic
   },
 ];
 
-// Which actions are valid from each status
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Pending:      ["Scheduled", "Declined"],
   Scheduled:    ["Arriving", "Declined"],
@@ -810,20 +787,18 @@ function RequestActionModal({
   item,
   onClose,
   onStatusChange,
-  onScheduleConfirm,
+  onCompleteConfirm,
   onDeclineConfirm,
 }: {
   item: RequestItem | null;
   onClose: () => void;
   onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
-  onScheduleConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
   onDeclineConfirm: (id: string, reason: string) => Promise<void>;
 }) {
   const [loading, setLoading] = useState<string | null>(null);
-  // Which sub-form is showing, if any: "schedule" | "decline" | null
-  const [activeForm, setActiveForm] = useState<"schedule" | "decline" | null>(null);
+  const [activeForm, setActiveForm] = useState<"complete" | "decline" | null>(null);
 
-  // Reset the sub-form whenever a different request is opened
   useEffect(() => {
     setActiveForm(null);
   }, [item?.id]);
@@ -842,8 +817,8 @@ function RequestActionModal({
   };
 
   const handleActionClick = (value: string) => {
-    if (value === "Scheduled") {
-      setActiveForm("schedule");
+    if (value === "Completed") {
+      setActiveForm("complete");
       return;
     }
     if (value === "Declined") {
@@ -853,10 +828,10 @@ function RequestActionModal({
     handleSimpleAction(value);
   };
 
-  const handleScheduleSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
-    setLoading("Scheduled");
+  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+    setLoading("Completed");
     try {
-      await onScheduleConfirm(item.id, data);
+      await onCompleteConfirm(item.id, data);
       setActiveForm(null);
     } finally {
       setLoading(null);
@@ -902,7 +877,6 @@ function RequestActionModal({
           boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
           fontFamily: "'Quicksand', sans-serif",
         }}>
-          {/* Modal header */}
           <div style={{
             padding: "20px 24px 16px",
             borderBottom: "1px solid #f0f7f2",
@@ -932,10 +906,8 @@ function RequestActionModal({
             </button>
           </div>
 
-          {/* Details — hidden while a sub-form is active, to keep focus on the task */}
           {!activeForm && (
             <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Status row */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#6b8f7a" }}>Current Status</span>
                 <span style={{
@@ -951,7 +923,6 @@ function RequestActionModal({
 
               <div style={{ height: 1, background: "#f0f7f2" }} />
 
-              {/* Info rows */}
               {[
                 { label: "Waste Type", value: item.wasteType },
                 { label: "Location", value: item.location },
@@ -968,7 +939,6 @@ function RequestActionModal({
                 </div>
               ))}
 
-              {/* Proof photo + signature preview, once scheduled */}
               {(item.proofPhotoUrl || item.signatureUrl) && (
                 <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                   {item.proofPhotoUrl && (
@@ -988,13 +958,12 @@ function RequestActionModal({
             </div>
           )}
 
-          {/* Sub-forms */}
-          {activeForm === "schedule" && (
+          {activeForm === "complete" && (
             <div style={{ padding: "8px 24px 24px" }}>
-              <ScheduleConfirmForm
-                loading={loading === "Scheduled"}
+              <CompleteForm
+                loading={loading === "Completed"}
                 onCancel={() => setActiveForm(null)}
-                onSubmit={handleScheduleSubmit}
+                onSubmit={handleCompleteSubmit}
               />
             </div>
           )}
@@ -1009,7 +978,6 @@ function RequestActionModal({
             </div>
           )}
 
-          {/* Action buttons — only when no sub-form is active */}
           {!activeForm && (
             allowed.length > 0 ? (
               <div style={{ padding: "12px 24px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1066,8 +1034,6 @@ function RequestActionModal({
   );
 }
 
-// ── Main Page ───────────────────────────────────────────────────────────────
-
 export default function RequestsPage() {
   const [collapsed, setCollapsed]     = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1094,7 +1060,6 @@ export default function RequestsPage() {
     return () => unsub();
   }, []);
 
-  // Update status via Firestore (admin role — rules now allow all statuses)
   const updateStatus = async (id: string, displayStatus: string) => {
     const firestoreValue = STATUS_WRITE[displayStatus];
     if (!firestoreValue) return;
@@ -1104,9 +1069,7 @@ export default function RequestsPage() {
     });
   };
 
-  // Pending → Scheduled: upload photo + signature to Cloudinary first,
-  // then write everything (operator name, urls, status) in a single update.
-  const confirmSchedule = async (
+  const confirmComplete = async (
     id: string,
     data: { operatorName: string; photoFile: File; signatureBlob: Blob }
   ) => {
@@ -1116,16 +1079,15 @@ export default function RequestsPage() {
     ]);
 
     await updateDoc(doc(db, "wasteRequests", id), {
-      status: STATUS_WRITE["Scheduled"],
+      status: STATUS_WRITE["Completed"],
       operatorName: data.operatorName,
       proofPhotoUrl,
       signatureUrl,
-      scheduledAt: new Date().toISOString(),
+      completedAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });
   };
 
-  // Any status → Declined, with a required reason
   const confirmDecline = async (id: string, reason: string) => {
     await updateDoc(doc(db, "wasteRequests", id), {
       status: STATUS_WRITE["Declined"],
@@ -1135,12 +1097,10 @@ export default function RequestsPage() {
     });
   };
 
-  // After a status update, keep the action modal open with live data
   const liveSelectedReq = selectedReq
     ? requests.find((r) => r.id === selectedReq.id) ?? selectedReq
     : null;
 
-  // Keep the old RequestDetailModal open with live data (if used elsewhere)
   const liveDetailModalReq = detailModalReq
     ? requests.find((r) => r.id === detailModalReq.id) ?? detailModalReq
     : null;
@@ -1467,14 +1427,13 @@ export default function RequestsPage() {
         </main>
       </div>
 
-      {/* Inline action modal — handles all status transitions */}
       <RequestActionModal
         item={liveSelectedReq}
         onClose={() => setSelectedReq(null)}
         onStatusChange={async (id, displayStatus) => {
           await updateStatus(id, displayStatus);
         }}
-        onScheduleConfirm={confirmSchedule}
+        onCompleteConfirm={confirmComplete}
         onDeclineConfirm={confirmDecline}
       />
 

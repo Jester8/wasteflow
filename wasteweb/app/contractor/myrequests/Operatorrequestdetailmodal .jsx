@@ -267,6 +267,7 @@ function Timeline({ status }) {
 }
 
 export default function OperatorRequestDetailModal({ item, onClose, onResubmit }) {
+  // All hooks must be called at the top level, before any conditional returns
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -281,13 +282,27 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
     return () => window.removeEventListener("keydown", fn);
   }, [item, onClose]);
 
+  // Debugging useEffect - placed BEFORE the early return
+  useEffect(() => {
+    if (!item) return;
+    console.log('Modal item data:', {
+      status: item?.status,
+      operatorName: item?.operatorName,
+      proofPhotoUrl: item?.proofPhotoUrl,
+      signatureUrl: item?.signatureUrl,
+      hasProof: !!item?.proofPhotoUrl,
+      hasSignature: !!item?.signatureUrl,
+      hasOperator: !!item?.operatorName
+    });
+  }, [item]);
+
+  // Early return comes AFTER all hooks
   if (!item) return null;
 
   const isCompleted        = item.status === "Completed";
   const isDeclined         = item.status === "Declined";
   const isAwaitingApproval = item.status === "Awaiting Approval";
 
-  // Normalize image data in case it comes as an array or a single string
   const imagesArray = Array.isArray(item.images) 
     ? item.images 
     : item.images || item.imageUrl 
@@ -504,7 +519,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               )}
             </div>
 
-            {/* ── NEW: SITE IMAGES SECTION ── */}
             {imagesArray.length > 0 && (
               <div style={{ marginTop: 20 }}>
                 <p style={{
@@ -539,8 +553,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
             <Timeline status={item.status} />
 
-            {/* ── NEW: SIGNATURE SECTION ── */}
-            {item.signature && (
+            {isCompleted && (
               <div style={{ 
                 marginTop: 24, padding: "16px", background: "#f5faf6", 
                 borderRadius: 12, border: "1px solid #e8f2eb" 
@@ -551,19 +564,73 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                   textTransform: "uppercase", letterSpacing: "0.06em",
                   margin: "0 0 10px 0",
                 }}>
-                  Operator Signature / Confirmation
+                  Completion Details
                 </p>
-                <div style={{ 
-                  background: "#ffffff", borderRadius: 8, padding: 8, 
-                  display: "flex", justifyContent: "center", alignItems: "center",
-                  border: "1px dashed #c6e2d0", height: 80
-                }}>
-                  <img 
-                    src={item.signature} 
-                    alt="Digital Signature" 
-                    style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} 
-                  />
-                </div>
+                
+                {item.operatorName && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{
+                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif",
+                      margin: "0 0 2px 0",
+                    }}>
+                      Operator Name
+                    </p>
+                    <p style={{
+                      fontSize: "0.88rem", fontWeight: 700, color: "#1a2e1f",
+                      fontFamily: "'Quicksand', sans-serif",
+                      margin: 0,
+                    }}>
+                      {item.operatorName}
+                    </p>
+                  </div>
+                )}
+
+                {item.proofPhotoUrl && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{
+                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif",
+                      margin: "0 0 6px 0",
+                    }}>
+                      Site Photo
+                    </p>
+                    <div style={{ 
+                      borderRadius: 8, overflow: "hidden",
+                      background: "#ffffff", border: "1px solid #e8f2eb"
+                    }}>
+                      <img 
+                        src={item.proofPhotoUrl} 
+                        alt="Site completion photo" 
+                        style={{ width: "100%", maxHeight: 200, objectFit: "cover" }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {item.signatureUrl && (
+                  <div>
+                    <p style={{
+                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif",
+                      margin: "0 0 6px 0",
+                    }}>
+                      Operator Signature
+                    </p>
+                    <div style={{ 
+                      background: "#ffffff", borderRadius: 8, padding: 8, 
+                      display: "flex", justifyContent: "center", alignItems: "center",
+                      border: "1px dashed #c6e2d0", height: 80
+                    }}>
+                      <img 
+                        src={item.signatureUrl} 
+                        alt="Digital Signature" 
+                        style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} 
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

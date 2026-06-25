@@ -28,8 +28,10 @@ export type RequestItem = {
   status: string;
   rawStatus: string;
   createdAt: string;
-  imageUrl?: string;      // Added optional image URL field
-  signatureUrl?: string; // Added optional signature URL field
+  imageUrl?: string;
+  signatureUrl?: string;
+  operatorName?: string;
+  proofPhotoUrl?: string;
 };
 
 const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -59,11 +61,8 @@ function formatTimestamp(ts: any): string {
 
   let date: Date;
   if (typeof ts?.toDate === "function") {
-    // Real Firestore Timestamp instance
     date = ts.toDate();
   } else if (typeof ts === "object" && typeof ts.seconds === "number") {
-    // Plain { seconds, nanoseconds } object — happens with cached/pending
-    // writes or anytime a Timestamp gets serialized to a plain object
     date = new Date(ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6));
   } else {
     date = new Date(ts);
@@ -76,6 +75,7 @@ function formatTimestamp(ts: any): string {
     date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
   );
 }
+
 const WASTE_TYPE_CONFIG = {
   Mixed:     { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
   Metal:     { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
@@ -291,8 +291,10 @@ export default function MyRequestsPage() {
               status:       toDisplayStatus(rawStatus),
               rawStatus,
               createdAt:    formatTimestamp(data.createdAt),
-              imageUrl:     data.imageUrl     || "", // Fetches from doc payload
-              signatureUrl: data.signatureUrl || "", // Fetches from doc payload
+              imageUrl:     data.imageUrl || data.proofPhotoUrl || "",
+              signatureUrl: data.signatureUrl || "",
+              operatorName: data.operatorName || "",
+              proofPhotoUrl: data.proofPhotoUrl || "",
             } as RequestItem;
           })
         );
