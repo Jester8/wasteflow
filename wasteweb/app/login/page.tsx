@@ -18,31 +18,63 @@ function useTypewriter(text: string, speed = 45) {
     const id = setInterval(() => {
       i++;
       setDisplayed(text.slice(0, i));
-      if (i >= text.length) { clearInterval(id); setDone(true); }
+      if (i >= text.length) {
+        clearInterval(id);
+        setDone(true);
+      }
     }, speed);
     return () => clearInterval(id);
   }, [text, speed]);
   return { displayed, done };
-
-  
 }
 
-
-
-function Input({ label, type = "text", placeholder, error, leftIcon, required: req, ...props }: {
-  label?: string; type?: string; placeholder?: string; error?: string;
-  leftIcon?: React.ReactNode; required?: boolean; [k: string]: any;
+function Input({
+  label,
+  type = "text",
+  placeholder,
+  error,
+  leftIcon,
+  required: req,
+  ...props
+}: {
+  label?: string;
+  type?: string;
+  placeholder?: string;
+  error?: string;
+  leftIcon?: React.ReactNode;
+  required?: boolean;
+  [k: string]: any;
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", letterSpacing: "0.01em" }}>
-          {label}{req && <span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>}
+        <label
+          style={{
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            color: "#2a5c38",
+            fontFamily: "'Quicksand',sans-serif",
+            letterSpacing: "0.01em",
+          }}
+        >
+          {label}
+          {req && <span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>}
         </label>
       )}
       <div style={{ position: "relative" }}>
         {leftIcon && (
-          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
+          <span
+            style={{
+              position: "absolute",
+              left: 13,
+              top: "50%",
+              transform: "translateY(-50%)",
+              color: "#3d6b4d",
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
             {leftIcon}
           </span>
         )}
@@ -54,17 +86,38 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
             padding: leftIcon ? "11px 14px 11px 38px" : "11px 14px",
             borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
-            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
-            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6",
+            color: "#1a2e1f",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            fontFamily: "'Quicksand',sans-serif",
+            outline: "none",
+            boxSizing: "border-box",
+            transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
-          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
+          onFocus={(e) => {
+            e.currentTarget.style.border = "1px solid #B8D52E";
+            e.currentTarget.style.boxShadow =
+              "0 0 0 3px rgba(184,213,46,0.15)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.border = error
+              ? "1px solid #e05c5c"
+              : "1px solid #c6e2d0";
+            e.currentTarget.style.boxShadow = "none";
+          }}
           {...props}
         />
       </div>
       {error && (
-        <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>
+        <span
+          style={{
+            fontSize: "0.72rem",
+            color: "#e05c5c",
+            fontFamily: "'Quicksand',sans-serif",
+            fontWeight: 600,
+          }}
+        >
           {error}
         </span>
       )}
@@ -72,20 +125,55 @@ function Input({ label, type = "text", placeholder, error, leftIcon, required: r
   );
 }
 
-function PasswordInput({ label, placeholder, error, ...props }: {
-  label?: string; placeholder?: string; error?: string; [k: string]: any;
+function PasswordInput({
+  label,
+  placeholder,
+  error,
+  ...props
+}: {
+  label?: string;
+  placeholder?: string;
+  error?: string;
+  [k: string]: any;
 }) {
   const [show, setShow] = useState(false);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {label && (
-        <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif" }}>
-          {label}<span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
+        <label
+          style={{
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            color: "#2a5c38",
+            fontFamily: "'Quicksand',sans-serif",
+          }}
+        >
+          {label}
+          <span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
         </label>
       )}
       <div style={{ position: "relative" }}>
-        <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: "#3d6b4d", pointerEvents: "none", display: "flex", alignItems: "center" }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+        <span
+          style={{
+            position: "absolute",
+            left: 13,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#3d6b4d",
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ width: 15, height: 15 }}
+          >
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
@@ -94,31 +182,75 @@ function PasswordInput({ label, placeholder, error, ...props }: {
           type={show ? "text" : "password"}
           placeholder={placeholder}
           style={{
-            width: "100%", padding: "11px 40px 11px 38px", borderRadius: 10,
+            width: "100%",
+            padding: "11px 40px 11px 38px",
+            borderRadius: 10,
             border: error ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-            background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
-            fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
-            boxSizing: "border-box", transition: "border 0.18s, box-shadow 0.18s",
+            background: "#f5faf6",
+            color: "#1a2e1f",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            fontFamily: "'Quicksand',sans-serif",
+            outline: "none",
+            boxSizing: "border-box",
+            transition: "border 0.18s, box-shadow 0.18s",
           }}
-          onFocus={e => { e.currentTarget.style.border = "1px solid #B8D52E"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(184,213,46,0.15)"; }}
-          onBlur={e => { e.currentTarget.style.border = error ? "1px solid #e05c5c" : "1px solid #c6e2d0"; e.currentTarget.style.boxShadow = "none"; }}
+          onFocus={(e) => {
+            e.currentTarget.style.border = "1px solid #B8D52E";
+            e.currentTarget.style.boxShadow =
+              "0 0 0 3px rgba(184,213,46,0.15)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.border = error
+              ? "1px solid #e05c5c"
+              : "1px solid #c6e2d0";
+            e.currentTarget.style.boxShadow = "none";
+          }}
           {...props}
         />
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setShow(v => !v)}
-          style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#3d6b4d", padding: 0, display: "flex", alignItems: "center" }}
+          onClick={() => setShow((v) => !v)}
+          style={{
+            position: "absolute",
+            right: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#3d6b4d",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+          }}
           aria-label={show ? "Hide password" : "Show password"}
         >
           {show ? (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: 15, height: 15 }}
+            >
               <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
               <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
               <line x1="1" y1="1" x2="23" y2="23" />
             </svg>
           ) : (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ width: 15, height: 15 }}
+            >
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
@@ -126,7 +258,14 @@ function PasswordInput({ label, placeholder, error, ...props }: {
         </button>
       </div>
       {error && (
-        <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>
+        <span
+          style={{
+            fontSize: "0.72rem",
+            color: "#e05c5c",
+            fontFamily: "'Quicksand',sans-serif",
+            fontWeight: 600,
+          }}
+        >
           {error}
         </span>
       )}
@@ -134,9 +273,18 @@ function PasswordInput({ label, placeholder, error, ...props }: {
   );
 }
 
-function Button({ children, type = "button", loading, fullWidth, onClick }: {
-  children: React.ReactNode; type?: "button" | "submit";
-  loading?: boolean; fullWidth?: boolean; onClick?: () => void;
+function Button({
+  children,
+  type = "button",
+  loading,
+  fullWidth,
+  onClick,
+}: {
+  children: React.ReactNode;
+  type?: "button" | "submit";
+  loading?: boolean;
+  fullWidth?: boolean;
+  onClick?: () => void;
 }) {
   return (
     <button
@@ -144,69 +292,120 @@ function Button({ children, type = "button", loading, fullWidth, onClick }: {
       disabled={loading}
       onClick={onClick}
       style={{
-        width: fullWidth ? "100%" : "auto", padding: "13px 24px", borderRadius: 10,
-        background: loading ? "#2a5c38" : "#1a4d2e", color: "#e8f5ee",
-        fontSize: "0.9rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
-        border: "none", cursor: loading ? "not-allowed" : "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-        boxShadow: "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
+        width: fullWidth ? "100%" : "auto",
+        padding: "13px 24px",
+        borderRadius: 10,
+        background: loading ? "#2a5c38" : "#1a4d2e",
+        color: "#e8f5ee",
+        fontSize: "0.9rem",
+        fontWeight: 700,
+        fontFamily: "'Quicksand',sans-serif",
+        border: "none",
+        cursor: loading ? "not-allowed" : "pointer",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        boxShadow:
+          "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)",
         transition: "background 0.18s, transform 0.15s, box-shadow 0.18s",
-        letterSpacing: "0.01em", opacity: loading ? 0.75 : 1,
+        letterSpacing: "0.01em",
+        opacity: loading ? 0.75 : 1,
       }}
-      onMouseEnter={e => {
+      onMouseEnter={(e) => {
         if (!loading) {
           e.currentTarget.style.background = "#0f2d1a";
           e.currentTarget.style.transform = "translateY(-1px)";
-          e.currentTarget.style.boxShadow = "0 4px 12px rgba(26,77,46,0.25)";
+          e.currentTarget.style.boxShadow =
+            "0 4px 12px rgba(26,77,46,0.25)";
         }
       }}
-      onMouseLeave={e => {
+      onMouseLeave={(e) => {
         e.currentTarget.style.background = loading ? "#2a5c38" : "#1a4d2e";
         e.currentTarget.style.transform = "none";
-        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)";
+        e.currentTarget.style.boxShadow =
+          "0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08)";
       }}
     >
       {loading ? (
         <>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            style={{
+              width: 15,
+              height: 15,
+              animation: "wfSpin 0.8s linear infinite",
+            }}
+          >
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
           Signing in…
         </>
-      ) : children}
+      ) : (
+        children
+      )}
     </button>
   );
 }
 
-function GoogleButton({ onClick, loading }: { onClick: () => void; loading: boolean }) {
+function GoogleButton({
+  onClick,
+  loading,
+}: {
+  onClick: () => void;
+  loading: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={loading}
       style={{
-        width: "100%", padding: "12px 16px", borderRadius: 10,
-        border: "1.5px solid #c6e2d0", background: "#fff",
-        display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-        fontSize: "0.875rem", fontWeight: 700, fontFamily: "'Quicksand',sans-serif",
-        color: "#1a2e1f", cursor: loading ? "not-allowed" : "pointer",
-        transition: "all 0.18s", opacity: loading ? 0.65 : 1,
+        width: "100%",
+        padding: "12px 16px",
+        borderRadius: 10,
+        border: "1.5px solid #c6e2d0",
+        background: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        fontSize: "0.875rem",
+        fontWeight: 700,
+        fontFamily: "'Quicksand',sans-serif",
+        color: "#1a2e1f",
+        cursor: loading ? "not-allowed" : "pointer",
+        transition: "all 0.18s",
+        opacity: loading ? 0.65 : 1,
       }}
-      onMouseEnter={e => {
+      onMouseEnter={(e) => {
         if (!loading) {
           e.currentTarget.style.borderColor = "#1a4d2e";
           e.currentTarget.style.background = "#f5faf6";
           e.currentTarget.style.transform = "translateY(-1px)";
         }
       }}
-      onMouseLeave={e => {
+      onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = "#c6e2d0";
         e.currentTarget.style.background = "#fff";
         e.currentTarget.style.transform = "none";
       }}
     >
       {loading ? (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 15, height: 15, animation: "wfSpin 0.8s linear infinite" }}>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          style={{
+            width: 15,
+            height: 15,
+            animation: "wfSpin 0.8s linear infinite",
+          }}
+        >
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
       ) : (
@@ -230,31 +429,60 @@ function HeroText() {
 
   return (
     <div>
-      <p style={{
-        fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)", fontWeight: 700, color: "#e8f5ee",
-        lineHeight: 1.3, letterSpacing: "-0.02em", fontFamily: "'Quicksand',sans-serif",
-        marginBottom: 12, minHeight: "4.5em",
-      }}>
+      <p
+        style={{
+          fontSize: "clamp(1.4rem, 2.4vw, 1.9rem)",
+          fontWeight: 700,
+          color: "#e8f5ee",
+          lineHeight: 1.3,
+          letterSpacing: "-0.02em",
+          fontFamily: "'Quicksand',sans-serif",
+          marginBottom: 12,
+          minHeight: "4.5em",
+        }}
+      >
         {d1}
-        {!done1 && <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />}
+        {!done1 && (
+          <span
+            style={{
+              borderRight: "2px solid #B8D52E",
+              marginLeft: 1,
+              animation: "wfBlink 0.75s step-end infinite",
+            }}
+          />
+        )}
         {done1 && (
           <>
             <br />
             <span style={{ color: "#B8D52E" }}>
               {d2}
               {d2.length < line2.length && (
-                <span style={{ borderRight: "2px solid #B8D52E", marginLeft: 1, animation: "wfBlink 0.75s step-end infinite" }} />
+                <span
+                  style={{
+                    borderRight: "2px solid #B8D52E",
+                    marginLeft: 1,
+                    animation: "wfBlink 0.75s step-end infinite",
+                  }}
+                />
               )}
             </span>
           </>
         )}
       </p>
-      <p style={{
-        fontSize: "0.875rem", color: "#5a8a6a", fontWeight: 600, lineHeight: 1.65,
-        maxWidth: 340, fontFamily: "'Quicksand',sans-serif",
-        opacity: done1 ? 1 : 0, transition: "opacity 0.6s ease",
-      }}>
-        Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
+      <p
+        style={{
+          fontSize: "0.875rem",
+          color: "#5a8a6a",
+          fontWeight: 600,
+          lineHeight: 1.65,
+          maxWidth: 340,
+          fontFamily: "'Quicksand',sans-serif",
+          opacity: done1 ? 1 : 0,
+          transition: "opacity 0.6s ease",
+        }}
+      >
+        Manage skip orders, track pickups in real time, and keep your site
+        compliant — all from one platform.
       </p>
     </div>
   );
@@ -262,7 +490,10 @@ function HeroText() {
 
 type Role = "operator" | "contractor";
 
-const ROLE_CONFIG: Record<Role, { label: string; emoji: string; placeholder: string }> = {
+const ROLE_CONFIG: Record<
+  Role,
+  { label: string; emoji: string; placeholder: string }
+> = {
   operator: { label: "Operator", emoji: "", placeholder: "you@company.co.uk" },
   contractor: { label: "Contractor", emoji: "", placeholder: "you@haulage.co.uk" },
 };
@@ -289,11 +520,7 @@ function routeAfterAuth(
   }
 
   if (kycStatus === "pending" || kycStatus === "approved") {
-    router.push(
-      role === "operator"
-        ? "/operators"
-        : "/contractor"
-    );
+    router.push(role === "operator" ? "/operators" : "/contractor");
     return;
   }
 
@@ -311,30 +538,25 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const [postSignInPending, setPostSignInPending] = useState(false);
+  const [showSignupSuggestion, setShowSignupSuggestion] = useState(false);
 
   const config = ROLE_CONFIG[role];
 
-useEffect(() => {
-  if (!postSignInPending) return;
-  if (authLoading) return;
-  if (!user) return;
-  if (!profile) return;
+  useEffect(() => {
+    if (!postSignInPending) return;
+    if (authLoading) return;
+    if (!user) return;
+    if (!profile) return;
 
-  try {
-    routeAfterAuth(router, profile, role);
-  } catch (err: any) {
-    setGlobalError(err.message);
-  }
+    try {
+      routeAfterAuth(router, profile, role);
+    } catch (err: any) {
+      setGlobalError(err.message);
+      setShowSignupSuggestion(false);
+    }
 
-  setPostSignInPending(false);
-}, [
-  postSignInPending,
-  authLoading,
-  user,
-  profile,
-  router,
-  role,
-]);
+    setPostSignInPending(false);
+  }, [postSignInPending, authLoading, user, profile, router, role]);
 
   const validate = () => {
     const errs: Record<string, string> = {};
@@ -347,15 +569,29 @@ useEffect(() => {
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+
     setErrors({});
     setGlobalError("");
+    setShowSignupSuggestion(false);
     setLoading(true);
 
     const result = await signInWithEmail(email, password);
 
     if (!result.success) {
-      setGlobalError(result.error || "Sign in failed. Please try again.");
+      const errorMessage = result.error || "Sign in failed. Please try again.";
+
+      if (errorMessage === "No account found with this email.") {
+        setGlobalError(errorMessage);
+        setShowSignupSuggestion(true);
+      } else {
+        setGlobalError(errorMessage);
+        setShowSignupSuggestion(false);
+      }
+
       setLoading(false);
       return;
     }
@@ -366,12 +602,23 @@ useEffect(() => {
 
   const handleGoogleSignIn = async () => {
     setGlobalError("");
+    setShowSignupSuggestion(false);
     setGoogleLoading(true);
 
     const result = await signInWithGoogle();
 
     if (!result.success) {
       setGlobalError(result.error || "Google sign in failed. Please try again.");
+      setShowSignupSuggestion(false);
+      setGoogleLoading(false);
+      return;
+    }
+
+    if (result.isNewUser) {
+      setGlobalError(
+        "No account found for this Google account. Please sign up first."
+      );
+      setShowSignupSuggestion(true);
       setGoogleLoading(false);
       return;
     }
@@ -433,13 +680,13 @@ useEffect(() => {
         .wf-signup-nudge a:hover { color: #B8D52E; }
 
         .wf-error-banner { background: #fff5f5; border: 1px solid #f5c6c6; border-radius: 10px; padding: 11px 14px; display: flex; align-items: flex-start; gap: 9px; margin-bottom: 16px; }
-        .wf-error-banner p { font-size: 0.78rem; color: #c0392b; font-weight: 600; font-family: 'Quicksand', sans-serif; line-height: 1.5; margin: 0; }
+        .wf-error-banner p { font-size: 0.78rem; color: #c0392b; font-weight: 600; font-family: 'Quicksand',sans-serif; line-height: 1.5; margin: 0; }
 
         .wf-footer { flex-shrink: 0; border-top: 1px solid #f0f7f2; padding: 14px 32px; display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: space-between; }
         @media (min-width: 500px) { .wf-footer { flex-direction: row; } }
-        .wf-footer-copy { font-size: 0.72rem; color: #9ab8a5; font-weight: 600; font-family: 'Quicksand', sans-serif; }
+        .wf-footer-copy { font-size: 0.72rem; color: #9ab8a5; font-weight: 600; font-family: 'Quicksand',sans-serif; }
         .wf-footer-links { display: flex; gap: 16px; }
-        .wf-footer-links a { font-size: 0.72rem; color: #9ab8a5; text-decoration: none; font-weight: 600; transition: color 0.18s; font-family: 'Quicksand', sans-serif; }
+        .wf-footer-links a { font-size: 0.72rem; color: #9ab8a5; text-decoration: none; font-weight: 600; transition: color 0.18s; font-family: 'Quicksand',sans-serif; }
         .wf-footer-links a:hover { color: #1a4d2e; }
       `}</style>
 
@@ -466,15 +713,22 @@ useEffect(() => {
           <div className="wf-form-scroll">
             <div className="wf-form-inner">
               <h1 className="wf-heading">Welcome back</h1>
-              <p className="wf-sub">Sign in to your WasteFlow account to continue.</p>
+              <p className="wf-sub">
+                Sign in to your WasteFlow account to continue.
+              </p>
 
               <div className="wf-toggle">
-                {(["operator", "contractor"] as Role[]).map(r => (
+                {(["operator", "contractor"] as Role[]).map((r) => (
                   <button
                     key={r}
                     type="button"
                     className={`wf-toggle-btn${role === r ? " active" : ""}`}
-                    onClick={() => { setRole(r); setErrors({}); setGlobalError(""); }}
+                    onClick={() => {
+                      setRole(r);
+                      setErrors({});
+                      setGlobalError("");
+                      setShowSignupSuggestion(false);
+                    }}
                   >
                     {ROLE_CONFIG[r].emoji} {ROLE_CONFIG[r].label}
                   </button>
@@ -483,15 +737,52 @@ useEffect(() => {
 
               {globalError && (
                 <div className="wf-error-banner">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#c0392b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }}>
-                    <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#c0392b"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{
+                      width: 14,
+                      height: 14,
+                      flexShrink: 0,
+                      marginTop: 1,
+                    }}
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <p>{globalError}</p>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <p>{globalError}</p>
+
+                    {showSignupSuggestion && (
+                      <p style={{ margin: 0 }}>
+                        Don’t have an account yet?{" "}
+                        <Link
+                          href={`/signup?role=${role}`}
+                          style={{
+                            color: "#1a4d2e",
+                            fontWeight: 700,
+                            textDecoration: "none",
+                          }}
+                        >
+                          Sign up here
+                        </Link>
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
               <div className="wf-google-btn">
-                <GoogleButton onClick={handleGoogleSignIn} loading={googleLoading} />
+                <GoogleButton
+                  onClick={handleGoogleSignIn}
+                  loading={googleLoading}
+                />
               </div>
 
               <div className="wf-divider">
@@ -508,10 +799,20 @@ useEffect(() => {
                     placeholder={config.placeholder}
                     required
                     value={email}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setEmail(e.target.value)
+                    }
                     error={errors.email}
                     leftIcon={
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ width: 15, height: 15 }}
+                      >
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                         <polyline points="22,6 12,13 2,6" />
                       </svg>
@@ -522,12 +823,22 @@ useEffect(() => {
                       label="Password"
                       placeholder="Enter your password"
                       value={password}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        setPassword(e.target.value)
+                      }
                       error={errors.password}
                     />
                     <div className="wf-forgot">
                       <Link href={`/reset?role=${role}`}>
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          style={{ width: 12, height: 12 }}
+                        >
                           <circle cx="12" cy="12" r="10" />
                           <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                           <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -551,7 +862,9 @@ useEffect(() => {
           </div>
 
           <footer className="wf-footer">
-            <span className="wf-footer-copy">© {new Date().getFullYear()} WasteFlow. All rights reserved.</span>
+            <span className="wf-footer-copy">
+              © {new Date().getFullYear()} WasteFlow. All rights reserved.
+            </span>
             <div className="wf-footer-links">
               <a href="#">Privacy</a>
               <a href="#">Terms</a>
