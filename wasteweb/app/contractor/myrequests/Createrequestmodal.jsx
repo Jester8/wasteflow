@@ -13,29 +13,6 @@ const WASTE_TYPE_CONFIG = {
   General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
 
-const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-
-async function uploadToCloudinary(file, folder) {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", folder);
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-    { method: "POST", body: formData }
-  );
-
-  if (!res.ok) {
-    const errBody = await res.text();
-    throw new Error(`Cloudinary upload failed: ${errBody}`);
-  }
-
-  const data = await res.json();
-  return data.secure_url;
-}
-
 function WasteTypePill({ type, selected, onClick }) {
   const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
   return (
@@ -119,7 +96,7 @@ function FocusInput({ as: Tag = "input", error, style, extraStyle, ...props }) {
   );
 }
 
-const STEPS = ["Job Details", "Schedule", "Notes & Sign-off"];
+const STEPS = ["Job Details", "Schedule", "Notes"];
 
 function StepBar({ current }) {
   return (
@@ -172,176 +149,6 @@ function StepBar({ current }) {
   );
 }
 
-function PhotoCapture({ preview, onSelect, onClear, error }) {
-  const fileInputRef = useRef(null);
-
-  return (
-    <div className="cr-field">
-      <Label>Site Photo</Label>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onSelect(file);
-        }}
-      />
-      {preview ? (
-        <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", border: "1.5px solid #e8f2eb" }}>
-          <img
-            src={preview}
-            alt="Site photo preview"
-            style={{ width: "100%", maxHeight: 220, objectFit: "cover", display: "block" }}
-          />
-          <button
-            type="button"
-            onClick={onClear}
-            style={{
-              position: "absolute", top: 8, right: 8,
-              width: 28, height: 28, borderRadius: "50%",
-              background: "rgba(10,22,13,0.55)", border: "none", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center", color: "#fff",
-            }}
-            aria-label="Remove photo"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          style={{
-            width: "100%", padding: "22px 16px", borderRadius: 12, cursor: "pointer",
-            border: error ? "1.5px dashed #fca5a5" : "1.5px dashed #c6e2d0",
-            background: "#f5faf6",
-            display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-          }}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="#4a7a5a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1a4d2e", fontFamily: "'Quicksand', sans-serif" }}>
-            Take or upload a photo
-          </span>
-          <span style={{ fontSize: "0.7rem", fontWeight: 600, color: "#9ab8a5", fontFamily: "'Quicksand', sans-serif" }}>
-            Optional — helps operators assess the site
-          </span>
-        </button>
-      )}
-    </div>
-  );
-}
-
-function SignaturePad({ onChange, error }) {
-  const canvasRef = useRef(null);
-  const drawingRef = useRef(false);
-  const hasDrawnRef = useRef(false);
-
-  function getCtx() {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    return canvas.getContext("2d");
-  }
-
-  function getPos(e) {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (e.clientX - rect.left) * (canvas.width / rect.width),
-      y: (e.clientY - rect.top) * (canvas.height / rect.height),
-    };
-  }
-
-  function start(e) {
-    e.preventDefault();
-    drawingRef.current = true;
-    const ctx = getCtx();
-    const { x, y } = getPos(e);
-    ctx?.beginPath();
-    ctx?.moveTo(x, y);
-  }
-
-  function move(e) {
-    if (!drawingRef.current) return;
-    e.preventDefault();
-    const ctx = getCtx();
-    if (!ctx) return;
-    const { x, y } = getPos(e);
-    ctx.lineWidth = 2.2;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#1a2e1f";
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    hasDrawnRef.current = true;
-  }
-
-  function end() {
-    if (!drawingRef.current) return;
-    drawingRef.current = false;
-    const canvas = canvasRef.current;
-    if (canvas && hasDrawnRef.current) {
-      onChange(canvas.toDataURL("image/png"));
-    }
-  }
-
-  function clear() {
-    const canvas = canvasRef.current;
-    const ctx = getCtx();
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    hasDrawnRef.current = false;
-    onChange("");
-  }
-
-  return (
-    <div className="cr-field">
-      <Label required>Signature</Label>
-      <div style={{
-        borderRadius: 12,
-        border: error ? "1.5px solid #fca5a5" : "1.5px solid #e8f2eb",
-        background: "#ffffff", overflow: "hidden", position: "relative",
-      }}>
-        <canvas
-          ref={canvasRef}
-          width={440}
-          height={150}
-          style={{ width: "100%", height: 130, touchAction: "none", display: "block", cursor: "crosshair" }}
-          onPointerDown={start}
-          onPointerMove={move}
-          onPointerUp={end}
-          onPointerLeave={end}
-        />
-        <span style={{
-          position: "absolute", bottom: 6, left: 12,
-          fontSize: "0.68rem", fontWeight: 600, color: "#c6e2d0",
-          fontFamily: "'Quicksand', sans-serif", pointerEvents: "none",
-        }}>
-          Sign here
-        </span>
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-        <button
-          type="button"
-          onClick={clear}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a",
-            fontFamily: "'Quicksand', sans-serif", textDecoration: "underline",
-          }}
-        >
-          Clear signature
-        </button>
-      </div>
-    </div>
-  );
-}
-
 const EMPTY_FORM = {
   title: "",
   wasteType: "",
@@ -353,8 +160,6 @@ const EMPTY_FORM = {
   availableFromTime: "",
   availableToTime: "",
   note: "",
-  signerName: "",
-  signatureDataUrl: "",
 };
 
 export default function CreateRequestModal({ open, onClose, onSubmit }) {
@@ -362,11 +167,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
   const [form, setForm]         = useState(EMPTY_FORM);
   const [errors, setErrors]     = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-
-  const [photoFile, setPhotoFile]       = useState(null);
-  const [photoPreview, setPhotoPreview] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const bodyRef = useRef(null);
 
@@ -388,22 +189,8 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
     bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
-  useEffect(() => {
-    return () => { if (photoPreview) URL.revokeObjectURL(photoPreview); };
-  }, [photoPreview]);
-
   const set = (k) => (e) =>
     setForm((p) => ({ ...p, [k]: e.target ? e.target.value : e }));
-
-  function handlePhotoSelect(file) {
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-  }
-
-  function handlePhotoClear() {
-    setPhotoFile(null);
-    setPhotoPreview("");
-  }
 
   function handleClose() {
     onClose?.();
@@ -412,8 +199,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
       setForm(EMPTY_FORM);
       setErrors({});
       setSubmitted(false);
-      setUploadError("");
-      handlePhotoClear();
     }, 300);
   }
 
@@ -433,10 +218,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
       if (form.dateFrom && form.dateTo && form.dateTo < form.dateFrom)
         e.dateTo = "End date must be after start date";
     }
-    if (s === 2) {
-      if (!form.signerName.trim())     e.signerName = "Name is required";
-      if (!form.signatureDataUrl)      e.signature  = "Signature is required";
-    }
     return e;
   }
 
@@ -453,29 +234,14 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
   }
 
   async function submit() {
-    const e = validateStep(2);
-    if (Object.keys(e).length) { setErrors(e); return; }
-
-    setUploading(true);
-    setUploadError("");
-
+    setSubmitting(true);
     try {
-      const [photoUrl, signatureUrl] = await Promise.all([
-        photoFile
-          ? uploadToCloudinary(photoFile, "wasteflow/requests/photos")
-          : Promise.resolve(""),
-        uploadToCloudinary(
-          await (await fetch(form.signatureDataUrl)).blob(),
-          "wasteflow/requests/signatures"
-        ),
-      ]);
-
       const id = `WF-${String(Math.floor(1000 + Math.random() * 9000))}`;
-      
+
       // Clean up the volume unit if it already contains the string
       let cleanedVolumeUnit = form.volumeUnit || "Yards";
       if (form.volume.toLowerCase().includes(cleanedVolumeUnit.toLowerCase())) {
-        cleanedVolumeUnit = ""; 
+        cleanedVolumeUnit = "";
       }
 
       const payload = {
@@ -486,17 +252,12 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
         dates: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`,
         availability: `${form.availableFromTime} - ${form.availableToTime}`,
         volume: `${form.volume.trim()} ${cleanedVolumeUnit}`.trim(),
-        imageUrl: photoUrl,
-        signatureUrl,
       };
 
       onSubmit?.(payload);
       setSubmitted(true);
-    } catch (err) {
-      console.error("Upload failed:", err);
-      setUploadError("Something went wrong uploading your photo/signature. Please try again.");
     } finally {
-      setUploading(false);
+      setSubmitting(false);
     }
   }
 
@@ -631,7 +392,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
 
       <div
         className="cr-backdrop"
-        onClick={(e) => { if (e.target === e.currentTarget && !uploading) handleClose(); }}
+        onClick={(e) => { if (e.target === e.currentTarget && !submitting) handleClose(); }}
         role="dialog"
         aria-modal="true"
         aria-label="Create pickup request"
@@ -654,7 +415,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                 {submitted ? "You're all set!" : STEPS[step]}
               </span>
             </div>
-            <button className="cr-close" onClick={handleClose} aria-label="Close" disabled={uploading}>
+            <button className="cr-close" onClick={handleClose} aria-label="Close" disabled={submitting}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -687,7 +448,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                   { icon: "📅", label: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}` },
                   { icon: "🕒", label: `${form.availableFromTime} - ${form.availableToTime}` },
                   { icon: "🚛", label: `${form.volume} ${form.volumeUnit}` },
-                  { icon: "✍️", label: form.signerName },
                 ].map(({ icon, label }) => (
                   <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: "0.85rem" }}>{icon}</span>
@@ -813,7 +573,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                         type="date"
                         value={form.dateTo}
                         onChange={set("dateTo")}
-                        onChangeCapture={set("dateTo")}
                         error={!!errors.dateTo}
                         extraStyle={{ colorScheme: "light" }}
                       />
@@ -850,60 +609,17 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
               )}
 
               {step === 2 && (
-                <>
-                  <PhotoCapture
-                    preview={photoPreview}
-                    onSelect={handlePhotoSelect}
-                    onClear={handlePhotoClear}
-                    error={!!errors.photo}
+                <div className="cr-field">
+                  <Label>Additional Notes</Label>
+                  <FocusInput
+                    as="textarea"
+                    rows={3}
+                    placeholder="Any gate codes, site hazards, specific placement instructions..."
+                    value={form.note}
+                    onChange={set("note")}
+                    style={{ resize: "none" }}
                   />
-
-                  <div className="cr-field">
-                    <Label>Additional Notes</Label>
-                    <FocusInput
-                      as="textarea"
-                      rows={3}
-                      placeholder="Any gate codes, site hazards, specific placement instructions..."
-                      value={form.note}
-                      onChange={set("note")}
-                      style={{ resize: "none" }}
-                    />
-                  </div>
-
-                  <div style={{ height: 1, background: "#f0f7f2", margin: "4px 0" }} />
-
-                  <div className="cr-field">
-                    <Label required>Signatory Name</Label>
-                    <FocusInput
-                      type="text"
-                      placeholder="Confirm your full name"
-                      value={form.signerName}
-                      onChange={set("signerName")}
-                      error={!!errors.signerName}
-                    />
-                    {errors.signerName && <span className="cr-error">{errors.signerName}</span>}
-                  </div>
-
-                  <SignaturePad
-                    onChange={(dataUrl) => {
-                      setForm((p) => ({ ...p, signatureDataUrl: dataUrl }));
-                      setErrors((e) => ({ ...e, signature: null }));
-                    }}
-                    error={!!errors.signature}
-                  />
-                  {errors.signature && <span className="cr-error">{errors.signature}</span>}
-
-                  {uploadError && (
-                    <div style={{
-                      padding: "10px 12px", background: "#fef2f2",
-                      border: "1px solid #fca5a5", borderRadius: 10,
-                      fontSize: "0.78rem", fontWeight: 600, color: "#b91c1c",
-                      fontFamily: "'Quicksand', sans-serif"
-                    }}>
-                      {uploadError}
-                    </div>
-                  )}
-                </>
+                </div>
               )}
 
             </div>
@@ -919,11 +635,11 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                   </svg>
                 </button>
               ) : (
-                <button type="button" className="cr-btn-primary" onClick={submit} disabled={uploading}>
-                  {uploading ? (
+                <button type="button" className="cr-btn-primary" onClick={submit} disabled={submitting}>
+                  {submitting ? (
                     <>
                       <div className="cr-spinner" />
-                      Uploading documents...
+                      Submitting...
                     </>
                   ) : (
                     <>
@@ -937,7 +653,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
               )}
 
               {step > 0 && (
-                <button type="button" className="cr-btn-secondary" onClick={back} disabled={uploading}>
+                <button type="button" className="cr-btn-secondary" onClick={back} disabled={submitting}>
                   Back
                 </button>
               )}
