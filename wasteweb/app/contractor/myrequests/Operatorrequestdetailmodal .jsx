@@ -1,23 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const STATUS_CONFIG = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
-  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6",  label: "Scheduled"    },
-  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4",  label: "Arriving"     },
-  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7",  label: "In Transit"   },
-  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E",  label: "Completed"    },
-  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444",  label: "Declined"     },
+  Scheduled:           { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6",  label: "Scheduled"         },
+  Arriving:            { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4",  label: "Arriving"          },
+  "In Transit":        { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7",  label: "In Transit"        },
+  Completed:           { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E",  label: "Completed"         },
+  Declined:            { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444",  label: "Declined"          },
 };
 
 const WASTE_TYPE_CONFIG = {
-  Mixed:     { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
+  Mixed:     { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.25)"  },
   Metal:     { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
   Concrete:  { bg: "rgba(120,113,108,0.10)", color: "#57534e", border: "rgba(120,113,108,0.25)" },
-  Green:     { bg: "rgba(34,197,94,0.10)",   color: "#15803d", border: "rgba(34,197,94,0.25)"  },
-  Hazardous: { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
-  General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
+  Green:     { bg: "rgba(34,197,94,0.10)",   color: "#15803d", border: "rgba(34,197,94,0.25)"   },
+  Hazardous: { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)"   },
+  General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)"  },
 };
 
 const STATUS_STEPS = {
@@ -30,45 +30,37 @@ const STATUS_STEPS = {
 };
 
 const TIMELINE_STEPS = [
-  { label: "Request submitted",     sub: "You raised this pickup request"         },
-  { label: "Accepted by Operator", sub: "An operator confirmed the job"          },
-  { label: "Pickup in progress",   sub: "An operator is collecting the waste"    },
-  { label: "Completed",            sub: "Waste successfully collected"           },
+  { label: "Request submitted",    sub: "You raised this pickup request"       },
+  { label: "Accepted by operator", sub: "An operator confirmed the job"        },
+  { label: "Pickup in progress",   sub: "An operator is collecting the waste"  },
+  { label: "Completed",            sub: "Waste successfully collected"         },
 ];
 
 const BANNERS = {
   "Awaiting Approval": {
     iconStroke: "#f59e0b",
-    iconPath: <>
-      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-    </>,
+    iconPath: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
     iconBg: "#fffbeb", iconBorder: "rgba(251,191,36,0.35)",
     title: "Awaiting Approval",
     sub: "Your request has been submitted and is waiting to be accepted",
   },
   Scheduled: {
     iconStroke: "#3b82f6",
-    iconPath: <>
-      <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-    </>,
+    iconPath: <><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>,
     iconBg: "rgba(59,130,246,0.08)", iconBorder: "rgba(59,130,246,0.25)",
     title: "Pickup Scheduled",
-    sub: "A contractor has accepted your request and will arrive soon",
+    sub: "An operator has accepted your request and will arrive soon",
   },
   Arriving: {
     iconStroke: "#06b6d4",
-    iconPath: <>
-      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-    </>,
+    iconPath: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
     iconBg: "rgba(34,211,238,0.08)", iconBorder: "rgba(34,211,238,0.25)",
-    title: "Contractor On the Way",
-    sub: "Your contractor is en route to the pickup location",
+    title: "Operator On the Way",
+    sub: "Your operator is en route to the pickup location",
   },
   "In Transit": {
     iconStroke: "#a855f7",
-    iconPath: <>
-      <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-    </>,
+    iconPath: <><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></>,
     iconBg: "rgba(168,85,247,0.08)", iconBorder: "rgba(168,85,247,0.25)",
     title: "Pickup In Progress",
     sub: "Waste is being collected and transported",
@@ -82,14 +74,42 @@ const BANNERS = {
   },
   Declined: {
     iconStroke: "#ef4444",
-    iconPath: <>
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </>,
+    iconPath: <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
     iconBg: "rgba(239,68,68,0.08)", iconBorder: "rgba(239,68,68,0.25)",
     title: "Request Declined",
     sub: "No contractor accepted this request. You can submit a new one.",
   },
 };
+
+function XIcon({ size = 15 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round" style={{ width: size, height: size }}>
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  );
+}
+
+function CheckIcon({ size = 14 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+      strokeLinecap="round" strokeLinejoin="round" style={{ width: size, height: size }}>
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  );
+}
+
+function CalIcon({ color = "currentColor", size = 22 }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" style={{ width: size, height: size }}>
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <line x1="3" y1="10" x2="21" y2="10"/>
+    </svg>
+  );
+}
 
 function StatusBadge({ status }) {
   const s = STATUS_CONFIG[status] || STATUS_CONFIG["Awaiting Approval"];
@@ -266,8 +286,429 @@ function Timeline({ status }) {
   );
 }
 
-export default function OperatorRequestDetailModal({ item, onClose, onResubmit }) {
-  // All hooks must be called at the top level, before any conditional returns
+function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
+  const [view, setView] = useState("confirm");
+  const [reschedule, setReschedule] = useState({ date: "", fromTime: "", toTime: "", note: "" });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Use operatorName instead of driverName
+  const driverName = item?.operatorName || "Your skip driver";
+  const driverInitials = driverName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  async function handleAccept() {
+    setSubmitting(true);
+    try {
+      await onAccept?.(item);
+      setView("success");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRescheduleSend() {
+    setSubmitting(true);
+    try {
+      await onReschedule?.(item, reschedule);
+      setView("reschedule-sent");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const canSendReschedule = reschedule.date && reschedule.fromTime && reschedule.toTime;
+
+  return (
+    <>
+      <style>{`
+        @keyframes acBackdropIn { from{opacity:0} to{opacity:1} }
+        @keyframes acModalIn    { from{opacity:0;transform:scale(0.93) translateY(12px)} to{opacity:1;transform:scale(1) translateY(0)} }
+        @keyframes acRingPop    { 0%{transform:scale(0)} 60%{transform:scale(1.18)} 100%{transform:scale(1)} }
+        @keyframes acSpinner    { to{transform:rotate(360deg)} }
+
+        .ac-backdrop {
+          position:fixed; inset:0; z-index:500;
+          background:rgba(10,22,13,0.55);
+          backdrop-filter:blur(4px);
+          display:flex; align-items:center; justify-content:center;
+          padding:20px;
+          animation:acBackdropIn 0.2s ease both;
+        }
+        .ac-modal {
+          background:#fff; border-radius:18px;
+          width:100%; max-width:400px;
+          box-shadow:0 12px 48px rgba(0,0,0,0.22);
+          overflow:hidden;
+          animation:acModalIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
+        }
+        .ac-header {
+          padding:18px 20px 14px;
+          border-bottom:1px solid #f0f7f2;
+          display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+        }
+        .ac-icon {
+          width:44px; height:44px; border-radius:12px;
+          display:flex; align-items:center; justify-content:center; flex-shrink:0;
+        }
+        .ac-close {
+          width:30px; height:30px; border-radius:8px;
+          background:#f5faf6; border:1px solid #e8f2eb;
+          display:flex; align-items:center; justify-content:center;
+          cursor:pointer; color:#4a7a5a; flex-shrink:0;
+          transition:background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .ac-close:hover { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
+        .ac-body { padding:16px 20px; display:flex; flex-direction:column; gap:12px; }
+        .ac-footer { padding:0 20px 18px; display:flex; flex-direction:column; gap:8px; }
+        .ac-btn-primary {
+          width:100%; padding:11px 16px; border-radius:10px;
+          background:#1a4d2e; border:none; cursor:pointer;
+          color:#B8D52E; font-size:0.88rem; font-weight:700;
+          font-family:'Quicksand',sans-serif;
+          display:flex; align-items:center; justify-content:center; gap:7px;
+          transition:background 0.15s, color 0.15s;
+        }
+        .ac-btn-primary:disabled { opacity:0.65; cursor:not-allowed; }
+        .ac-btn-primary:hover:not(:disabled) { background:#B8D52E; color:#0d2416; }
+        .ac-btn-secondary {
+          width:100%; padding:11px 16px; border-radius:10px;
+          background:none; border:1px solid #e8f2eb; cursor:pointer;
+          color:#1a4d2e; font-size:0.88rem; font-weight:700;
+          font-family:'Quicksand',sans-serif;
+          display:flex; align-items:center; justify-content:center; gap:7px;
+          transition:background 0.15s, border-color 0.15s;
+        }
+        .ac-btn-secondary:hover { background:#f0f7f2; border-color:#B8D52E; }
+        .ac-field-label {
+          font-size:0.68rem; font-weight:700; color:#9ab8a5;
+          text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;
+          font-family:'Quicksand',sans-serif; display:block;
+        }
+        .ac-input {
+          width:100%; padding:9px 11px; border-radius:8px;
+          border:1.5px solid #e8f2eb; background:#fff;
+          font-size:0.82rem; font-weight:600; color:#1a2e1f;
+          font-family:'Quicksand',sans-serif; outline:none;
+          transition:border 0.15s, box-shadow 0.15s;
+          box-sizing:border-box; colorScheme:light;
+        }
+        .ac-input:focus { border-color:#B8D52E; box-shadow:0 0 0 3px rgba(184,213,46,0.12); }
+        .ac-textarea {
+          width:100%; padding:9px 11px; border-radius:8px;
+          border:1.5px solid #e8f2eb; background:#fff;
+          font-size:0.82rem; font-weight:600; color:#1a2e1f;
+          font-family:'Quicksand',sans-serif; outline:none; resize:none; min-height:72px;
+          transition:border 0.15s, box-shadow 0.15s; box-sizing:border-box;
+        }
+        .ac-textarea:focus { border-color:#B8D52E; box-shadow:0 0 0 3px rgba(184,213,46,0.12); }
+        .ac-success-ring {
+          width:64px; height:64px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center;
+          animation:acRingPop 0.4s cubic-bezier(0.22,1,0.36,1) 0.05s both;
+        }
+        .ac-spinner {
+          width:15px; height:15px; border-radius:50%;
+          border:2px solid rgba(184,213,46,0.35); border-top-color:#B8D52E;
+          animation:acSpinner 0.7s linear infinite;
+        }
+        .ac-back-btn {
+          background:none; border:none; cursor:pointer;
+          font-size:0.78rem; font-weight:700; color:#6b8f7a;
+          font-family:'Quicksand',sans-serif;
+          display:flex; align-items:center; gap:5px; padding:0;
+        }
+        .ac-back-btn:hover { color:#1a4d2e; }
+        .ac-info-card {
+          background:#f5faf6; border:1px solid #e8f2eb;
+          border-radius:10px; padding:12px 14px;
+          display:flex; flex-direction:column; gap:8px;
+        }
+        .ac-info-divider { height:1px; background:#e8f2eb; margin:2px 0; }
+        .ac-info-label {
+          font-size:0.68rem; font-weight:700; color:#9ab8a5;
+          text-transform:uppercase; letter-spacing:0.05em;
+          font-family:'Quicksand',sans-serif; margin:0 0 2px;
+        }
+        .ac-info-val {
+          font-size:0.85rem; font-weight:700; color:#1a2e1f;
+          font-family:'Quicksand',sans-serif; margin:0;
+        }
+        .ac-driver-card {
+          display:flex; align-items:center; gap:10px;
+          background:rgba(184,213,46,0.08); border:1px solid rgba(184,213,46,0.25);
+          border-radius:10px; padding:10px 13px;
+        }
+        .ac-driver-avatar {
+          width:36px; height:36px; border-radius:50%;
+          background:#1a4d2e; color:#B8D52E;
+          display:flex; align-items:center; justify-content:center;
+          font-size:0.72rem; font-weight:800; flex-shrink:0;
+          font-family:'Quicksand',sans-serif;
+        }
+        .ac-two-col { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        @media (max-width:420px) { .ac-two-col { grid-template-columns:1fr; } }
+      `}</style>
+
+      <div
+        className="ac-backdrop"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && !submitting) onClose?.();
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Pickup acceptance"
+      >
+        <div className="ac-modal">
+
+          {view === "confirm" && (
+            <>
+              <div className="ac-header">
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div className="ac-icon" style={{ background: "#f0fdf4", border: "1px solid rgba(34,197,94,0.25)" }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                      <polyline points="22 4 12 14.01 9 11.01"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p style={{
+                      fontSize: "0.95rem", fontWeight: 800, color: "#1a2e1f",
+                      fontFamily: "'Quicksand', sans-serif", lineHeight: 1.3, margin: 0,
+                    }}>
+                      Your request has been accepted by an operator
+                    </p>
+                    <p style={{
+                      fontSize: "0.73rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif", marginTop: 3,
+                    }}>
+                      Review the proposed schedule and confirm or reschedule
+                    </p>
+                  </div>
+                </div>
+                <button className="ac-close" onClick={onClose} disabled={submitting}>
+                  <XIcon size={13} />
+                </button>
+              </div>
+
+              <div className="ac-body">
+                <div className="ac-driver-card">
+                  <div className="ac-driver-avatar">{driverInitials}</div>
+                  <div>
+                    <p style={{
+                      fontSize: "0.85rem", fontWeight: 700, color: "#1a2e1f",
+                      fontFamily: "'Quicksand', sans-serif", margin: 0,
+                    }}>
+                      {driverName}
+                    </p>
+                    <p style={{
+                      fontSize: "0.7rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif", margin: 0,
+                    }}>
+                      {item.driverRating ? `${item.driverRating}★ · ` : ""}Operator
+                    </p>
+                  </div>
+                </div>
+
+                <div className="ac-info-card">
+                  {[
+                    { label: "Proposed pickup date",  val: item.proposedDate || item.dates        },
+                    { label: "Proposed time window",  val: item.proposedTime || item.availability },
+                    { label: "Location",              val: item.location                          },
+                  ].map(({ label, val }, i, arr) => val && (
+                    <div key={label}>
+                      <p className="ac-info-label">{label}</p>
+                      <p className="ac-info-val">{val}</p>
+                      {i < arr.length - 1 && <div className="ac-info-divider" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="ac-footer">
+                <button className="ac-btn-primary" onClick={handleAccept} disabled={submitting}>
+                  {submitting
+                    ? <><div className="ac-spinner" /> Confirming…</>
+                    : <><CheckIcon /> Accept pickup</>
+                  }
+                </button>
+                <button className="ac-btn-secondary" onClick={() => setView("reschedule")} disabled={submitting}>
+                  <CalIcon size={15} /> Request reschedule
+                </button>
+              </div>
+            </>
+          )}
+
+          {view === "reschedule" && (
+            <>
+              <div className="ac-header">
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div className="ac-icon" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)" }}>
+                    <CalIcon color="#3b82f6" size={22} />
+                  </div>
+                  <div>
+                    <p style={{
+                      fontSize: "0.95rem", fontWeight: 800, color: "#1a2e1f",
+                      fontFamily: "'Quicksand', sans-serif", lineHeight: 1.3, margin: 0,
+                    }}>
+                      Request a reschedule
+                    </p>
+                    <p style={{
+                      fontSize: "0.73rem", fontWeight: 600, color: "#6b8f7a",
+                      fontFamily: "'Quicksand', sans-serif", marginTop: 3,
+                    }}>
+                      The operator will choose from your suggested window
+                    </p>
+                  </div>
+                </div>
+                <button className="ac-close" onClick={() => setView("confirm")} disabled={submitting}>
+                  <XIcon size={13} />
+                </button>
+              </div>
+
+              <div className="ac-body">
+                <button className="ac-back-btn" onClick={() => setView("confirm")} disabled={submitting}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+                  </svg>
+                  Back
+                </button>
+
+                <div>
+                  <label className="ac-field-label">Suggested date</label>
+                  <input
+                    type="date"
+                    className="ac-input"
+                    value={reschedule.date}
+                    onChange={(e) => setReschedule((p) => ({ ...p, date: e.target.value }))}
+                  />
+                </div>
+
+                <div className="ac-two-col">
+                  <div>
+                    <label className="ac-field-label">From time</label>
+                    <input
+                      type="time"
+                      className="ac-input"
+                      value={reschedule.fromTime}
+                      onChange={(e) => setReschedule((p) => ({ ...p, fromTime: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="ac-field-label">To time</label>
+                    <input
+                      type="time"
+                      className="ac-input"
+                      value={reschedule.toTime}
+                      onChange={(e) => setReschedule((p) => ({ ...p, toTime: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="ac-field-label">Note to operator (optional)</label>
+                  <textarea
+                    className="ac-textarea"
+                    placeholder="e.g. Gate is locked before 9am, please call ahead..."
+                    value={reschedule.note}
+                    onChange={(e) => setReschedule((p) => ({ ...p, note: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="ac-footer">
+                <button
+                  className="ac-btn-primary"
+                  onClick={handleRescheduleSend}
+                  disabled={submitting || !canSendReschedule}
+                >
+                  {submitting
+                    ? <><div className="ac-spinner" /> Sending…</>
+                    : <>
+                        Send reschedule request
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                          strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                          <line x1="22" y1="2" x2="11" y2="13"/>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                      </>
+                  }
+                </button>
+              </div>
+            </>
+          )}
+
+          {view === "success" && (
+            <div style={{
+              padding: "36px 24px",
+              textAlign: "center",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+            }}>
+              <div className="ac-success-ring" style={{ background: "#1a4d2e" }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2.8"
+                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 30, height: 30 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              <p style={{
+                fontSize: "1rem", fontWeight: 800, color: "#1a2e1f",
+                fontFamily: "'Quicksand', sans-serif", margin: 0,
+              }}>
+                Pickup confirmed!
+              </p>
+              <p style={{
+                fontSize: "0.78rem", fontWeight: 600, color: "#6b8f7a",
+                fontFamily: "'Quicksand', sans-serif", lineHeight: 1.55,
+                maxWidth: 290, margin: 0,
+              }}>
+                <strong style={{ color: "#1a4d2e" }}>{driverName}</strong> will collect your waste on{" "}
+                <strong style={{ color: "#1a4d2e" }}>{item.proposedDate || item.dates}</strong>.
+                You'll be notified when they're on the way.
+              </p>
+              <button className="ac-btn-primary" style={{ marginTop: 6 }} onClick={onClose}>
+                Done
+              </button>
+            </div>
+          )}
+
+          {view === "reschedule-sent" && (
+            <div style={{
+              padding: "36px 24px",
+              textAlign: "center",
+              display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+            }}>
+              <div className="ac-success-ring" style={{ background: "rgba(59,130,246,0.1)" }}>
+                <CalIcon color="#3b82f6" size={28} />
+              </div>
+              <p style={{
+                fontSize: "1rem", fontWeight: 800, color: "#1a2e1f",
+                fontFamily: "'Quicksand', sans-serif", margin: 0,
+              }}>
+                Reschedule request sent
+              </p>
+              <p style={{
+                fontSize: "0.78rem", fontWeight: 600, color: "#6b8f7a",
+                fontFamily: "'Quicksand', sans-serif", lineHeight: 1.55,
+                maxWidth: 290, margin: 0,
+              }}>
+                The operator will review your suggested window and confirm a new time. You'll be
+                notified once they respond.
+              </p>
+              <button className="ac-btn-secondary" style={{ marginTop: 6 }} onClick={onClose}>
+                Close
+              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </>
+  );
+}
+
+export default function OperatorRequestDetailModal({ item, onClose, onResubmit, onAcceptPickup, onReschedulePickup }) {
+  const [showAcceptance, setShowAcceptance] = useState(false);
+
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -277,37 +718,27 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
   useEffect(() => {
     if (!item) return;
-    const fn = (e) => { if (e.key === "Escape") onClose?.(); };
+    const fn = (e) => { if (e.key === "Escape" && !showAcceptance) onClose?.(); };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
-  }, [item, onClose]);
+  }, [item, onClose, showAcceptance]);
 
-  // Debugging useEffect - placed BEFORE the early return
+  // Auto-open acceptance modal when status is "Scheduled"
   useEffect(() => {
     if (!item) return;
-    console.log('Modal item data:', {
-      status: item?.status,
-      operatorName: item?.operatorName,
-      proofPhotoUrl: item?.proofPhotoUrl,
-      signatureUrl: item?.signatureUrl,
-      hasProof: !!item?.proofPhotoUrl,
-      hasSignature: !!item?.signatureUrl,
-      hasOperator: !!item?.operatorName
-    });
-  }, [item]);
+    if (item.status === "Scheduled") {
+      setShowAcceptance(true);
+    }
+  }, [item?.status]);
 
-  // Early return comes AFTER all hooks
   if (!item) return null;
 
   const isCompleted        = item.status === "Completed";
   const isDeclined         = item.status === "Declined";
   const isAwaitingApproval = item.status === "Awaiting Approval";
+  const isScheduled        = item.status === "Scheduled";
 
-  const imagesArray = Array.isArray(item.images) 
-    ? item.images 
-    : item.images || item.imageUrl 
-      ? [item.images || item.imageUrl] 
-      : [];
+  const imagesArray = Array.isArray(item.images) ? item.images : [];
 
   return (
     <>
@@ -377,6 +808,15 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           transition:background 0.18s, border-color 0.18s;
         }
         .or-btn-secondary:hover { background:#f0f7f2; border-color:#B8D52E; }
+        .or-btn-accent {
+          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+          padding:12px 20px; border-radius:10px;
+          background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); cursor:pointer;
+          color:#1d4ed8; font-size:0.88rem; font-weight:700;
+          font-family:'Quicksand',sans-serif;
+          transition:background 0.18s, border-color 0.18s;
+        }
+        .or-btn-accent:hover { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.45); }
         .or-btn-danger {
           width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
           padding:12px 20px; border-radius:10px;
@@ -386,6 +826,15 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           transition:background 0.18s, border-color 0.18s;
         }
         .or-btn-danger:hover { background:#fee2e2; border-color:#ef4444; }
+
+        .or-pending-nudge {
+          display:flex; align-items:center; gap:10px;
+          background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.22);
+          border-radius:10px; padding:11px 14px; cursor:pointer;
+          transition:background 0.15s;
+        }
+        .or-pending-nudge:hover { background:rgba(59,130,246,0.11); }
+
         @media (max-width:480px) {
           .or-drawer { max-width:100%; }
         }
@@ -393,7 +842,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
 
       <div
         className="or-backdrop"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
+        onClick={(e) => { if (e.target === e.currentTarget && !showAcceptance) onClose?.(); }}
         role="dialog"
         aria-modal="true"
         aria-label="Request details"
@@ -417,10 +866,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               </span>
             </div>
             <button className="or-close" onClick={onClose} aria-label="Close">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+              <XIcon />
             </button>
           </div>
 
@@ -438,6 +884,49 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
             </div>
 
             <StatusBanner status={item.status} />
+
+            {isScheduled && item.awaitingUserConfirmation && (
+              <div
+                className="or-pending-nudge"
+                style={{ marginTop: 10 }}
+                onClick={() => setShowAcceptance(true)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") setShowAcceptance(true); }}
+              >
+                <div style={{
+                  width: 34, height: 34, borderRadius: 9,
+                  background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{
+                    fontSize: "0.78rem", fontWeight: 700, color: "#1d4ed8",
+                    fontFamily: "'Quicksand', sans-serif", margin: 0,
+                  }}>
+                    Action required — confirm your pickup
+                  </p>
+                  <p style={{
+                    fontSize: "0.7rem", fontWeight: 600, color: "#6b8f7a",
+                    fontFamily: "'Quicksand', sans-serif", margin: "2px 0 0",
+                  }}>
+                    Tap to accept or request a new time
+                  </p>
+                </div>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+                  <line x1="5" y1="12" x2="19" y2="12"/>
+                  <polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </div>
+            )}
 
             <div style={{ marginTop: 8 }}>
               <DetailRow
@@ -529,21 +1018,21 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                 }}>
                   Site Documentation Images
                 </p>
-                <div style={{ 
-                  display: "grid", 
-                  gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", 
-                  gap: 10 
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+                  gap: 10,
                 }}>
                   {imagesArray.map((imgSrc, index) => (
-                    <div key={index} style={{ 
-                      aspectRatio: "1", borderRadius: 8, overflow: "hidden", 
-                      background: "#f5faf6", border: "1px solid #e8f2eb" 
+                    <div key={index} style={{
+                      aspectRatio: "1", borderRadius: 8, overflow: "hidden",
+                      background: "#f5faf6", border: "1px solid #e8f2eb",
                     }}>
-                      <img 
-                        src={imgSrc} 
-                        alt={`Waste preview ${index + 1}`} 
+                      <img
+                        src={imgSrc}
+                        alt={`Waste preview ${index + 1}`}
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                       />
                     </div>
                   ))}
@@ -554,9 +1043,9 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
             <Timeline status={item.status} />
 
             {isCompleted && (
-              <div style={{ 
-                marginTop: 24, padding: "16px", background: "#f5faf6", 
-                borderRadius: 12, border: "1px solid #e8f2eb" 
+              <div style={{
+                marginTop: 24, padding: "16px",
+                background: "#f5faf6", borderRadius: 12, border: "1px solid #e8f2eb",
               }}>
                 <p style={{
                   fontSize: "0.68rem", fontWeight: 700, color: "#4a7a5a",
@@ -566,20 +1055,18 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                 }}>
                   Completion Details
                 </p>
-                
+
                 {item.operatorName && (
                   <div style={{ marginBottom: 12 }}>
                     <p style={{
                       fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif",
-                      margin: "0 0 2px 0",
+                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 2px 0",
                     }}>
                       Operator Name
                     </p>
                     <p style={{
                       fontSize: "0.88rem", fontWeight: 700, color: "#1a2e1f",
-                      fontFamily: "'Quicksand', sans-serif",
-                      margin: 0,
+                      fontFamily: "'Quicksand', sans-serif", margin: 0,
                     }}>
                       {item.operatorName}
                     </p>
@@ -590,20 +1077,19 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                   <div style={{ marginBottom: 12 }}>
                     <p style={{
                       fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif",
-                      margin: "0 0 6px 0",
+                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px 0",
                     }}>
                       Site Photo
                     </p>
-                    <div style={{ 
+                    <div style={{
                       borderRadius: 8, overflow: "hidden",
-                      background: "#ffffff", border: "1px solid #e8f2eb"
+                      background: "#ffffff", border: "1px solid #e8f2eb",
                     }}>
-                      <img 
-                        src={item.proofPhotoUrl} 
-                        alt="Site completion photo" 
+                      <img
+                        src={item.proofPhotoUrl}
+                        alt="Site completion photo"
                         style={{ width: "100%", maxHeight: 200, objectFit: "cover" }}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                       />
                     </div>
                   </div>
@@ -613,20 +1099,19 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
                   <div>
                     <p style={{
                       fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif",
-                      margin: "0 0 6px 0",
+                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px 0",
                     }}>
                       Operator Signature
                     </p>
-                    <div style={{ 
-                      background: "#ffffff", borderRadius: 8, padding: 8, 
+                    <div style={{
+                      background: "#ffffff", borderRadius: 8, padding: 8,
                       display: "flex", justifyContent: "center", alignItems: "center",
-                      border: "1px dashed #c6e2d0", height: 80
+                      border: "1px dashed #c6e2d0", height: 80,
                     }}>
-                      <img 
-                        src={item.signatureUrl} 
-                        alt="Digital Signature" 
-                        style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} 
+                      <img
+                        src={item.signatureUrl}
+                        alt="Digital Signature"
+                        style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
                       />
                     </div>
                   </div>
@@ -637,6 +1122,22 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
           </div>
 
           <div className="or-footer">
+
+            {isScheduled && item.awaitingUserConfirmation && (
+              <button className="or-btn-primary" onClick={() => setShowAcceptance(true)}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                Review acceptance
+              </button>
+            )}
+
+            {isScheduled && !item.awaitingUserConfirmation && (
+              <button className="or-btn-secondary" onClick={onClose}>Close</button>
+            )}
+
             {isCompleted && (
               <button className="or-btn-primary">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
@@ -682,13 +1183,26 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit }
               </>
             )}
 
-            {!isCompleted && !isDeclined && !isAwaitingApproval && (
+            {!isCompleted && !isDeclined && !isAwaitingApproval && !isScheduled && (
               <button className="or-btn-secondary" onClick={onClose}>Close</button>
             )}
-          </div>
 
+          </div>
         </div>
       </div>
+
+      {showAcceptance && (
+        <AcceptanceConfirmModal
+          item={item}
+          onClose={() => setShowAcceptance(false)}
+          onAccept={async (req) => {
+            await onAcceptPickup?.(req);
+          }}
+          onReschedule={async (req, rescheduleData) => {
+            await onReschedulePickup?.(req, rescheduleData);
+          }}
+        />
+      )}
     </>
   );
 }

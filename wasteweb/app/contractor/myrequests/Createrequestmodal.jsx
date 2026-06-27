@@ -156,7 +156,7 @@ const EMPTY_FORM = {
   dateFrom: "",
   dateTo: "",
   volume: "",
-  volumeUnit: "Yards",
+  volumeUnit: "",
   availableFromTime: "",
   availableToTime: "",
   note: "",

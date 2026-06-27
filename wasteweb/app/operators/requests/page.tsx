@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, query, orderBy, onSnapshot, doc, updateDoc,
+  collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "../../context/AuthContext"; // ADDED: Import useAuth
 import Sidebar from "../../components/Sidebar";
 import RequestDetailModal from "./components/RequestDetailModal";
 
-const TABS = ["All", "Pending", "Scheduled", "Arriving", "In Transit", "Completed", "Declined"];
+const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined"];
 
 const STATUS_CONFIG = {
   Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
+  Accepted:     { bg: "rgba(34,197,94,0.10)",   color: "#15803d", border: "rgba(34,197,94,0.3)",    dot: "#22c55e" },
   Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
   Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
   "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
@@ -30,6 +32,7 @@ const WASTE_TYPE_CONFIG = {
 
 const STATUS_DISPLAY: Record<string, string> = {
   pending:    "Pending",
+  confirmed:  "Accepted",
   scheduled:  "Scheduled",
   arriving:   "Arriving",
   in_transit: "In Transit",
@@ -40,6 +43,7 @@ const STATUS_DISPLAY: Record<string, string> = {
 
 const STATUS_WRITE: Record<string, string> = {
   Pending:      "pending",
+  Accepted:     "confirmed",
   Scheduled:    "scheduled",
   Arriving:     "arriving",
   "In Transit": "in_transit",
@@ -729,6 +733,17 @@ const STATUS_FLOW: { label: string; value: string; color: string; bg: string; ic
     ),
   },
   {
+    label: "Move to In Transit",
+    value: "In Transit",
+    color: "#7c3aed",
+    bg: "rgba(168,85,247,0.10)",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+        <rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    ),
+  },
+  {
     label: "Mark Arriving",
     value: "Arriving",
     color: "#0e7490",
@@ -736,17 +751,6 @@ const STATUS_FLOW: { label: string; value: string; color: string; bg: string; ic
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
         <polygon points="3 11 22 2 13 21 11 13 3 11"/>
-      </svg>
-    ),
-  },
-  {
-    label: "In Transit",
-    value: "In Transit",
-    color: "#7c3aed",
-    bg: "rgba(168,85,247,0.10)",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-        <rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
       </svg>
     ),
   },
@@ -776,6 +780,7 @@ const STATUS_FLOW: { label: string; value: string; color: string; bg: string; ic
 
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Pending:      ["Scheduled", "Declined"],
+  Accepted:     ["In Transit", "Declined"],
   Scheduled:    ["Arriving", "Declined"],
   Arriving:     ["In Transit", "Declined"],
   "In Transit": ["Completed", "Declined"],
@@ -921,6 +926,25 @@ function RequestActionModal({
                 </span>
               </div>
 
+              {item.status === "Accepted" && (
+                <div style={{
+                  background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)",
+                  borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "center",
+                }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18, flexShrink: 0 }}>
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <div>
+                    <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "#15803d", margin: 0 }}>
+                      {item.contractorName || "The contractor"} has accepted this job
+                    </p>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a", margin: "2px 0 0" }}>
+                      Mark as "In Transit" once the pickup is underway
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div style={{ height: 1, background: "#f0f7f2" }} />
 
               {[
@@ -1035,6 +1059,7 @@ function RequestActionModal({
 }
 
 export default function RequestsPage() {
+  const { user } = useAuth(); // ADDED: Get current user
   const [collapsed, setCollapsed]     = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab]     = useState("All");
@@ -1043,6 +1068,7 @@ export default function RequestsPage() {
   const [loading, setLoading]         = useState(true);
   const [selectedReq, setSelectedReq] = useState<RequestItem | null>(null);
   const [detailModalReq, setDetailModalReq] = useState<RequestItem | null>(null);
+  const [contractorNames, setContractorNames] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const q = query(
@@ -1060,13 +1086,70 @@ export default function RequestsPage() {
     return () => unsub();
   }, []);
 
+useEffect(() => {
+  const missingIds = Array.from(
+    new Set(
+      requests
+        .map((r) => r.contractorId)
+        .filter((id): id is string => typeof id === "string" && !contractorNames[id])
+    )
+  );
+  if (missingIds.length === 0) return;
+
+  (async () => {
+    const updates: Record<string, string> = {};
+    await Promise.all(
+      missingIds.map(async (id) => {
+        try {
+          const snap = await getDoc(doc(db, "users", id));
+          if (snap.exists()) {
+            updates[id] = (snap.data() as any).fullName || "Unknown contractor";
+          }
+        } catch (err) {
+          console.error("Failed to fetch contractor name:", err);
+        }
+      })
+    );
+    if (Object.keys(updates).length > 0) {
+      setContractorNames((prev) => ({ ...prev, ...updates }));
+    }
+  })();
+}, [requests, contractorNames]);
+
+  const enrichedRequests = requests.map((r) => ({
+    ...r,
+    contractorName: r.contractorName || contractorNames[r.contractorId || ""] || "",
+  }));
+
+  // UPDATED: Store operator name when accepting (moving to Scheduled)
   const updateStatus = async (id: string, displayStatus: string) => {
     const firestoreValue = STATUS_WRITE[displayStatus];
     if (!firestoreValue) return;
-    await updateDoc(doc(db, "wasteRequests", id), {
+    
+    const updateData: any = {
       status: firestoreValue,
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    // If moving to "Scheduled" (Accepting the request), store the operator's name
+    if (displayStatus === "Scheduled" && user) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          updateData.operatorName = userData.fullName || "Unknown Operator";
+          updateData.operatorId = user.uid;
+        } else {
+          updateData.operatorName = "Unknown Operator";
+        }
+      } catch (error) {
+        console.error("Error getting operator name:", error);
+        updateData.operatorName = "Unknown Operator";
+      }
+    }
+
+    await updateDoc(doc(db, "wasteRequests", id), updateData);
   };
 
   const confirmComplete = async (
@@ -1098,14 +1181,14 @@ export default function RequestsPage() {
   };
 
   const liveSelectedReq = selectedReq
-    ? requests.find((r) => r.id === selectedReq.id) ?? selectedReq
+    ? enrichedRequests.find((r) => r.id === selectedReq.id) ?? selectedReq
     : null;
 
   const liveDetailModalReq = detailModalReq
-    ? requests.find((r) => r.id === detailModalReq.id) ?? detailModalReq
+    ? enrichedRequests.find((r) => r.id === detailModalReq.id) ?? detailModalReq
     : null;
 
-  const filtered = requests.filter((r) => {
+  const filtered = enrichedRequests.filter((r) => {
     const matchTab = activeTab === "All" || r.status === activeTab;
     const q = search.toLowerCase();
     const matchSearch = !q ||
@@ -1118,8 +1201,8 @@ export default function RequestsPage() {
 
   const counts = TABS.reduce<Record<string, number>>((acc, tab) => {
     acc[tab] = tab === "All"
-      ? requests.length
-      : requests.filter((r) => r.status === tab).length;
+      ? enrichedRequests.length
+      : enrichedRequests.filter((r) => r.status === tab).length;
     return acc;
   }, {});
 
