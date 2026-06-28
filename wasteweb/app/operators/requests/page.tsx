@@ -159,7 +159,7 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     proofPhotoUrl: d.proofPhotoUrl,
     signatureUrl: d.signatureUrl,
     declineReason: d.declineReason,
-    rescheduleRequest: d.rescheduleRequest || null,
+    rescheduleRequest: d.rescheduleRequest || undefined, // FIXED: Changed null to undefined
   };
 }
 
