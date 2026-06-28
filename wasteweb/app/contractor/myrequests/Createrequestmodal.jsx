@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const WASTE_TYPES = ["Mixed", "Metal", "Concrete", "Green", "Hazardous", "General"];
 
@@ -12,6 +12,163 @@ const WASTE_TYPE_CONFIG = {
   Hazardous: { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
   General:   { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
 };
+
+const NOMINATIM_URL = "https://nominatim.openstreetmap.org/search";
+
+function LocationAutocomplete({ value, onChange, error }) {
+  const [query, setQuery] = useState(value || "");
+  const [suggestions, setSuggestions] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const debounceRef = useRef(null);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const fetchSuggestions = useCallback(async (q) => {
+    if (q.length < 3) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ q, format: "json", addressdetails: "1", limit: "6" });
+      const res = await fetch(`${NOMINATIM_URL}?${params}`, { headers: { "Accept-Language": "en" } });
+      const data = await res.json();
+      setSuggestions(data);
+      setOpen(data.length > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  function handleInput(e) {
+    const q = e.target.value;
+    setQuery(q);
+    onChange(q);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => fetchSuggestions(q), 400);
+  }
+
+  function handleSelect(place) {
+    const label = place.display_name;
+    setQuery(label);
+    onChange(label);
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  const borderColor = error ? "#fca5a5" : focused ? "#B8D52E" : "#e8f2eb";
+
+  return (
+    <div ref={wrapRef} style={{ position: "relative", width: "100%" }}>
+      <div style={{ position: "relative" }}>
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => { setFocused(true); if (suggestions.length) setOpen(true); }}
+          onBlur={() => setFocused(false)}
+          placeholder="e.g. Victoria Island, Lagos"
+          autoComplete="off"
+          style={{
+            width: "100%",
+            padding: "10px 36px 10px 13px",
+            borderRadius: 10,
+            border: `1.5px solid ${borderColor}`,
+            background: "#ffffff",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            color: "#1a2e1f",
+            fontFamily: "'Quicksand', sans-serif",
+            outline: "none",
+            transition: "border 0.18s, box-shadow 0.18s",
+            boxShadow: focused && !error ? "0 0 0 3px rgba(184,213,46,0.12)" : "none",
+            boxSizing: "border-box",
+          }}
+        />
+        <div style={{
+          position: "absolute", right: 11, top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex", alignItems: "center",
+          pointerEvents: "none",
+        }}>
+          {loading ? (
+            <div style={{
+              width: 14, height: 14, borderRadius: "50%",
+              border: "2px solid rgba(184,213,46,0.35)",
+              borderTopColor: "#B8D52E",
+              animation: "crSpin 0.7s linear infinite",
+            }} />
+          ) : (
+            <svg viewBox="0 0 24 24" fill="none" stroke="#9ab8a5" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+              <circle cx="12" cy="10" r="3"/>
+            </svg>
+          )}
+        </div>
+      </div>
+
+      {open && suggestions.length > 0 && (
+        <ul style={{
+          position: "absolute", zIndex: 999, top: "calc(100% + 6px)",
+          left: 0, right: 0,
+          background: "#ffffff",
+          border: "1.5px solid #e8f2eb",
+          borderRadius: 10,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.10)",
+          listStyle: "none", margin: 0, padding: "4px 0",
+          maxHeight: 240, overflowY: "auto",
+        }}>
+          {suggestions.map((s) => (
+            <li
+              key={s.place_id}
+              onMouseDown={() => handleSelect(s)}
+              style={{
+                padding: "9px 13px", cursor: "pointer",
+                display: "flex", gap: 9, alignItems: "flex-start",
+                borderBottom: "1px solid #f0f7f2",
+                transition: "background 0.12s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = "#f5faf6"}
+              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"
+                style={{ width: 13, height: 13, flexShrink: 0, marginTop: 2 }}>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+              <div>
+                <p style={{
+                  fontSize: "0.8rem", fontWeight: 700, color: "#1a2e1f",
+                  fontFamily: "'Quicksand', sans-serif", margin: 0, lineHeight: 1.3,
+                }}>
+                  {s.address?.road || s.address?.suburb || s.address?.neighbourhood || s.address?.city || s.name}
+                </p>
+                <p style={{
+                  fontSize: "0.7rem", fontWeight: 600, color: "#9ab8a5",
+                  fontFamily: "'Quicksand', sans-serif", margin: 0, marginTop: 2,
+                }}>
+                  {s.display_name}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function WasteTypePill({ type, selected, onClick }) {
   const c = WASTE_TYPE_CONFIG[type] || WASTE_TYPE_CONFIG.General;
@@ -156,16 +313,16 @@ const EMPTY_FORM = {
   dateFrom: "",
   dateTo: "",
   volume: "",
-  volumeUnit: "",
+  volumeUnit: "Yards",
   availableFromTime: "",
   availableToTime: "",
   note: "",
 };
 
 export default function CreateRequestModal({ open, onClose, onSubmit }) {
-  const [step, setStep]         = useState(0);
-  const [form, setForm]         = useState(EMPTY_FORM);
-  const [errors, setErrors]     = useState({});
+  const [step, setStep]           = useState(0);
+  const [form, setForm]           = useState(EMPTY_FORM);
+  const [errors, setErrors]       = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -237,13 +394,10 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
     setSubmitting(true);
     try {
       const id = `WF-${String(Math.floor(1000 + Math.random() * 9000))}`;
-
-      // Clean up the volume unit if it already contains the string
       let cleanedVolumeUnit = form.volumeUnit || "Yards";
       if (form.volume.toLowerCase().includes(cleanedVolumeUnit.toLowerCase())) {
         cleanedVolumeUnit = "";
       }
-
       const payload = {
         ...form,
         id,
@@ -253,7 +407,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
         availability: `${form.availableFromTime} - ${form.availableToTime}`,
         volume: `${form.volume.trim()} ${cleanedVolumeUnit}`.trim(),
       };
-
       onSubmit?.(payload);
       setSubmitted(true);
     } finally {
@@ -500,15 +653,16 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
 
                   <div className="cr-field">
                     <Label required>Pickup Location</Label>
-                    <FocusInput
-                      type="text"
-                      placeholder="e.g. Canary Wharf, E14"
+                    <LocationAutocomplete
                       value={form.location}
-                      onChange={set("location")}
+                      onChange={(val) => {
+                        setForm((p) => ({ ...p, location: val }));
+                        setErrors((e) => ({ ...e, location: null }));
+                      }}
                       error={!!errors.location}
                     />
                     {errors.location && <span className="cr-error">{errors.location}</span>}
-                    <FieldHint>Full address or postcode helps operators find you.</FieldHint>
+                    <FieldHint>Type at least 3 characters to search for a real address.</FieldHint>
                   </div>
 
                   <div className="cr-field">
@@ -621,7 +775,6 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                   />
                 </div>
               )}
-
             </div>
           )}
 
