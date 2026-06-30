@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
 import RequestDetailModal from "./components/RequestDetailModal";
+import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
 
@@ -85,6 +86,7 @@ export type FirestoreRequest = {
   volume?: string;
   notes?: string;
   contractorId: string;
+  operatorId?: string;
   contractorName?: string;
   operatorName?: string;
   proofPhotoUrl?: string;
@@ -110,6 +112,7 @@ export type RequestItem = {
   note: string;
   contractorName?: string;
   contractorId?: string;
+  operatorId?: string;
   operatorName?: string;
   proofPhotoUrl?: string;
   signatureUrl?: string;
@@ -155,11 +158,12 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     note: d.notes || "",
     contractorName: d.contractorName,
     contractorId: d.contractorId,
+    operatorId: d.operatorId,
     operatorName: d.operatorName,
     proofPhotoUrl: d.proofPhotoUrl,
     signatureUrl: d.signatureUrl,
     declineReason: d.declineReason,
-    rescheduleRequest: d.rescheduleRequest || undefined, // FIXED: Changed null to undefined
+    rescheduleRequest: d.rescheduleRequest || undefined,
   };
 }
 
@@ -659,424 +663,190 @@ function RequestActionModal({
             </button>
           </div>
 
-          {!activeForm && (
-            <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#6b8f7a" }}>Current Status</span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", padding: "3px 10px", borderRadius: 999, background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}>
-                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: statusCfg.dot }} />
-                  {item.status}
-                </span>
-              </div>
+          <div style={{ padding: "20px 24px" }}>
+            {activeForm === "complete" && (
+              <CompleteForm loading={loading === "Completed"} onCancel={() => setActiveForm(null)} onSubmit={handleCompleteSubmit} />
+            )}
+            {activeForm === "decline" && (
+              <DeclineReasonForm loading={loading === "Declined"} onCancel={() => setActiveForm(null)} onSubmit={handleDeclineSubmit} />
+            )}
 
-              {isRescheduled && item.rescheduleRequest && (
-                <div style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.25)", borderRadius: 12, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 9, background: "rgba(139,92,246,0.12)", border: "1px solid rgba(139,92,246,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-4.82"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#7c3aed", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>Contractor requested a reschedule</p>
-                      <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a", fontFamily: "'Quicksand', sans-serif", margin: 0 }}>Review their proposed window below</p>
-                    </div>
+            {!activeForm && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fbf9", borderRadius: 12, border: "1px solid #edf4f0" }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#4a7a5a" }}>Current Logistics Status</span>
+                  <StatusBadge status={item.status} />
+                </div>
+
+                {isRescheduled && item.rescheduleRequest && (
+                  <div style={{ background: "rgba(139,92,246,0.05)", border: "1px dashed rgba(139,92,246,0.3)", borderRadius: 12, padding: "14px 16px" }}>
+                    <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#7c3aed", margin: "0 0 4px" }}>Reschedule Offer from Contractor</p>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#5b4a78", margin: "0 0 12px" }}>"{item.rescheduleRequest.note}"</p>
+                    <button type="button" onClick={handleAcceptRescheduleClick} disabled={loading === "AcceptReschedule"}
+                      style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "#8b5cf6", color: "#ffffff", fontSize: "0.8rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                      {loading === "AcceptReschedule" ? "Rescheduling Container..." : "Accept New Proposed Window"}
+                    </button>
                   </div>
-                  <div style={{ background: "#fff", border: "1px solid rgba(139,92,246,0.15)", borderRadius: 9, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[
-                      { label: "Proposed date",  val: item.rescheduleRequest.date },
-                      { label: "From",           val: item.rescheduleRequest.fromTime },
-                      { label: "To",             val: item.rescheduleRequest.toTime },
-                      ...(item.rescheduleRequest.note ? [{ label: "Note", val: item.rescheduleRequest.note }] : []),
-                    ].map(({ label, val }) => (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                        <span style={{ fontSize: "0.73rem", fontWeight: 700, color: "#9ab8a5", flexShrink: 0 }}>{label}</span>
-                        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", textAlign: "right" }}>{val}</span>
-                      </div>
+                )}
+
+                {allowed.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 2px" }}>Available Logistics Transitions</p>
+                    {STATUS_FLOW.filter(f => allowed.includes(f.value)).map((flow) => (
+                      <button key={flow.value} onClick={() => handleActionClick(flow.value)} disabled={isBusy}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", borderRadius: 10, border: flow.value === "Declined" ? "1px solid rgba(239,68,68,0.2)" : "1px solid #edf4f0", background: flow.bg, color: flow.color, fontSize: "0.84rem", fontWeight: 700, cursor: isBusy ? "not-allowed" : "pointer" }}>
+                        {loading === flow.value ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : flow.icon}
+                        {flow.label}
+                      </button>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {item.status === "Accepted" && (
-                <div style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)", borderRadius: 10, padding: "12px 14px", display: "flex", gap: 10, alignItems: "center" }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18, flexShrink: 0 }}>
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                  </svg>
-                  <div>
-                    <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "#15803d", margin: 0 }}>{item.contractorName || "The contractor"} has accepted this job</p>
-                    <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a", margin: "2px 0 0" }}>Mark as "In Transit" once the pickup is underway</p>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ height: 1, background: "#f0f7f2" }} />
-
-              {[
-                { label: "Waste Type",         value: item.wasteType },
-                { label: "Location",           value: item.location },
-                { label: "Collection Window",  value: item.dates },
-                { label: "Estimated Yards",    value: item.yards },
-                ...(item.contractorName ? [{ label: "Contractor",    value: item.contractorName }] : []),
-                ...(item.note           ? [{ label: "Notes",         value: item.note }]          : []),
-                ...(item.operatorName   ? [{ label: "Operator",      value: item.operatorName }]  : []),
-                ...(item.declineReason  ? [{ label: "Decline Reason",value: item.declineReason }] : []),
-              ].map(({ label, value }) => (
-                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                  <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#8aab97", flexShrink: 0 }}>{label}</span>
-                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "#1a2e1f", textAlign: "right" }}>{value}</span>
-                </div>
-              ))}
-
-              {(item.proofPhotoUrl || item.signatureUrl) && (
-                <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                  {item.proofPhotoUrl && (
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5", marginBottom: 5 }}>Site Photo</p>
-                      <img src={item.proofPhotoUrl} alt="Site proof" style={{ width: "100%", height: 90, objectFit: "cover", borderRadius: 8, border: "1px solid #e8f2eb" }} />
-                    </div>
-                  )}
-                  {item.signatureUrl && (
-                    <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5", marginBottom: 5 }}>Signature</p>
-                      <img src={item.signatureUrl} alt="Operator signature" style={{ width: "100%", height: 90, objectFit: "contain", borderRadius: 8, border: "1px solid #e8f2eb", background: "#fbfdfb" }} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeForm === "complete" && (
-            <div style={{ padding: "8px 24px 24px" }}>
-              <CompleteForm loading={loading === "Completed"} onCancel={() => setActiveForm(null)} onSubmit={handleCompleteSubmit} />
-            </div>
-          )}
-
-          {activeForm === "decline" && (
-            <div style={{ padding: "8px 24px 24px" }}>
-              <DeclineReasonForm loading={loading === "Declined"} onCancel={() => setActiveForm(null)} onSubmit={handleDeclineSubmit} />
-            </div>
-          )}
-
-          {!activeForm && (
-            allowed.length > 0 ? (
-              <div style={{ padding: "12px 24px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#8aab97", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
-                  {isRescheduled ? "Respond to Reschedule" : "Update Status"}
-                </p>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {isRescheduled && (
-                    <button
-                      onClick={handleAcceptRescheduleClick}
-                      disabled={isBusy}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 16px", borderRadius: 10, border: "none", cursor: isBusy ? "not-allowed" : "pointer", background: "rgba(139,92,246,0.10)", color: "#7c3aed", fontSize: "0.84rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", opacity: isBusy && loading !== "AcceptReschedule" ? 0.5 : 1, outline: "1.5px solid rgba(139,92,246,0.22)" }}
-                    >
-                      {loading === "AcceptReschedule" ? (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Confirming…</>
-                      ) : (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="20 6 9 17 4 12"/></svg>Accept new time & schedule</>
-                      )}
-                    </button>
-                  )}
-                  {STATUS_FLOW.filter((a) => allowed.includes(a.value)).map((action) => (
-                    <button key={action.value} onClick={() => handleActionClick(action.value)} disabled={isBusy} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 16px", borderRadius: 10, border: "none", cursor: isBusy ? "not-allowed" : "pointer", background: action.value === "Declined" ? "#fef2f2" : action.bg, color: action.color, fontSize: "0.84rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", opacity: isBusy && loading !== action.value ? 0.5 : 1, transition: "opacity 0.15s", filter: loading === action.value ? "brightness(0.92)" : "none", outline: `1.5px solid ${action.color}22` }}>
-                      {loading === action.value ? (
-                        <><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Updating…</>
-                      ) : (<>{action.icon}{action.label}</>)}
-                    </button>
-                  ))}
-                </div>
+                ) : (
+                  !isRescheduled && (
+                    <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#8aab97", textAlign: "center", margin: "12px 0" }}>This logistical workflow has terminated successfully.</p>
+                  )
+                )}
               </div>
-            ) : (
-              <div style={{ padding: "12px 24px 24px" }}>
-                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#8aab97", textAlign: "center" }}>No further actions available for this request.</p>
-              </div>
-            )
-          )}
+            )}
+          </div>
+
         </div>
       </div>
     </>
   );
 }
 
-export default function RequestsPage() {
+export default function OperatorRequestsPage() {
   const { user } = useAuth();
-  const [collapsed, setCollapsed]     = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeTab, setActiveTab]     = useState("All");
-  const [search, setSearch]           = useState("");
-  const [requests, setRequests]       = useState<RequestItem[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [selectedReq, setSelectedReq] = useState<RequestItem | null>(null);
-  const [detailModalReq, setDetailModalReq] = useState<RequestItem | null>(null);
-  const [contractorNames, setContractorNames] = useState<Record<string, string>>({});
+  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("All");
+  const [selectedRequest, setSelectedRequest] = useState<RequestItem | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, "wasteRequests"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      setRequests(snap.docs.map((d) => mapDoc({ id: d.id, ...(d.data() as Omit<FirestoreRequest, "id">) })));
+    const q = query(collection(db, "wasteRequests"), orderBy("windowStart", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as FirestoreRequest[];
+      
+      setRequests(docsData.map(mapDoc));
       setLoading(false);
     });
-    return () => unsub();
+
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const missingIds = Array.from(new Set(requests.map((r) => r.contractorId).filter((id): id is string => typeof id === "string" && !contractorNames[id])));
-    if (missingIds.length === 0) return;
-    (async () => {
-      const updates: Record<string, string> = {};
-      await Promise.all(missingIds.map(async (id) => {
-        try {
-          const snap = await getDoc(doc(db, "users", id));
-          if (snap.exists()) updates[id] = (snap.data() as any).fullName || "Unknown contractor";
-        } catch (err) { console.error("Failed to fetch contractor name:", err); }
-      }));
-      if (Object.keys(updates).length > 0) setContractorNames((prev) => ({ ...prev, ...updates }));
-    })();
-  }, [requests, contractorNames]);
+  // Dynamics Hook tracking operator coordinates during active transit periods
+  useLiveLocationBroadcaster(requests, user?.uid);
 
-  const enrichedRequests = requests.map((r) => ({
-    ...r,
-    contractorName: r.contractorName || contractorNames[r.contractorId || ""] || "",
-  }));
-
-  const updateStatus = async (id: string, displayStatus: string) => {
-    const firestoreValue = STATUS_WRITE[displayStatus];
-    if (!firestoreValue) return;
-    const updateData: any = { status: firestoreValue, updatedAt: new Date().toISOString() };
-    if (displayStatus === "Scheduled" && user) {
-      try {
-        const userRef = doc(db, "users", user.uid);
-        const userSnap = await getDoc(userRef);
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          updateData.operatorName = userData.fullName || "Unknown Operator";
-          updateData.operatorId = user.uid;
-        } else {
-          updateData.operatorName = "Unknown Operator";
-        }
-      } catch (error) {
-        console.error("Error getting operator name:", error);
-        updateData.operatorName = "Unknown Operator";
-      }
-    }
-    await updateDoc(doc(db, "wasteRequests", id), updateData);
+  const handleStatusChange = async (id: string, displayStatus: string) => {
+    const internalStatus = STATUS_WRITE[displayStatus];
+    if (!internalStatus) return;
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, { status: internalStatus });
+    setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
-  const confirmComplete = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
-    const [proofPhotoUrl, signatureUrl] = await Promise.all([
-      uploadToCloudinary(data.photoFile, `proof_${id}_${Date.now()}.jpg`),
-      uploadToCloudinary(data.signatureBlob, `signature_${id}_${Date.now()}.png`),
-    ]);
-    await updateDoc(doc(db, "wasteRequests", id), {
-      status: STATUS_WRITE["Completed"],
+  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+    const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
+    const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
+      status: "completed",
       operatorName: data.operatorName,
-      proofPhotoUrl,
-      signatureUrl,
-      completedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      proofPhotoUrl: photoUrl,
+      signatureUrl: signatureUrl,
     });
+    setSelectedRequest(null);
   };
 
-  const confirmDecline = async (id: string, reason: string) => {
-    await updateDoc(doc(db, "wasteRequests", id), {
-      status: STATUS_WRITE["Declined"],
+  const handleDeclineConfirm = async (id: string, reason: string) => {
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
+      status: "declined",
       declineReason: reason,
-      declinedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     });
+    setSelectedRequest(null);
   };
 
-  const acceptReschedule = async (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => {
-    const updateData: any = {
+  const handleAcceptReschedule = async (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => {
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
       status: "scheduled",
       windowStart: rescheduleData.date,
       windowEnd: rescheduleData.date,
       availability: `${rescheduleData.fromTime} - ${rescheduleData.toTime}`,
-      rescheduleAcceptedAt: serverTimestamp(),
-      updatedAt: new Date().toISOString(),
-    };
-    if (user) {
-      try {
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        if (userSnap.exists()) {
-          updateData.operatorName = (userSnap.data() as any).fullName || "Unknown Operator";
-          updateData.operatorId = user.uid;
-        }
-      } catch (err) {
-        console.error("Error getting operator name:", err);
-      }
-    }
-    await updateDoc(doc(db, "wasteRequests", id), updateData);
+      rescheduleRequest: null,
+    });
+    setSelectedRequest(null);
   };
 
-  const liveSelectedReq = selectedReq ? enrichedRequests.find((r) => r.id === selectedReq.id) ?? selectedReq : null;
-  const liveDetailModalReq = detailModalReq ? enrichedRequests.find((r) => r.id === detailModalReq.id) ?? detailModalReq : null;
-
-  const filtered = enrichedRequests.filter((r) => {
-    const matchTab = activeTab === "All" || r.status === activeTab;
-    const q = search.toLowerCase();
-    const matchSearch = !q || r.title.toLowerCase().includes(q) || r.location.toLowerCase().includes(q) || r.wasteType.toLowerCase().includes(q) || (r.contractorName && r.contractorName.toLowerCase().includes(q));
-    return matchTab && matchSearch;
+  const filteredRequests = requests.filter((req) => {
+    if (activeTab === "All") return true;
+    return req.status === activeTab;
   });
 
-  const counts = TABS.reduce<Record<string, number>>((acc, tab) => {
-    acc[tab] = tab === "All" ? enrichedRequests.length : enrichedRequests.filter((r) => r.status === tab).length;
-    return acc;
-  }, {});
-
   if (loading) {
-    return (
-      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
-        <style>{`@keyframes wfSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
-          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-        </svg>
-      </div>
-    );
+    return <div style={{ padding: 24, fontFamily: "'Quicksand', sans-serif" }}>Loading operations hub...</div>;
   }
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
-        @keyframes wfSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .wf-admin-root { display: flex; min-height: 100vh; background: #f5faf6; font-family: 'Quicksand', sans-serif; }
-        .wf-admin-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
-        .wf-topbar { position: sticky; top: 0; z-index: 10; background: rgba(245,250,246,0.92); backdrop-filter: blur(10px); border-bottom: 1px solid #e8f2eb; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-        .wf-topbar-left { display: flex; align-items: center; gap: 14px; }
-        .wf-hamburger { display: none; background: none; border: none; cursor: pointer; color: #1a4d2e; padding: 6px; border-radius: 8px; align-items: center; justify-content: center; transition: background 0.18s; flex-shrink: 0; }
-        .wf-hamburger:hover { background: rgba(184,213,46,0.12); }
-        .wf-topbar-title { font-size: 1rem; font-weight: 700; color: #1a2e1f; font-family: 'Quicksand', sans-serif; }
-        .wf-topbar-right { display: flex; align-items: center; gap: 10px; }
-        .wf-notif-btn { width: 34px; height: 34px; border-radius: 9px; background: #ffffff; border: 1px solid #e8f2eb; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4a7a5a; position: relative; transition: border 0.18s, color 0.18s; }
-        .wf-notif-btn:hover { border-color: #B8D52E; color: #1a4d2e; }
-        .wf-notif-dot { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #B8D52E; border: 1.5px solid #f5faf6; }
-        .wf-content { padding: 28px; display: flex; flex-direction: column; gap: 24px; }
-        .wf-page-header h1 { font-size: clamp(1.4rem, 2.5vw, 1.75rem); font-weight: 700; color: #1a2e1f; letter-spacing: -0.02em; margin-bottom: 4px; font-family: 'Quicksand', sans-serif; }
-        .wf-page-header p { font-size: 0.875rem; color: #6b8f7a; font-weight: 600; font-family: 'Quicksand', sans-serif; }
-        .wf-search-row { display: flex; align-items: center; gap: 12px; }
-        .wf-search-wrap { flex: 1; position: relative; }
-        .wf-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #8aab97; pointer-events: none; display: flex; align-items: center; }
-        .wf-search-input { width: 100%; padding: 11px 14px 11px 40px; border: 1px solid #e8f2eb; border-radius: 12px; background: #ffffff; font-size: 0.875rem; font-weight: 600; color: #1a2e1f; font-family: 'Quicksand', sans-serif; outline: none; transition: border 0.18s, box-shadow 0.18s; }
-        .wf-search-input::placeholder { color: #9ab8a5; }
-        .wf-search-input:focus { border-color: #B8D52E; box-shadow: 0 0 0 3px rgba(184,213,46,0.12); }
-        .wf-filter-btn { display: flex; align-items: center; gap: 7px; padding: 11px 18px; border-radius: 12px; border: 1px solid #e8f2eb; background: #ffffff; color: #3a5a45; font-size: 0.875rem; font-weight: 700; font-family: 'Quicksand', sans-serif; cursor: pointer; white-space: nowrap; transition: border 0.18s, background 0.18s; flex-shrink: 0; }
-        .wf-filter-btn:hover { border-color: #B8D52E; background: #f5faf6; }
-        .wf-tabs-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .wf-tabs-wrap::-webkit-scrollbar { display: none; }
-        .wf-tabs { display: flex; gap: 4px; background: #ffffff; border: 1px solid #e8f2eb; border-radius: 12px; padding: 5px; width: fit-content; min-width: 100%; }
-        .wf-tab { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 9px; border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 700; font-family: 'Quicksand', sans-serif; color: #6b8f7a; white-space: nowrap; transition: background 0.15s, color 0.15s; }
-        .wf-tab:hover { background: #f0f7f2; color: #1a4d2e; }
-        .wf-tab.active { background: #1a4d2e; color: #B8D52E; }
-        .wf-tab-count { font-size: 0.65rem; font-weight: 700; padding: 1px 6px; border-radius: 999px; background: rgba(255,255,255,0.15); color: inherit; }
-        .wf-tab:not(.active) .wf-tab-count { background: #f0f7f2; color: #8aab97; }
-        .wf-cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
-        .wf-card:hover { box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important; transform: translateY(-2px); }
-        .wf-btn-view:hover { filter: brightness(0.93); }
-        .wf-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 64px 24px; gap: 12px; text-align: center; }
-        @media (max-width: 1100px) { .wf-cards-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 768px) { .wf-hamburger { display: flex; } .wf-topbar { padding: 0 16px; } .wf-content { padding: 16px; gap: 16px; } .wf-cards-grid { grid-template-columns: 1fr; } .wf-filter-btn span { display: none; } }
-        @media (max-width: 480px) { .wf-topbar-date { display: none; } }
-      `}</style>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f9f5" }}>
+      <Sidebar collapsed={false} onCollapse={() => {}} onExpand={() => {}} isOpen={true} onClose={() => {}} />
+      <main style={{ flex: 1, padding: "32px 40px" }}>
+        <header style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>
+            Operator Requests Hub
+          </h1>
+          <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 0", fontFamily: "'Quicksand', sans-serif" }}>
+            Track, assign, and update logistical container transitions.
+          </p>
+        </header>
 
-      <div className="wf-admin-root">
-        <Sidebar collapsed={collapsed} onCollapse={() => setCollapsed(true)} onExpand={() => setCollapsed(false)} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className="wf-admin-main">
-          <div className="wf-topbar">
-            <div className="wf-topbar-left">
-              <button className="wf-hamburger" onClick={() => setSidebarOpen(true)} aria-label="Open menu">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
-                  <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                </svg>
-              </button>
-              <span className="wf-topbar-title">All Requests</span>
-            </div>
-            <div className="wf-topbar-right">
-              <span style={{ fontSize: "0.75rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }} className="wf-topbar-date">
-                {new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-              </span>
-              <button className="wf-notif-btn" aria-label="Notifications">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                </svg>
-                <span className="wf-notif-dot" />
-              </button>
-            </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, overflowX: "auto", paddingBottom: 4 }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: "8px 16px", borderRadius: 99, fontSize: "0.82rem", fontWeight: 700,
+                background: activeTab === tab ? "#1a4d2e" : "#ffffff",
+                color: activeTab === tab ? "#B8D52E" : "#4a7a5a",
+                border: activeTab === tab ? "1px solid #1a4d2e" : "1px solid #e8f2eb",
+                cursor: "pointer", fontFamily: "'Quicksand', sans-serif", transition: "all 0.15s"
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 20 }}>
+          {filteredRequests.map((req) => (
+            <RequestCard key={req.id} req={req} onViewDetails={(r) => setSelectedRequest(r)} />
+          ))}
+        </div>
+
+        {filteredRequests.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 24px", background: "#ffffff", borderRadius: 16, border: "1px dashed #c6e2d0", marginTop: 12 }}>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b8f7a", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>
+              No requests found matching "{activeTab}" status.
+            </p>
           </div>
+        )}
+      </main>
 
-          <div className="wf-content">
-            <div className="wf-page-header">
-              <h1>All Pickup Requests</h1>
-              <p>Review and manage incoming pickup requests</p>
-            </div>
-
-            <div className="wf-search-row">
-              <div className="wf-search-wrap">
-                <span className="wf-search-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  </svg>
-                </span>
-                <input className="wf-search-input" type="text" placeholder="Search by title, location, waste type or contractor..." value={search} onChange={(e) => setSearch(e.target.value)} />
-              </div>
-              <button className="wf-filter-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                </svg>
-                <span>Filters</span>
-              </button>
-            </div>
-
-            <div className="wf-tabs-wrap">
-              <div className="wf-tabs">
-                {TABS.map((tab) => (
-                  <button key={tab} className={`wf-tab${activeTab === tab ? " active" : ""}`} onClick={() => setActiveTab(tab)}>
-                    {tab}
-                    {counts[tab] > 0 && <span className="wf-tab-count">{counts[tab]}</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="wf-cards-grid">
-              {filtered.length === 0 ? (
-                <div className="wf-empty">
-                  <div style={{ width: 52, height: 52, borderRadius: 14, background: "#f0f7f2", display: "flex", alignItems: "center", justifyContent: "center", color: "#8aab97" }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 24, height: 24 }}>
-                      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                  </div>
-                  <p style={{ fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45", fontFamily: "'Quicksand', sans-serif" }}>No requests found</p>
-                  <p style={{ fontSize: "0.8rem", color: "#8aab97", fontWeight: 600, fontFamily: "'Quicksand', sans-serif" }}>Try adjusting your search or filter</p>
-                </div>
-              ) : (
-                filtered.map((req) => (
-                  <RequestCard key={req.id} req={req} onViewDetails={setSelectedReq} />
-                ))
-              )}
-            </div>
-          </div>
-        </main>
-      </div>
-
-      <RequestActionModal
-        item={liveSelectedReq}
-        onClose={() => setSelectedReq(null)}
-        onStatusChange={async (id, displayStatus) => { await updateStatus(id, displayStatus); }}
-        onCompleteConfirm={confirmComplete}
-        onDeclineConfirm={confirmDecline}
-        onAcceptReschedule={acceptReschedule}
-      />
-
-      <RequestDetailModal
-        item={liveDetailModalReq}
-        onClose={() => setDetailModalReq(null)}
-        onAccept={(id) => updateStatus(id, "Scheduled")}
-        onDecline={(id) => updateStatus(id, "Declined")}
-      />
-    </>
+      {selectedRequest && (
+        <RequestActionModal
+          item={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onStatusChange={handleStatusChange}
+          onCompleteConfirm={handleCompleteConfirm}
+          onDeclineConfirm={handleDeclineConfirm}
+          onAcceptReschedule={handleAcceptReschedule}
+        />
+      )}
+    </div>
   );
 }

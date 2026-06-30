@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Quicksand, Inter } from "next/font/google";
 import "./globals.css";
-import "react-loading-skeleton/dist/skeleton.css";
 import { AuthProvider } from "@/app/context/AuthContext";
 
 const quicksand = Quicksand({

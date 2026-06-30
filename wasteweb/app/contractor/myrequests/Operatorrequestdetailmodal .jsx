@@ -174,6 +174,7 @@ function DetailRow({ label, icon, value, valueColor, last }) {
           color: valueColor || "#1a2e1f",
           fontFamily: "'Quicksand', sans-serif",
           lineHeight: 1.45,
+          wordBreak: "break-word",
         }}>{value}</span>
       </div>
     </div>
@@ -200,7 +201,7 @@ function StatusBanner({ status }) {
           {b.iconPath}
         </svg>
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <p style={{
           fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f",
           fontFamily: "'Quicksand', sans-serif", margin: 0,
@@ -262,7 +263,7 @@ function Timeline({ status }) {
                   }} />
                 )}
               </div>
-              <div style={{ paddingBottom: isLast ? 0 : 16, paddingTop: 2 }}>
+              <div style={{ paddingBottom: isLast ? 0 : 16, paddingTop: 2, minWidth: 0 }}>
                 <p style={{
                   fontSize: "0.82rem", fontWeight: 700, margin: 0,
                   color: isDenied ? "#b91c1c" : done ? "#1a2e1f" : "#9ab8a5",
@@ -286,12 +287,84 @@ function Timeline({ status }) {
   );
 }
 
+/* --- OPENSTREETMAP LIVE TRACKING --- */
+function LiveTrackingSection({ item }) {
+  const [eta, setEta] = useState(12);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setEta((prev) => (prev > 1 ? prev - 1 : 12));
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const lat = item?.latitude || -33.8688;
+  const lon = item?.longitude || 151.2093;
+
+  return (
+    <div style={{
+      marginTop: 20, paddingTop: 20, borderTop: "1px solid #f0f7f2"
+    }}>
+      <div style={{
+        display: "flex", flexWrap: "wrap", justifyContent: "space-between",
+        alignItems: "center", gap: 10, marginBottom: 12,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <p style={{
+            fontSize: "0.68rem", fontWeight: 700, color: "#a855f7",
+            fontFamily: "'Quicksand', sans-serif",
+            textTransform: "uppercase", letterSpacing: "0.06em", margin: 0
+          }}>
+            🔴 Live Operator Tracking
+          </p>
+          <p style={{
+            fontSize: "0.74rem", fontWeight: 600, color: "#6b8f7a",
+            fontFamily: "'Quicksand', sans-serif", margin: "2px 0 0"
+          }}>
+            Truck is currently en-route to your destination
+          </p>
+        </div>
+        <div style={{
+          background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)",
+          padding: "4px 10px", borderRadius: 8, textAlign: "right", flexShrink: 0,
+        }}>
+          <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#7c3aed", margin: 0, textTransform: "uppercase" }}>Est. Arrival</p>
+          <p style={{ fontSize: "0.9rem", fontWeight: 800, color: "#1a2e1f", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>{eta} mins</p>
+        </div>
+      </div>
+
+      <div style={{
+        width: "100%", aspectRatio: "16 / 9", maxHeight: 220, borderRadius: 12, overflow: "hidden",
+        border: "1px solid #e8f2eb", background: "#f5faf6", position: "relative"
+      }}>
+        <iframe
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          scrolling="no"
+          marginHeight={0}
+          marginWidth={0}
+          loading="lazy"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.01}%2C${lat-0.005}%2C${lon+0.01}%2C${lat+0.005}&layer=mapnik&marker=${lat}%2C${lon}`}
+          style={{ border: "none", display: "block" }}
+        />
+        <div style={{
+          position: "absolute", bottom: 8, right: 8, background: "rgba(255,255,255,0.9)",
+          padding: "3px 8px", borderRadius: 4, fontSize: "0.6rem", fontWeight: 600, color: "#4a7a5a",
+          border: "1px solid #e8f2eb", fontFamily: "sans-serif"
+        }}>
+          © OpenStreetMap contributors
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
   const [view, setView] = useState("confirm");
   const [reschedule, setReschedule] = useState({ date: "", fromTime: "", toTime: "", note: "" });
   const [submitting, setSubmitting] = useState(false);
 
-  // Use operatorName instead of driverName
   const driverName = item?.operatorName || "Your skip driver";
   const driverInitials = driverName.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
@@ -330,18 +403,20 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
           background:rgba(10,22,13,0.55);
           backdrop-filter:blur(4px);
           display:flex; align-items:center; justify-content:center;
-          padding:20px;
+          padding:16px;
+          box-sizing:border-box;
           animation:acBackdropIn 0.2s ease both;
         }
         .ac-modal {
           background:#fff; border-radius:18px;
           width:100%; max-width:400px;
+          max-height:calc(100dvh - 32px);
+          overflow-y:auto;
           box-shadow:0 12px 48px rgba(0,0,0,0.22);
-          overflow:hidden;
           animation:acModalIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
         }
         .ac-header {
-          padding:18px 20px 14px;
+          padding:16px 18px 14px;
           border-bottom:1px solid #f0f7f2;
           display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
         }
@@ -357,8 +432,8 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
           transition:background 0.15s, border-color 0.15s, color 0.15s;
         }
         .ac-close:hover { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
-        .ac-body { padding:16px 20px; display:flex; flex-direction:column; gap:12px; }
-        .ac-footer { padding:0 20px 18px; display:flex; flex-direction:column; gap:8px; }
+        .ac-body { padding:16px 18px; display:flex; flex-direction:column; gap:12px; }
+        .ac-footer { padding:0 18px 18px; display:flex; flex-direction:column; gap:8px; }
         .ac-btn-primary {
           width:100%; padding:11px 16px; border-radius:10px;
           background:#1a4d2e; border:none; cursor:pointer;
@@ -386,16 +461,16 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
         .ac-input {
           width:100%; padding:9px 11px; border-radius:8px;
           border:1.5px solid #e8f2eb; background:#fff;
-          font-size:0.82rem; font-weight:600; color:#1a2e1f;
+          font-size:16px; font-weight:600; color:#1a2e1f;
           font-family:'Quicksand',sans-serif; outline:none;
           transition:border 0.15s, box-shadow 0.15s;
-          box-sizing:border-box; colorScheme:light;
+          box-sizing:border-box; color-scheme:light;
         }
         .ac-input:focus { border-color:#B8D52E; box-shadow:0 0 0 3px rgba(184,213,46,0.12); }
         .ac-textarea {
           width:100%; padding:9px 11px; border-radius:8px;
           border:1.5px solid #e8f2eb; background:#fff;
-          font-size:0.82rem; font-weight:600; color:#1a2e1f;
+          font-size:16px; font-weight:600; color:#1a2e1f;
           font-family:'Quicksand',sans-serif; outline:none; resize:none; min-height:72px;
           transition:border 0.15s, box-shadow 0.15s; box-sizing:border-box;
         }
@@ -431,6 +506,7 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
         .ac-info-val {
           font-size:0.85rem; font-weight:700; color:#1a2e1f;
           font-family:'Quicksand',sans-serif; margin:0;
+          word-break:break-word;
         }
         .ac-driver-card {
           display:flex; align-items:center; gap:10px;
@@ -446,6 +522,15 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
         }
         .ac-two-col { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
         @media (max-width:420px) { .ac-two-col { grid-template-columns:1fr; } }
+
+        @media (max-width:480px) {
+          .ac-backdrop { padding:0; align-items:flex-end; }
+          .ac-modal {
+            max-width:100%; width:100%;
+            border-radius:18px 18px 0 0;
+            max-height:88dvh;
+          }
+        }
       `}</style>
 
       <div
@@ -462,7 +547,7 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
           {view === "confirm" && (
             <>
               <div className="ac-header">
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", minWidth: 0 }}>
                   <div className="ac-icon" style={{ background: "#f0fdf4", border: "1px solid rgba(34,197,94,0.25)" }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2"
                       strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
@@ -470,7 +555,7 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
                       <polyline points="22 4 12 14.01 9 11.01"/>
                     </svg>
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{
                       fontSize: "0.95rem", fontWeight: 800, color: "#1a2e1f",
                       fontFamily: "'Quicksand', sans-serif", lineHeight: 1.3, margin: 0,
@@ -493,7 +578,7 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
               <div className="ac-body">
                 <div className="ac-driver-card">
                   <div className="ac-driver-avatar">{driverInitials}</div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{
                       fontSize: "0.85rem", fontWeight: 700, color: "#1a2e1f",
                       fontFamily: "'Quicksand', sans-serif", margin: 0,
@@ -541,11 +626,11 @@ function AcceptanceConfirmModal({ item, onClose, onAccept, onReschedule }) {
           {view === "reschedule" && (
             <>
               <div className="ac-header">
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", minWidth: 0 }}>
                   <div className="ac-icon" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)" }}>
                     <CalIcon color="#3b82f6" size={22} />
                   </div>
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <p style={{
                       fontSize: "0.95rem", fontWeight: 800, color: "#1a2e1f",
                       fontFamily: "'Quicksand', sans-serif", lineHeight: 1.3, margin: 0,
@@ -723,7 +808,6 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
     return () => window.removeEventListener("keydown", fn);
   }, [item, onClose, showAcceptance]);
 
-  // Auto-open acceptance modal when status is "Scheduled"
   useEffect(() => {
     if (!item) return;
     if (item.status === "Scheduled") {
@@ -738,6 +822,8 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
   const isAwaitingApproval = item.status === "Awaiting Approval";
   const isScheduled        = item.status === "Scheduled";
 
+  const showLiveTracking   = item.status === "In Transit" || item.status === "Arriving";
+
   const imagesArray = Array.isArray(item.images) ? item.images : [];
 
   return (
@@ -746,294 +832,165 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
         @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700;800&display=swap');
 
         @keyframes orBackdropIn { from{opacity:0} to{opacity:1} }
-        @keyframes orDrawerIn   { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+        @keyframes orModalIn    { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
 
         .or-backdrop {
-          position:fixed; inset:0; z-index:200;
+          position:fixed; inset:0; z-index:400;
           background:rgba(10,22,13,0.45);
-          backdrop-filter:blur(3px);
-          animation:orBackdropIn 0.22s ease both;
-          display:flex; justify-content:flex-end;
+          backdrop-filter:blur(4px);
+          display:flex; align-items:center; justify-content:center;
+          padding:16px;
+          box-sizing:border-box;
+          animation:orBackdropIn 0.2s ease both;
         }
-        .or-drawer {
-          width:100%; max-width:460px; height:100%;
-          background:#ffffff;
-          display:flex; flex-direction:column;
-          animation:orDrawerIn 0.28s cubic-bezier(0.22,1,0.36,1) both;
-          box-shadow:-8px 0 40px rgba(0,0,0,0.12);
-          overflow:hidden;
+        .or-modal {
+          background:#fff; border-radius:20px;
+          width:100%; max-width:480px;
+          max-height:calc(100dvh - 32px);
+          box-shadow:0 16px 64px rgba(10,22,13,0.16);
+          display:flex; flex-direction:column; overflow:hidden;
+          animation:orModalIn 0.35s cubic-bezier(0.16,1,0.3,1) both;
         }
         .or-header {
-          display:flex; align-items:center; justify-content:space-between;
-          padding:20px 24px;
-          border-bottom:1px solid #f0f7f2;
-          flex-shrink:0; background:#ffffff;
+          padding:16px 20px; border-bottom:1px solid #f0f7f2;
+          display:flex; align-items:center; justify-content:space-between; gap:12px;
         }
-        .or-close {
-          width:34px; height:34px; border-radius:9px;
-          background:#f5faf6; border:1px solid #e8f2eb;
-          display:flex; align-items:center; justify-content:center;
-          cursor:pointer; color:#4a7a5a;
-          transition:background 0.18s, border-color 0.18s, color 0.18s;
-          flex-shrink:0;
+        .or-scrollable {
+          padding:20px; overflow-y:auto; flex:1;
+          display:flex; flex-direction:column; gap:20px;
+          -webkit-overflow-scrolling:touch;
         }
-        .or-close:hover { background:#fee2e2; border-color:#fca5a5; color:#b91c1c; }
-        .or-body {
-          flex:1; overflow-y:auto; padding:24px;
-          display:flex; flex-direction:column;
-        }
-        .or-body::-webkit-scrollbar { width:4px; }
-        .or-body::-webkit-scrollbar-track { background:transparent; }
-        .or-body::-webkit-scrollbar-thumb { background:#c6e2d0; border-radius:4px; }
-        .or-footer {
-          flex-shrink:0; padding:16px 24px;
-          border-top:1px solid #f0f7f2; background:#ffffff;
-          display:flex; flex-direction:column; gap:8px;
-        }
-        .or-btn-primary {
-          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-          padding:12px 20px; border-radius:10px;
-          background:#1a4d2e; border:none; cursor:pointer;
-          color:#B8D52E; font-size:0.88rem; font-weight:700;
+        .or-title-row { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+        .or-req-id {
+          font-size:0.68rem; font-weight:800; color:#8aab97;
+          text-transform:uppercase; letter-spacing:0.06em; margin:0 0 4px;
           font-family:'Quicksand',sans-serif;
-          transition:background 0.18s, color 0.18s, transform 0.15s;
         }
-        .or-btn-primary:hover { background:#B8D52E; color:#0d2416; transform:translateY(-1px); }
-        .or-btn-secondary {
-          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-          padding:12px 20px; border-radius:10px;
-          background:none; border:1px solid #e8f2eb; cursor:pointer;
-          color:#1a4d2e; font-size:0.88rem; font-weight:700;
-          font-family:'Quicksand',sans-serif;
-          transition:background 0.18s, border-color 0.18s;
+        .or-headline {
+          font-size:1.1rem; font-weight:800; color:#1a2e1f;
+          font-family:'Quicksand',sans-serif; margin:0; line-height:1.3;
+          word-break:break-word;
         }
-        .or-btn-secondary:hover { background:#f0f7f2; border-color:#B8D52E; }
-        .or-btn-accent {
-          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-          padding:12px 20px; border-radius:10px;
-          background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.25); cursor:pointer;
-          color:#1d4ed8; font-size:0.88rem; font-weight:700;
-          font-family:'Quicksand',sans-serif;
-          transition:background 0.18s, border-color 0.18s;
-        }
-        .or-btn-accent:hover { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.45); }
-        .or-btn-danger {
-          width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
-          padding:12px 20px; border-radius:10px;
-          background:none; border:1px solid #fca5a5; cursor:pointer;
-          color:#b91c1c; font-size:0.88rem; font-weight:700;
-          font-family:'Quicksand',sans-serif;
-          transition:background 0.18s, border-color 0.18s;
-        }
-        .or-btn-danger:hover { background:#fee2e2; border-color:#ef4444; }
+        .or-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 24px; }
+        @media (max-width:560px) { .or-grid { grid-template-columns:1fr; } }
 
-        .or-pending-nudge {
-          display:flex; align-items:center; gap:10px;
-          background:rgba(59,130,246,0.06); border:1px solid rgba(59,130,246,0.22);
-          border-radius:10px; padding:11px 14px; cursor:pointer;
-          transition:background 0.15s;
+        .or-images-label {
+          font-size:0.68rem; font-weight:700; color:#9ab8a5;
+          text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;
+          font-family:'Quicksand',sans-serif;
         }
-        .or-pending-nudge:hover { background:rgba(59,130,246,0.11); }
+        .or-images-scroll {
+          display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;
+          -webkit-overflow-scrolling:touch; scroll-snap-type:x proximity;
+        }
+        .or-img-wrap {
+          width:84px; height:84px; border-radius:10px; overflow:hidden;
+          border:1px solid #e8f2eb; background:#f5faf6; flex-shrink:0;
+          scroll-snap-align:start;
+        }
+        .or-img { width:100%; height:100%; object-fit:cover; display:block; }
+
+        .or-footer {
+          padding:14px 20px; border-top:1px solid #f0f7f2;
+          display:flex; justify-content:flex-end; gap:10px; background:#fff;
+        }
+        .or-btn-close {
+          padding:10px 18px; border-radius:10px;
+          background:#1a4d2e; border:none; cursor:pointer;
+          color:#B8D52E; font-size:0.85rem; font-weight:700;
+          font-family:'Quicksand',sans-serif; transition:background 0.15s, color 0.15s;
+        }
+        .or-btn-close:hover { background:#B8D52E; color:#0d2416; }
 
         @media (max-width:480px) {
-          .or-drawer { max-width:100%; }
+          .or-backdrop { padding:0; align-items:flex-end; }
+          .or-modal {
+            max-width:100%; width:100%;
+            border-radius:20px 20px 0 0;
+            max-height:90dvh;
+          }
+          .or-scrollable { padding:16px; gap:16px; }
+          .or-header { padding:14px 16px; }
+          .or-footer { padding:12px 16px; }
+          .or-headline { font-size:1rem; }
         }
       `}</style>
 
       <div
         className="or-backdrop"
-        onClick={(e) => { if (e.target === e.currentTarget && !showAcceptance) onClose?.(); }}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Request details"
+        onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
       >
-        <div className="or-drawer">
+        <div className="or-modal">
 
           <div className="or-header">
-            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              <span style={{
-                fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
-                fontFamily: "'Quicksand', sans-serif",
-                letterSpacing: "0.06em", textTransform: "uppercase",
-              }}>
-                Request · {item.id}
-              </span>
-              <span style={{
-                fontSize: "1rem", fontWeight: 700,
-                color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif",
-              }}>
-                {item.title}
-              </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, flexWrap: "wrap", minWidth: 0 }}>
+              <StatusBadge status={item.status} />
+              {item.wasteType && <WasteTypeBadge type={item.wasteType} />}
             </div>
-            <button className="or-close" onClick={onClose} aria-label="Close">
-              <XIcon />
+            <button className="ac-close" onClick={onClose}>
+              <XIcon size={13} />
             </button>
           </div>
 
-          <div className="or-body">
-
-            <div style={{
-              display: "flex", alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 20, flexWrap: "wrap", gap: 8,
-            }}>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <WasteTypeBadge type={item.wasteType} />
-                <StatusBadge status={item.status} />
+          <div className="or-scrollable">
+            <div>
+              <div className="or-title-row">
+                <div style={{ minWidth: 0 }}>
+                  <p className="or-req-id">Request ID: #{item.id?.slice(-6).toUpperCase() || "N/A"}</p>
+                  <h3 className="or-headline">{item.wasteType || "General"} Waste Collection</h3>
+                </div>
               </div>
             </div>
 
             <StatusBanner status={item.status} />
 
-            {isScheduled && item.awaitingUserConfirmation && (
-              <div
-                className="or-pending-nudge"
-                style={{ marginTop: 10 }}
-                onClick={() => setShowAcceptance(true)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") setShowAcceptance(true); }}
-              >
-                <div style={{
-                  width: 34, height: 34, borderRadius: 9,
-                  background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)",
-                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                }}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <p style={{
-                    fontSize: "0.78rem", fontWeight: 700, color: "#1d4ed8",
-                    fontFamily: "'Quicksand', sans-serif", margin: 0,
-                  }}>
-                    Action required — confirm your pickup
-                  </p>
-                  <p style={{
-                    fontSize: "0.7rem", fontWeight: 600, color: "#6b8f7a",
-                    fontFamily: "'Quicksand', sans-serif", margin: "2px 0 0",
-                  }}>
-                    Tap to accept or request a new time
-                  </p>
-                </div>
-                <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
-                </svg>
-              </div>
-            )}
-
-            <div style={{ marginTop: 8 }}>
+            <div className="or-grid">
+              <DetailRow
+                label="Pickup window"
+                icon={<CalIcon size={16} />}
+                value={`${item.dates || "Not specified"} (${item.availability || "Flexible"})`}
+              />
               <DetailRow
                 label="Location"
                 icon={
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                   </svg>
                 }
-                value={item.location}
+                value={item.location || "No address provided"}
               />
               <DetailRow
-                label="Pickup Period"
+                label="Estimated Volume"
                 icon={
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <rect x="3" y="4" width="18" height="18" rx="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                    <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                    <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
                   </svg>
                 }
-                value={item.dates}
-              />
-
-              {item.availability && (
-                <DetailRow
-                  label="Access Time"
-                  icon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                      <circle cx="12" cy="12" r="10"/>
-                      <polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                  }
-                  value={item.availability}
-                />
-              )}
-
-              <DetailRow
-                label="Waste Type"
-                icon={
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                    <path d="M2 17l10 5 10-5"/>
-                    <path d="M2 12l10 5 10-5"/>
-                  </svg>
-                }
-                value={item.wasteType}
+                value={item.volume ? `${item.volume} m³` : "Not provided"}
               />
               <DetailRow
-                label="Total Volume"
+                label="Bin size preference"
                 icon={
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <line x1="12" y1="1" x2="12" y2="23"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 16, height: 16 }}>
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   </svg>
                 }
-                value={item.volume}
-                valueColor="#1a4d2e"
+                value={item.binSize || "No preference"}
+                last
               />
-              {item.note && (
-                <DetailRow
-                  label="Notes"
-                  icon={
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                    </svg>
-                  }
-                  value={item.note}
-                  valueColor="#6b8f7a"
-                  last
-                />
-              )}
             </div>
 
             {imagesArray.length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <p style={{
-                  fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5",
-                  fontFamily: "'Quicksand', sans-serif",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
-                  marginBottom: 10,
-                }}>
-                  Site Documentation Images
-                </p>
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
-                  gap: 10,
-                }}>
-                  {imagesArray.map((imgSrc, index) => (
-                    <div key={index} style={{
-                      aspectRatio: "1", borderRadius: 8, overflow: "hidden",
-                      background: "#f5faf6", border: "1px solid #e8f2eb",
-                    }}>
-                      <img
-                        src={imgSrc}
-                        alt={`Waste preview ${index + 1}`}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
-                      />
+              <div>
+                <p className="or-images-label">Attached Site Images ({imagesArray.length})</p>
+                <div className="or-images-scroll">
+                  {imagesArray.map((url, index) => (
+                    <div key={index} className="or-img-wrap">
+                      <img src={url} alt={`Site visual ${index + 1}`} className="or-img" />
                     </div>
                   ))}
                 </div>
@@ -1042,152 +999,15 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
 
             <Timeline status={item.status} />
 
-            {isCompleted && (
-              <div style={{
-                marginTop: 24, padding: "16px",
-                background: "#f5faf6", borderRadius: 12, border: "1px solid #e8f2eb",
-              }}>
-                <p style={{
-                  fontSize: "0.68rem", fontWeight: 700, color: "#4a7a5a",
-                  fontFamily: "'Quicksand', sans-serif",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
-                  margin: "0 0 10px 0",
-                }}>
-                  Completion Details
-                </p>
-
-                {item.operatorName && (
-                  <div style={{ marginBottom: 12 }}>
-                    <p style={{
-                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 2px 0",
-                    }}>
-                      Operator Name
-                    </p>
-                    <p style={{
-                      fontSize: "0.88rem", fontWeight: 700, color: "#1a2e1f",
-                      fontFamily: "'Quicksand', sans-serif", margin: 0,
-                    }}>
-                      {item.operatorName}
-                    </p>
-                  </div>
-                )}
-
-                {item.proofPhotoUrl && (
-                  <div style={{ marginBottom: 12 }}>
-                    <p style={{
-                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px 0",
-                    }}>
-                      Site Photo
-                    </p>
-                    <div style={{
-                      borderRadius: 8, overflow: "hidden",
-                      background: "#ffffff", border: "1px solid #e8f2eb",
-                    }}>
-                      <img
-                        src={item.proofPhotoUrl}
-                        alt="Site completion photo"
-                        style={{ width: "100%", maxHeight: 200, objectFit: "cover" }}
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {item.signatureUrl && (
-                  <div>
-                    <p style={{
-                      fontSize: "0.72rem", fontWeight: 600, color: "#6b8f7a",
-                      fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px 0",
-                    }}>
-                      Operator Signature
-                    </p>
-                    <div style={{
-                      background: "#ffffff", borderRadius: 8, padding: 8,
-                      display: "flex", justifyContent: "center", alignItems: "center",
-                      border: "1px dashed #c6e2d0", height: 80,
-                    }}>
-                      <img
-                        src={item.signatureUrl}
-                        alt="Digital Signature"
-                        style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
+            {showLiveTracking && <LiveTrackingSection item={item} />}
           </div>
 
           <div className="or-footer">
-
-            {isScheduled && item.awaitingUserConfirmation && (
-              <button className="or-btn-primary" onClick={() => setShowAcceptance(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                Review acceptance
-              </button>
-            )}
-
-            {isScheduled && !item.awaitingUserConfirmation && (
-              <button className="or-btn-secondary" onClick={onClose}>Close</button>
-            )}
-
-            {isCompleted && (
-              <button className="or-btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download Receipt
-              </button>
-            )}
-
-            {isDeclined && (
-              <>
-                <button
-                  className="or-btn-primary"
-                  onClick={() => { onClose?.(); onResubmit?.(item); }}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <polyline points="1 4 1 10 7 10"/>
-                    <path d="M3.51 15a9 9 0 1 0 .49-3.96"/>
-                  </svg>
-                  Resubmit Request
-                </button>
-                <button className="or-btn-secondary" onClick={onClose}>Close</button>
-              </>
-            )}
-
-            {isAwaitingApproval && (
-              <>
-                <button className="or-btn-secondary" onClick={onClose}>Close</button>
-                <button className="or-btn-danger" onClick={onClose}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    <path d="M10 11v6"/><path d="M14 11v6"/>
-                    <path d="M9 6V4h6v2"/>
-                  </svg>
-                  Cancel Request
-                </button>
-              </>
-            )}
-
-            {!isCompleted && !isDeclined && !isAwaitingApproval && !isScheduled && (
-              <button className="or-btn-secondary" onClick={onClose}>Close</button>
-            )}
-
+            <button className="or-btn-close" onClick={onClose}>
+              Dismiss View
+            </button>
           </div>
+
         </div>
       </div>
 
@@ -1195,12 +1015,8 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
         <AcceptanceConfirmModal
           item={item}
           onClose={() => setShowAcceptance(false)}
-          onAccept={async (req) => {
-            await onAcceptPickup?.(req);
-          }}
-          onReschedule={async (req, rescheduleData) => {
-            await onReschedulePickup?.(req, rescheduleData);
-          }}
+          onAccept={onAcceptPickup}
+          onReschedule={onReschedulePickup}
         />
       )}
     </>
