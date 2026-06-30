@@ -98,6 +98,13 @@ export type FirestoreRequest = {
     note: string;
     requestedAt?: any;
   };
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
+  };
 };
 
 export type RequestItem = {
@@ -122,6 +129,13 @@ export type RequestItem = {
     toTime: string;
     note: string;
     requestedAt?: any;
+  };
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
   };
 };
 
@@ -163,9 +177,9 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     signatureUrl: d.signatureUrl,
     declineReason: d.declineReason,
     rescheduleRequest: d.rescheduleRequest || undefined,
+    liveLocation: d.liveLocation || undefined,
   };
 }
-
 function StatusBadge({ status }: { status: string }) {
   const s = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Pending;
   return (
