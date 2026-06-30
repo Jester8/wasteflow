@@ -6,6 +6,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { geocodeAddress } from "../../../../lib/geocode";
 import { fetchOSRMRoute, formatDistance, formatDuration } from "../../../../lib/osrm";
+import { RequestItem } from "@/app/types/request";
 
 const STALE_THRESHOLD_MS = 2 * 60 * 1000;
 const TRACKING_STATUSES = new Set(["arriving", "in_transit"]);

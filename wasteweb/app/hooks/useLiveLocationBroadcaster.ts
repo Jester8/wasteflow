@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { RequestItem } from "../contractor/myrequests/page";
+import { RequestItem } from "@/app/types/request";
 
 // Only broadcast for these statuses
 const ACTIVE_STATUSES = new Set(["Arriving", "In Transit"]);
