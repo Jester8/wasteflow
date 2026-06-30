@@ -38,7 +38,13 @@ function LocationAutocomplete({ value, onChange, error }) {
     if (q.length < 3) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
     try {
-      const params = new URLSearchParams({ q, format: "json", addressdetails: "1", limit: "6" });
+      const params = new URLSearchParams({
+        q,
+        format: "json",
+        addressdetails: "1",
+        limit: "6",
+        countrycodes: "gb,ng",
+      });
       const res = await fetch(`${NOMINATIM_URL}?${params}`, { headers: { "Accept-Language": "en" } });
       const data = await res.json();
       setSuggestions(data);
@@ -153,7 +159,11 @@ function LocationAutocomplete({ value, onChange, error }) {
                   fontSize: "0.8rem", fontWeight: 700, color: "#1a2e1f",
                   fontFamily: "'Quicksand', sans-serif", margin: 0, lineHeight: 1.3,
                 }}>
-                  {s.address?.road || s.address?.suburb || s.address?.neighbourhood || s.address?.city || s.name}
+                  {[
+                    s.address?.road || s.address?.suburb || s.address?.neighbourhood,
+                    s.address?.city || s.address?.town || s.address?.village,
+                    s.address?.postcode || s.address?.state,
+                  ].filter(Boolean).join(", ")}
                 </p>
                 <p style={{
                   fontSize: "0.7rem", fontWeight: 600, color: "#9ab8a5",
@@ -313,7 +323,7 @@ const EMPTY_FORM = {
   dateFrom: "",
   dateTo: "",
   volume: "",
-  volumeUnit: "Yards",
+  volumeUnit: " ",
   availableFromTime: "",
   availableToTime: "",
   note: "",

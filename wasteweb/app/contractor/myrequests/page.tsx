@@ -1,123 +1,192 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  where,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
+  collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
-import Sidebar from "../sidebar";
-import CreateRequestModal from "./Createrequestmodal";
-import OperatorRequestDetailModal from "./Operatorrequestdetailmodal ";
+import Sidebar from "../../components/Sidebar";
+import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 
-export type RequestItem = {
+const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
+
+const STATUS_CONFIG = {
+  Pending:      { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b" },
+  Accepted:     { bg: "rgba(34,197,94,0.10)",   color: "#15803d", border: "rgba(34,197,94,0.3)",    dot: "#22c55e" },
+  Scheduled:    { bg: "rgba(59,130,246,0.10)",  color: "#1d4ed8", border: "rgba(59,130,246,0.3)",   dot: "#3b82f6" },
+  Arriving:     { bg: "rgba(34,211,238,0.10)",  color: "#0e7490", border: "rgba(34,211,238,0.3)",   dot: "#06b6d4" },
+  "In Transit": { bg: "rgba(168,85,247,0.10)",  color: "#7c3aed", border: "rgba(168,85,247,0.3)",   dot: "#a855f7" },
+  Completed:    { bg: "rgba(184,213,46,0.12)",  color: "#3a6b00", border: "rgba(184,213,46,0.35)",  dot: "#B8D52E" },
+  Declined:     { bg: "rgba(239,68,68,0.10)",   color: "#b91c1c", border: "rgba(239,68,68,0.25)",   dot: "#ef4444" },
+  Rescheduled:  { bg: "rgba(139,92,246,0.12)",  color: "#7c3aed", border: "rgba(139,92,246,0.35)",  dot: "#8b5cf6" },
+};
+
+const WASTE_TYPE_CONFIG = {
+  Mixed:     { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
+  Metal:     { bg: "rgba(100,116,139,0.10)",color: "#475569", border: "rgba(100,116,139,0.25)" },
+  Concrete:  { bg: "rgba(120,113,108,0.10)",color: "#57534e", border: "rgba(120,113,108,0.25)" },
+  Green:     { bg: "rgba(34,197,94,0.10)",  color: "#15803d", border: "rgba(34,197,94,0.25)"  },
+  Hazardous: { bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)"  },
+  General:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
+};
+
+const STATUS_DISPLAY: Record<string, string> = {
+  pending:             "Pending",
+  confirmed:           "Accepted",
+  scheduled:           "Scheduled",
+  arriving:            "Arriving",
+  in_transit:          "In Transit",
+  completed:           "Completed",
+  declined:            "Declined",
+  cancelled:           "Declined",
+  awaiting_reschedule: "Rescheduled",
+};
+
+const STATUS_WRITE: Record<string, string> = {
+  Pending:      "pending",
+  Accepted:     "confirmed",
+  Scheduled:    "scheduled",
+  Arriving:     "arriving",
+  "In Transit": "in_transit",
+  Completed:    "completed",
+  Declined:     "declined",
+  Rescheduled:  "awaiting_reschedule",
+};
+
+const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+async function uploadToCloudinary(file: Blob, filename: string): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file, filename);
+  formData.append("upload_preset", UPLOAD_PRESET);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Cloudinary upload failed: ${errText}`);
+  }
+  const data = await res.json();
+  return data.secure_url as string;
+}
+
+export type FirestoreRequest = {
   id: string;
   title: string;
   wasteType: string;
-  location: string;
-  dates: string;
-  availability: string;
-  volume: string;
-  note: string;
   status: string;
-  rawStatus: string;
-  createdAt: string;
-  imageUrl?: string;
-  signatureUrl?: string;
+  location: string;
+  windowStart?: string;
+  windowEnd?: string;
+  availability?: string;
+  volume?: string;
+  notes?: string;
+  contractorId: string;
+  operatorId?: string;
+  contractorName?: string;
   operatorName?: string;
   proofPhotoUrl?: string;
-  awaitingUserConfirmation?: boolean;
-  driverName?: string;
-  driverRating?: number;
-  proposedDate?: string;
-  proposedTime?: string;
+  signatureUrl?: string;
+  declineReason?: string;
   rescheduleRequest?: {
     date: string;
     fromTime: string;
     toTime: string;
     note: string;
+    requestedAt?: any;
   };
 };
 
-const STATUS_DISPLAY_MAP: Record<string, string> = {
-  pending:              "Awaiting Approval",
-  scheduled:            "Scheduled",
-  confirmed:            "Accepted",
-  arriving:             "Arriving",
-  in_transit:           "In Transit",
-  completed:            "Completed",
-  declined:             "Declined",
-  cancelled:            "Declined",
-  awaiting_reschedule:  "Rescheduled",
+export type RequestItem = {
+  id: string;
+  title: string;
+  wasteType: string;
+  status: string;
+  location: string;
+  dates: string;
+  yards: string;
+  note: string;
+  contractorName?: string;
+  contractorId?: string;
+  operatorId?: string;
+  operatorName?: string;
+  proofPhotoUrl?: string;
+  signatureUrl?: string;
+  declineReason?: string;
+  rescheduleRequest?: {
+    date: string;
+    fromTime: string;
+    toTime: string;
+    note: string;
+    requestedAt?: any;
+  };
 };
 
-function toDisplayStatus(rawStatus: string, awaitingUserConfirmation?: boolean): string {
-  if (rawStatus === 'scheduled' && awaitingUserConfirmation === true) {
-    return "Accepted";
-  }
-  return STATUS_DISPLAY_MAP[rawStatus] || "Awaiting Approval";
-}
-
-function formatDateRange(start?: string, end?: string) {
+function formatDateRange(start?: string, end?: string, availability?: string) {
   if (!start) return "—";
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  if (!end || end === start) return fmt(start);
-  return `${fmt(start)} – ${fmt(end)}`;
+  let startTime = "";
+  let endTime = "";
+  if (availability) {
+    const parts = availability.split("-").map((p) => p.trim());
+    startTime = parts[0] || "";
+    endTime   = parts[1] || parts[0] || "";
+  }
+  const fmt = (iso: string, time: string) => {
+    const datePart = new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+    return time ? `${datePart}, ${time}` : datePart;
+  };
+  if (!end || end === start) {
+    if (startTime && endTime && startTime !== endTime) return `${fmt(start, startTime)} – ${endTime}`;
+    return fmt(start, startTime);
+  }
+  return `${fmt(start, startTime)} – ${fmt(end, endTime)}`;
 }
 
-function formatTimestamp(ts: any): string {
-  if (!ts) return "—";
+function mapDoc(d: FirestoreRequest): RequestItem {
+  return {
+    id: d.id,
+    title: d.title,
+    wasteType: d.wasteType,
+    status: STATUS_DISPLAY[d.status] ?? "Pending",
+    location: d.location,
+    dates: formatDateRange(d.windowStart, d.windowEnd, d.availability),
+    yards: d.volume || "—",
+    note: d.notes || "",
+    contractorName: d.contractorName,
+    contractorId: d.contractorId,
+    operatorId: d.operatorId,
+    operatorName: d.operatorName,
+    proofPhotoUrl: d.proofPhotoUrl,
+    signatureUrl: d.signatureUrl,
+    declineReason: d.declineReason,
+    rescheduleRequest: d.rescheduleRequest || undefined,
+  };
+}
 
-  let date: Date;
-  if (typeof ts?.toDate === "function") {
-    date = ts.toDate();
-  } else if (typeof ts === "object" && typeof ts.seconds === "number") {
-    date = new Date(ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6));
-  } else {
-    date = new Date(ts);
-  }
-
-  if (isNaN(date.getTime())) return "—";
+function StatusBadge({ status }: { status: string }) {
+  const s = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Pending;
   return (
-    date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
-    " · " +
-    date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
+      textTransform: "uppercase",
+      padding: "3px 9px", borderRadius: 999,
+      background: s.bg, color: s.color,
+      border: `1px solid ${s.border}`,
+      fontFamily: "'Quicksand', sans-serif",
+      whiteSpace: "nowrap",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
+      {status}
+    </span>
   );
 }
 
-const WASTE_TYPE_CONFIG = {
-  Mixed:     { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.25)" },
-  Metal:     { bg: "rgba(100,116,139,0.10)", color: "#475569", border: "rgba(100,116,139,0.25)" },
-  Concrete:  { bg: "rgba(120,113,108,0.10)", color: "#57534e", border: "rgba(120,113,108,0.25)" },
-  Green:     { bg: "rgba(34,197,94,0.10)", color: "#15803d", border: "rgba(34,197,94,0.25)" },
-  Hazardous: { bg: "rgba(239,68,68,0.10)", color: "#b91c1c", border: "rgba(239,68,68,0.25)" },
-  General:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.25)" },
-};
-
-type WasteType = keyof typeof WASTE_TYPE_CONFIG;
-
-const STATUS_BADGE_CONFIG: Record<string, { bg: string; color: string; border: string; dot: string }> = {
-  "Awaiting Approval": { bg: "rgba(251,191,36,0.12)", color: "#b45309", border: "rgba(251,191,36,0.35)", dot: "#f59e0b" },
-  "Accepted":          { bg: "rgba(34,197,94,0.12)",  color: "#15803d", border: "rgba(34,197,94,0.35)",  dot: "#22c55e" },
-  "Scheduled":         { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8", border: "rgba(59,130,246,0.3)",  dot: "#3b82f6" },
-  "Arriving":          { bg: "rgba(34,211,238,0.10)", color: "#0e7490", border: "rgba(34,211,238,0.3)",  dot: "#06b6d4" },
-  "In Transit":        { bg: "rgba(168,85,247,0.10)", color: "#7c3aed", border: "rgba(168,85,247,0.3)",  dot: "#a855f7" },
-  "Completed":         { bg: "rgba(184,213,46,0.12)", color: "#3a6b00", border: "rgba(184,213,46,0.35)", dot: "#B8D52E" },
-  "Declined":          { bg: "rgba(239,68,68,0.10)",  color: "#b91c1c", border: "rgba(239,68,68,0.25)",  dot: "#ef4444" },
-  "Rescheduled":       { bg: "rgba(139,92,246,0.12)", color: "#7c3aed", border: "rgba(139,92,246,0.35)",  dot: "#8b5cf6" },
-};
-
 function WasteTypeBadge({ type }: { type: string }) {
-  const c = WASTE_TYPE_CONFIG[type as WasteType] || WASTE_TYPE_CONFIG.General;
+  const c = WASTE_TYPE_CONFIG[type as keyof typeof WASTE_TYPE_CONFIG] || WASTE_TYPE_CONFIG.General;
   return (
     <span style={{
       display: "inline-flex", alignItems: "center", gap: 5,
@@ -128,32 +197,10 @@ function WasteTypeBadge({ type }: { type: string }) {
       fontFamily: "'Quicksand', sans-serif",
       whiteSpace: "nowrap",
     }}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-        strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 11, height: 11 }}>
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
       </svg>
       {type}
-    </span>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_BADGE_CONFIG[status] || STATUS_BADGE_CONFIG["Awaiting Approval"];
-  return (
-    <span style={{
-      display: "inline-flex", alignItems: "center", gap: 5,
-      fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
-      textTransform: "uppercase",
-      padding: "4px 10px", borderRadius: 999,
-      background: s.bg, color: s.color,
-      border: `1px solid ${s.border}`,
-      fontFamily: "'Quicksand', sans-serif",
-      whiteSpace: "nowrap",
-    }}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: s.dot, flexShrink: 0 }} />
-      {status}
     </span>
   );
 }
@@ -173,553 +220,801 @@ function MetaRow({ icon, text, muted }: { icon: React.ReactNode; text: string; m
 }
 
 function RequestCard({
-  item,
+  req,
   onViewDetails,
 }: {
-  item: RequestItem;
-  onViewDetails: (item: RequestItem) => void;
+  req: RequestItem;
+  onViewDetails: (req: RequestItem) => void;
 }) {
-  const needsAction = item.status === "Accepted" && item.awaitingUserConfirmation === true;
+  const isRescheduled = req.status === "Rescheduled";
 
   return (
-    <div
-      className="wf-req-card"
-      style={{
-        background: "#ffffff",
-        border: needsAction ? "1.5px solid rgba(59,130,246,0.4)" : "1px solid #e8f2eb",
-        borderRadius: 16,
-        padding: "20px",
-        display: "flex", flexDirection: "column", gap: 14,
-        boxShadow: needsAction
-          ? "0 0 0 3px rgba(59,130,246,0.08), 0 1px 6px rgba(0,0,0,0.05)"
-          : "0 1px 6px rgba(0,0,0,0.05)",
-        transition: "box-shadow 0.2s, transform 0.2s",
-        fontFamily: "'Quicksand', sans-serif",
-        position: "relative",
-      }}
-    >
-      {needsAction && (
+    <div className="wf-card" style={{
+      background: "#ffffff",
+      border: isRescheduled ? "1.5px solid rgba(139,92,246,0.35)" : "1px solid #e8f2eb",
+      borderRadius: 16,
+      padding: "20px",
+      display: "flex", flexDirection: "column", gap: 14,
+      boxShadow: isRescheduled
+        ? "0 0 0 3px rgba(139,92,246,0.07), 0 1px 6px rgba(0,0,0,0.05)"
+        : "0 1px 6px rgba(0,0,0,0.05)",
+      transition: "box-shadow 0.2s, transform 0.2s",
+      fontFamily: "'Quicksand', sans-serif",
+      position: "relative",
+    }}>
+      {isRescheduled && (
         <div style={{
           position: "absolute", top: 14, right: 14,
-          background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.3)",
+          background: "rgba(139,92,246,0.1)", border: "1px solid rgba(139,92,246,0.3)",
           borderRadius: 999, padding: "3px 9px",
           display: "flex", alignItems: "center", gap: 5,
         }}>
           <span style={{
             width: 6, height: 6, borderRadius: "50%",
-            background: "#3b82f6",
-            boxShadow: "0 0 0 2px rgba(59,130,246,0.3)",
+            background: "#8b5cf6",
+            boxShadow: "0 0 0 2px rgba(139,92,246,0.3)",
           }} />
           <span style={{
             fontSize: "0.62rem", fontWeight: 700,
-            color: "#1d4ed8", fontFamily: "'Quicksand', sans-serif",
+            color: "#7c3aed", fontFamily: "'Quicksand', sans-serif",
             textTransform: "uppercase", letterSpacing: "0.05em",
           }}>
-            Action required
+            Reschedule requested
           </span>
         </div>
       )}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{
-          display: "flex", alignItems: "flex-start",
-          justifyContent: "space-between", gap: 8,
-          paddingRight: needsAction ? 120 : 0,
+          display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8,
+          paddingRight: isRescheduled ? 148 : 0,
         }}>
           <h3 style={{
             fontSize: "1rem", fontWeight: 700,
             color: "#1a2e1f", margin: 0,
             fontFamily: "'Quicksand', sans-serif",
             lineHeight: 1.3,
-          }}>{item.title}</h3>
-          {!needsAction && (
+          }}>{req.title}</h3>
+          {!isRescheduled && (
             <span style={{
               fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
               fontFamily: "'Quicksand', sans-serif",
               whiteSpace: "nowrap", letterSpacing: "0.04em",
-            }}>{item.id.slice(0, 8).toUpperCase()}</span>
+            }}>{req.id.slice(0, 8).toUpperCase()}</span>
           )}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          <WasteTypeBadge type={item.wasteType} />
-          <StatusBadge status={item.status} />
+          <WasteTypeBadge type={req.wasteType} />
+          <StatusBadge status={req.status} />
         </div>
       </div>
 
       <div style={{ height: 1, background: "#f0f7f2" }} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <MetaRow
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-              <circle cx="12" cy="10" r="3" />
+        <MetaRow icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+        } text={req.location} />
+        <MetaRow icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        } text={req.dates} />
+        <MetaRow icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+            <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        } text={req.yards} />
+        {req.contractorName && (
+          <MetaRow icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
             </svg>
-          }
-          text={item.location}
-        />
-        <MetaRow
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
+          } text={`Contractor: ${req.contractorName}`} />
+        )}
+        {isRescheduled && req.rescheduleRequest && (
+          <MetaRow icon={
+            <svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.08-4.82"/>
             </svg>
-          }
-          text={item.dates}
-        />
-        <MetaRow
-          icon={
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-              strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          }
-          text={item.volume}
-        />
-        {item.createdAt && item.createdAt !== "—" && (
-          <MetaRow
-            icon={
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-            }
-            text={item.createdAt}
-            muted
-          />
+          } text={`Proposed: ${req.rescheduleRequest.date}, ${req.rescheduleRequest.fromTime} – ${req.rescheduleRequest.toTime}`} />
         )}
       </div>
 
-      <div style={{ marginTop: 2 }}>
-        <button
-          className="wf-req-btn-view"
-          onClick={() => onViewDetails(item)}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-            padding: "10px 16px", borderRadius: 10, cursor: "pointer",
-            background: needsAction ? "rgba(59,130,246,0.06)" : "none",
-            border: needsAction ? "1px solid rgba(59,130,246,0.3)" : "1px solid #e8f2eb",
-            color: needsAction ? "#1d4ed8" : "#1a4d2e",
-            fontSize: "0.82rem", fontWeight: 700,
-            fontFamily: "'Quicksand', sans-serif",
-            transition: "background 0.18s, border-color 0.18s",
-          }}
-        >
-          {needsAction ? "Review acceptance" : "View Details"}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-            strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
+      <button
+        className="wf-btn-view"
+        onClick={() => onViewDetails(req)}
+        style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+          padding: "11px 16px", borderRadius: 10, cursor: "pointer",
+          background: isRescheduled ? "rgba(139,92,246,0.08)" : "#1a4d2e",
+          border: isRescheduled ? "1px solid rgba(139,92,246,0.3)" : "none",
+          color: isRescheduled ? "#7c3aed" : "#B8D52E",
+          fontSize: "0.82rem", fontWeight: 700,
+          fontFamily: "'Quicksand', sans-serif",
+          transition: "background 0.18s",
+          marginTop: "auto",
+        }}
+      >
+        {isRescheduled ? "Review Reschedule" : "View Details"}
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function SignaturePad({ onChange }: { onChange: (hasSignature: boolean) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const drawingRef = useRef(false);
+  const hasDrawnRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1a2e1f";
+  }, []);
+
+  const getPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    drawingRef.current = true;
+    lastPointRef.current = getPoint(e);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!ctx || !lastPointRef.current) return;
+    const point = getPoint(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(point.x, point.y);
+    ctx.stroke();
+    lastPointRef.current = point;
+    if (!hasDrawnRef.current) { hasDrawnRef.current = true; onChange(true); }
+  };
+
+  const handlePointerUp = () => { drawingRef.current = false; lastPointRef.current = null; };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawnRef.current = false;
+    onChange(false);
+  };
+
+  (SignaturePad as any)._getCanvas = () => canvasRef.current;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ position: "relative", border: "1.5px dashed #c6e2d0", borderRadius: 10, background: "#fbfdfb", overflow: "hidden" }}>
+        <canvas
+          ref={canvasRef}
+          data-signature-canvas
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          style={{ width: "100%", height: 140, display: "block", cursor: "crosshair", touchAction: "none" }}
+        />
+        {!hasDrawnRef.current && (
+          <span style={{
+            position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "0.78rem", fontWeight: 600, color: "#9ab8a5",
+            fontFamily: "'Quicksand', sans-serif", pointerEvents: "none",
+          }}>Sign here</span>
+        )}
+      </div>
+      <button type="button" onClick={clear} style={{
+        alignSelf: "flex-end", background: "none", border: "none", cursor: "pointer",
+        fontSize: "0.74rem", fontWeight: 700, color: "#8aab97",
+        fontFamily: "'Quicksand', sans-serif", padding: "2px 4px",
+      }}>Clear signature</button>
+    </div>
+  );
+}
+
+function CompleteForm({ loading, onCancel, onSubmit }: {
+  loading: boolean;
+  onCancel: () => void;
+  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => void;
+}) {
+  const [operatorName, setOperatorName] = useState("");
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async () => {
+    if (!operatorName.trim()) { setError("Enter the operator's name."); return; }
+    if (!photoFile) { setError("Upload a photo before completing."); return; }
+    if (!hasSignature) { setError("Add a signature before completing."); return; }
+    setError(null);
+    const canvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
+    if (!canvas) { setError("Signature pad not ready — try again."); return; }
+    canvas.toBlob((blob) => {
+      if (!blob) { setError("Could not read signature — try signing again."); return; }
+      onSubmit({ operatorName: operatorName.trim(), photoFile, signatureBlob: blob });
+    }, "image/png");
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Complete this job</p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the operator's name, a site photo, and signature to mark as completed.</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Operator name</label>
+        <input type="text" value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="e.g. John Adeyemi"
+          style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site photo</label>
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: "none" }} />
+        {photoPreview ? (
+          <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
+            <img src={photoPreview} alt="Selected proof" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(26,46,31,0.75)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>Change photo</button>
+          </div>
+        ) : (
+          <button type="button" onClick={() => fileInputRef.current?.click()} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, height: 100, borderRadius: 10, border: "1.5px dashed #c6e2d0", background: "#fbfdfb", color: "#6b8f7a", cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span style={{ fontSize: "0.78rem", fontWeight: 700 }}>Tap to add a photo</span>
+          </button>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Signature</label>
+        <SignaturePad onChange={setHasSignature} />
+      </div>
+      {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
+      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+        <button type="button" onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back</button>
+        <button type="button" onClick={handleSubmit} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+          {loading ? (<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Uploading…</>) : "Confirm & Complete"}
         </button>
       </div>
     </div>
   );
 }
 
-function SkeletonCard() {
+function DeclineReasonForm({ loading, onCancel, onSubmit }: {
+  loading: boolean;
+  onCancel: () => void;
+  onSubmit: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = () => {
+    if (!reason.trim()) { setError("Add a reason for declining this request."); return; }
+    setError(null);
+    onSubmit(reason.trim());
+  };
+
   return (
-    <div style={{
-      background: "#ffffff", border: "1px solid #e8f2eb",
-      borderRadius: 16, padding: "20px",
-      display: "flex", flexDirection: "column", gap: 14,
-    }}>
-      {([["70%", 14], ["50%", 10], ["90%", 10], ["60%", 10]] as [string, number][]).map(([w, h], i) => (
-        <div key={i} style={{
-          height: h, width: w, borderRadius: 6,
-          background: "#f0f7f2",
-          animation: "wfPulse 1.4s ease-in-out infinite",
-        }} />
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <div>
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Decline this request</p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Let the contractor know why this pickup can't go ahead.</p>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Reason</label>
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Outside our service area, or capacity unavailable this week" rows={4}
+          style={{ padding: "10px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none", resize: "vertical" }} />
+      </div>
+      {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="button" onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back</button>
+        <button type="button" onClick={handleSubmit} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#fef2f2", color: "#b91c1c", outline: "1.5px solid #b91c1c22", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+          {loading ? (<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Declining…</>) : "Confirm Decline"}
+        </button>
+      </div>
     </div>
   );
 }
 
-export default function MyRequestsPage() {
-  const [collapsed, setCollapsed]       = useState(false);
-  const [sidebarOpen, setSidebarOpen]   = useState(false);
-  const [search, setSearch]             = useState("");
-  const [requests, setRequests]         = useState<RequestItem[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [selectedItem, setSelectedItem] = useState<RequestItem | null>(null);
-  const [createOpen, setCreateOpen]     = useState(false);
+const STATUS_FLOW: { label: string; value: string; color: string; bg: string; icon: React.ReactNode }[] = [
+  {
+    label: "Schedule", value: "Scheduled", color: "#1d4ed8", bg: "rgba(59,130,246,0.10)",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  },
+  {
+    label: "Move to In Transit", value: "In Transit", color: "#7c3aed", bg: "rgba(168,85,247,0.10)",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><rect x="1" y="3" width="15" height="13" rx="1"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
+  },
+  {
+    label: "Mark Arriving", value: "Arriving", color: "#0e7490", bg: "rgba(34,211,238,0.10)",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>,
+  },
+  {
+    label: "Complete", value: "Completed", color: "#3a6b00", bg: "rgba(184,213,46,0.12)",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="20 6 9 17 4 12"/></svg>,
+  },
+  {
+    label: "Decline", value: "Declined", color: "#b91c1c", bg: "rgba(239,68,68,0.10)",
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  },
+];
 
-  const { user, profile } = useAuth();
+const ALLOWED_TRANSITIONS: Record<string, string[]> = {
+  Pending:      ["Scheduled", "Declined"],
+  Accepted:     ["In Transit", "Declined"],
+  Scheduled:    ["Arriving", "Declined"],
+  Arriving:     ["In Transit", "Declined"],
+  "In Transit": ["Completed", "Declined"],
+  Rescheduled:  ["Scheduled", "Declined"],
+  Completed:    [],
+  Declined:     [],
+};
 
-  useEffect(() => {
-    if (!user) return;
-
-    const q = query(
-      collection(db, "wasteRequests"),
-      where("contractorId", "==", user.uid),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setRequests(
-          snap.docs.map((d) => {
-            const data = d.data();
-            const rawStatus = data.status || "pending";
-            const awaitingUserConfirmation = data.awaitingUserConfirmation ?? false;
-            return {
-              id: d.id,
-              title: data.title || "Untitled",
-              wasteType: data.wasteType || "General",
-              location: data.location || "—",
-              dates: formatDateRange(data.windowStart, data.windowEnd),
-              availability: data.availability || "—",
-              volume: data.volume || "—",
-              note: data.notes || "—",
-              status: toDisplayStatus(rawStatus, awaitingUserConfirmation),
-              rawStatus,
-              createdAt: formatTimestamp(data.createdAt),
-              imageUrl: data.imageUrl || data.proofPhotoUrl || "",
-              signatureUrl: data.signatureUrl || "",
-              operatorName: data.operatorName || "",
-              proofPhotoUrl: data.proofPhotoUrl || "",
-              awaitingUserConfirmation: awaitingUserConfirmation,
-              driverName: data.driverName || "",
-              driverRating: data.driverRating ?? null,
-              proposedDate: data.proposedDate || "",
-              proposedTime: data.proposedTime || "",
-              rescheduleRequest: data.rescheduleRequest || null,
-            } as RequestItem;
-          })
-        );
-        setLoading(false);
-      },
-      (err) => {
-        console.error("MyRequests error:", err);
-        setLoading(false);
-      }
-    );
-
-    return () => unsub();
-  }, [user]);
-
-  const liveSelectedItem = selectedItem
-    ? requests.find((r) => r.id === selectedItem.id) ?? selectedItem
-    : null;
-
-  const filtered = requests.filter((item) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      item.title.toLowerCase().includes(q) ||
-      item.location.toLowerCase().includes(q) ||
-      item.wasteType.toLowerCase().includes(q)
-    );
-  });
-
-  async function handleCreateSubmit(formPayload: any) {
-    if (!user) return;
-    try {
-      await addDoc(collection(db, "wasteRequests"), {
-        title:        formPayload.title,
-        wasteType:    formPayload.wasteType,
-        location:     formPayload.location,
-        windowStart:  formPayload.dateFrom,
-        windowEnd:    formPayload.dateTo,
-        availability: formPayload.availability,
-        volume:       `${formPayload.volume} ${formPayload.volumeUnit}`.trim(),
-        notes:        formPayload.note,
-        contractorId: user.uid,
-        contractorName: profile?.fullName || "Unknown contractor",
-        status:       "pending",
-        createdAt:    serverTimestamp(),
-        awaitingUserConfirmation: false,
-      });
-    } catch (err) {
-      console.error("Failed to create request:", err);
-    }
-  }
-
-  function handleResubmit(_item: RequestItem) {
-    setCreateOpen(true);
-  }
-
-  async function handleAcceptPickup(item: RequestItem) {
-    try {
-      await updateDoc(doc(db, "wasteRequests", item.id), {
-        awaitingUserConfirmation: false,
-        status: "confirmed",
-        userConfirmedAt: serverTimestamp(),
-      });
-      setSelectedItem(null);
-    } catch (err) {
-      console.error("Failed to confirm pickup:", err);
-      throw err;
-    }
-  }
-
-  async function handleReschedulePickup(
-    item: RequestItem,
-    rescheduleData: { date: string; fromTime: string; toTime: string; note: string }
-  ) {
-    try {
-      await updateDoc(doc(db, "wasteRequests", item.id), {
-        awaitingUserConfirmation: false,
-        rescheduleRequest: {
-          ...rescheduleData,
-          requestedAt: serverTimestamp(),
-        },
-        status: "awaiting_reschedule",
-      });
-      setSelectedItem(null);
-    } catch (err) {
-      console.error("Failed to send reschedule:", err);
-      throw err;
-    }
-  }
-
+function ContractorDetailsPanel({ item }: { item: RequestItem }) {
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
-        @keyframes wfPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 10,
+      padding: "14px 16px", background: "#fbfdfb",
+      borderRadius: 12, border: "1px solid #edf4f0",
+    }}>
+      <p style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a",
+        textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
+      }}>
+        Contractor Details
+      </p>
 
-        .wf-admin-root {
-          display: flex; min-height: 100vh;
-          background: #f5faf6;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-admin-main {
-          flex: 1; min-width: 0;
-          display: flex; flex-direction: column;
-          height: 100vh; overflow-y: auto;
-        }
-        .wf-topbar {
-          position: sticky; top: 0; z-index: 10;
-          background: rgba(245,250,246,0.92);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid #e8f2eb;
-          padding: 0 28px; height: 60px;
-          display: flex; align-items: center;
-          justify-content: space-between; flex-shrink: 0;
-        }
-        .wf-topbar-left { display: flex; align-items: center; gap: 14px; }
-        .wf-hamburger {
-          display: none;
-          background: none; border: none; cursor: pointer;
-          color: #1a4d2e; padding: 6px; border-radius: 8px;
-          align-items: center; justify-content: center;
-          transition: background 0.18s; flex-shrink: 0;
-        }
-        .wf-hamburger:hover { background: rgba(184,213,46,0.12); }
-        .wf-topbar-title {
-          font-size: 1rem; font-weight: 700;
-          color: #1a2e1f; font-family: 'Quicksand', sans-serif;
-        }
-        .wf-new-btn {
-          display: flex; align-items: center; gap: 7px;
-          padding: 9px 16px; border-radius: 10px; cursor: pointer;
-          background: #1a4d2e; border: none;
-          color: #B8D52E; font-size: 0.82rem; font-weight: 700;
-          font-family: 'Quicksand', sans-serif;
-          transition: background 0.18s, color 0.18s;
-        }
-        .wf-new-btn:hover { background: #B8D52E; color: #0d2416; }
-        .wf-content {
-          padding: 28px;
-          display: flex; flex-direction: column; gap: 24px;
-        }
-        .wf-page-header {
-          display: flex; align-items: flex-start;
-          justify-content: space-between; gap: 16px; flex-wrap: wrap;
-        }
-        .wf-page-header h1 {
-          font-size: clamp(1.4rem, 2.5vw, 1.75rem);
-          font-weight: 700; color: #1a2e1f;
-          letter-spacing: -0.02em; margin-bottom: 4px;
-          font-family: 'Quicksand', sans-serif;
-        }
-        .wf-page-header p {
-          font-size: 0.875rem; color: #6b8f7a;
-          font-weight: 600; font-family: 'Quicksand', sans-serif;
-        }
-        .wf-search-row { display: flex; align-items: center; gap: 12px; }
-        .wf-search-wrap { flex: 1; position: relative; }
-        .wf-search-icon {
-          position: absolute; left: 14px; top: 50%;
-          transform: translateY(-50%);
-          color: #8aab97; pointer-events: none;
-          display: flex; align-items: center;
-        }
-        .wf-search-input {
-          width: 100%; padding: 11px 14px 11px 40px;
-          border: 1px solid #e8f2eb; border-radius: 12px;
-          background: #ffffff; font-size: 0.875rem;
-          font-weight: 600; color: #1a2e1f;
-          font-family: 'Quicksand', sans-serif;
-          outline: none; transition: border 0.18s, box-shadow 0.18s;
-        }
-        .wf-search-input::placeholder { color: #9ab8a5; }
-        .wf-search-input:focus {
-          border-color: #B8D52E;
-          box-shadow: 0 0 0 3px rgba(184,213,46,0.12);
-        }
-        .wf-req-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-          align-items: start;
-        }
-        .wf-req-card:hover {
-          box-shadow: 0 4px 20px rgba(26,77,46,0.1) !important;
-          transform: translateY(-2px);
-        }
-        .wf-req-btn-view:hover {
-          background: #f0f7f2 !important;
-          border-color: #B8D52E !important;
-        }
-        .wf-empty {
-          grid-column: 1 / -1;
-          display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          padding: 64px 24px; gap: 12px; text-align: center;
-        }
-        @media (max-width: 1100px) {
-          .wf-req-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        @media (max-width: 768px) {
-          .wf-hamburger { display: flex; }
-          .wf-topbar { padding: 0 16px; }
-          .wf-content { padding: 16px; gap: 16px; }
-          .wf-req-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
+      {item.contractorName && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.contractorName}</span>
+        </div>
+      )}
 
-      <div className="wf-admin-root">
-        <Sidebar
-          onSignOut={() => { window.location.href = "/login"; }}
-          collapsed={collapsed}
-          onCollapse={() => setCollapsed(true)}
-          onExpand={() => setCollapsed(false)}
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.location}</span>
+      </div>
 
-        <main className="wf-admin-main">
-          <div className="wf-topbar">
-            <div className="wf-topbar-left">
-              <button
-                className="wf-hamburger"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 22, height: 22 }}>
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-              </button>
-              <span className="wf-topbar-title">My Requests</span>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.dates}</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <WasteTypeBadge type={item.wasteType} />
+        <span style={{
+          display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 999,
+          background: "#f0f7f2", border: "1px solid #e8f2eb",
+          fontSize: "0.7rem", fontWeight: 600, color: "#4a7a5a",
+        }}>{item.yards}</span>
+      </div>
+
+      {item.note && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#6b8f7a" }}>{item.note}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeclineReasonPanel({ reason }: { reason: string }) {
+  return (
+    <div style={{
+      padding: "12px 16px",
+      background: "rgba(239,68,68,0.06)",
+      border: "1px solid rgba(239,68,68,0.2)",
+      borderRadius: 12,
+    }}>
+      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#b91c1c", margin: "0 0 4px" }}>
+        Decline Reason
+      </p>
+      <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#7f1d1d", margin: 0 }}>
+        {reason}
+      </p>
+    </div>
+  );
+}
+
+function CompletionProofPanel({ item }: { item: RequestItem }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 10,
+      padding: "14px 16px", background: "#f8fbf6",
+      border: "1px solid #edf4f0", borderRadius: 12,
+    }}>
+      <p style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#3a6b00",
+        textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
+      }}>
+        Completion Proof
+      </p>
+
+      {item.operatorName && (
+        <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f", margin: 0 }}>
+          Completed by <strong>{item.operatorName}</strong>
+        </p>
+      )}
+
+      {(item.proofPhotoUrl || item.signatureUrl) && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {item.proofPhotoUrl && (
+            <div style={{ flex: "1 1 120px" }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#8aab97", display: "block", marginBottom: 5 }}>Site Photo</span>
+              <a href={item.proofPhotoUrl} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={item.proofPhotoUrl}
+                  alt="Site proof"
+                  style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid #e8f2eb", display: "block" }}
+                />
+              </a>
             </div>
-          </div>
-
-          <div className="wf-content">
-            <div className="wf-page-header">
-              <div>
-                <h1>My Requests</h1>
-                <p>Create and track your pickup requests</p>
-              </div>
-              <button className="wf-new-btn" onClick={() => setCreateOpen(true)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Request
-              </button>
-            </div>
-
-            <div className="wf-search-row">
-              <div className="wf-search-wrap">
-                <span className="wf-search-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </span>
-                <input
-                  className="wf-search-input"
-                  type="text"
-                  placeholder="Search by title, location, or waste type…"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+          )}
+          {item.signatureUrl && (
+            <div style={{ flex: "1 1 120px" }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#8aab97", display: "block", marginBottom: 5 }}>Signature</span>
+              <div style={{ background: "#fff", border: "1px solid #e8f2eb", borderRadius: 8, padding: 6 }}>
+                <img
+                  src={item.signatureUrl}
+                  alt="Signature"
+                  style={{ width: "100%", height: 88, objectFit: "contain", display: "block" }}
                 />
               </div>
             </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-            <div className="wf-req-grid">
-              {loading ? (
-                Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-              ) : filtered.length === 0 ? (
-                <div className="wf-empty">
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: "#f0f7f2",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#8aab97",
-                  }}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-                      strokeLinecap="round" strokeLinejoin="round" style={{ width: 24, height: 24 }}>
-                      <circle cx="11" cy="11" r="8" />
-                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                    </svg>
-                  </div>
-                  <p style={{
-                    fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45",
-                    fontFamily: "'Quicksand', sans-serif",
-                  }}>
-                    {search ? "No requests match your search" : "You haven't created any requests yet"}
-                  </p>
-                  <p style={{
-                    fontSize: "0.8rem", color: "#8aab97", fontWeight: 600,
-                    fontFamily: "'Quicksand', sans-serif",
-                  }}>
-                    {search ? "Try adjusting your search" : "Tap \"New Request\" to submit your first pickup"}
-                  </p>
-                </div>
-              ) : (
-                filtered.map((item) => (
-                  <RequestCard
-                    key={item.id}
-                    item={item}
-                    onViewDetails={setSelectedItem}
-                  />
-                ))
-              )}
+function RequestActionModal({
+  item,
+  onClose,
+  onStatusChange,
+  onCompleteConfirm,
+  onDeclineConfirm,
+  onAcceptReschedule,
+}: {
+  item: RequestItem | null;
+  onClose: () => void;
+  onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
+  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  onDeclineConfirm: (id: string, reason: string) => Promise<void>;
+  onAcceptReschedule: (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => Promise<void>;
+}) {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [activeForm, setActiveForm] = useState<"complete" | "decline" | null>(null);
+
+  useEffect(() => { setActiveForm(null); }, [item?.id]);
+
+  if (!item) return null;
+
+  const allowed = ALLOWED_TRANSITIONS[item.status] ?? [];
+  const isRescheduled = item.status === "Rescheduled";
+  const isBusy = loading !== null;
+
+  const handleSimpleAction = async (displayStatus: string) => {
+    setLoading(displayStatus);
+    try { await onStatusChange(item.id, displayStatus); } finally { setLoading(null); }
+  };
+
+  const handleActionClick = (value: string) => {
+    if (value === "Completed") { setActiveForm("complete"); return; }
+    if (value === "Declined") { setActiveForm("decline"); return; }
+    handleSimpleAction(value);
+  };
+
+  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+    setLoading("Completed");
+    try { await onCompleteConfirm(item.id, data); setActiveForm(null); } finally { setLoading(null); }
+  };
+
+  const handleDeclineSubmit = async (reason: string) => {
+    setLoading("Declined");
+    try { await onDeclineConfirm(item.id, reason); setActiveForm(null); } finally { setLoading(null); }
+  };
+
+  const handleAcceptRescheduleClick = async () => {
+    if (!item.rescheduleRequest) return;
+    setLoading("AcceptReschedule");
+    try {
+      await onAcceptReschedule(item.id, {
+        date: item.rescheduleRequest.date,
+        fromTime: item.rescheduleRequest.fromTime,
+        toTime: item.rescheduleRequest.toTime,
+      });
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  const statusCfg = STATUS_CONFIG[item.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Pending;
+
+  return (
+    <>
+      <div onClick={isBusy ? undefined : onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(10,26,15,0.45)", backdropFilter: "blur(4px)" }} />
+      <div style={{ position: "fixed", inset: 0, zIndex: 51, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", pointerEvents: "none" }}>
+        <div style={{ pointerEvents: "auto", background: "#ffffff", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "calc(100vh - 32px)", overflowY: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.18)", fontFamily: "'Quicksand', sans-serif" }}>
+
+          <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #f0f7f2", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, position: "sticky", top: 0, background: "#ffffff", zIndex: 1 }}>
+            <div>
+              <p style={{ fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>{item.id.slice(0, 8).toUpperCase()}</p>
+              <h2 style={{ fontSize: "1.05rem", fontWeight: 700, color: "#1a2e1f", margin: 0, lineHeight: 1.3 }}>{item.title}</h2>
             </div>
+            <button onClick={isBusy ? undefined : onClose} style={{ background: "#f0f7f2", border: "none", borderRadius: 8, cursor: isBusy ? "not-allowed" : "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#4a7a5a", flexShrink: 0, opacity: isBusy ? 0.5 : 1 }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
-        </main>
+
+          <div style={{ padding: "20px 24px" }}>
+            {activeForm === "complete" && (
+              <CompleteForm loading={loading === "Completed"} onCancel={() => setActiveForm(null)} onSubmit={handleCompleteSubmit} />
+            )}
+            {activeForm === "decline" && (
+              <DeclineReasonForm loading={loading === "Declined"} onCancel={() => setActiveForm(null)} onSubmit={handleDeclineSubmit} />
+            )}
+
+            {!activeForm && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#f8fbf9", borderRadius: 12, border: "1px solid #edf4f0" }}>
+                  <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#4a7a5a" }}>Current Logistics Status</span>
+                  <StatusBadge status={item.status} />
+                </div>
+
+                <ContractorDetailsPanel item={item} />
+
+                {item.status === "Declined" && item.declineReason && (
+                  <DeclineReasonPanel reason={item.declineReason} />
+                )}
+
+                {item.status === "Completed" && (item.operatorName || item.proofPhotoUrl || item.signatureUrl) && (
+                  <CompletionProofPanel item={item} />
+                )}
+
+                {isRescheduled && item.rescheduleRequest && (
+                  <div style={{ background: "rgba(139,92,246,0.05)", border: "1px dashed rgba(139,92,246,0.3)", borderRadius: 12, padding: "14px 16px" }}>
+                    <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#7c3aed", margin: "0 0 4px" }}>Reschedule Offer from Contractor</p>
+                    <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "#5b4a78", margin: "0 0 12px" }}>"{item.rescheduleRequest.note}"</p>
+                    <button type="button" onClick={handleAcceptRescheduleClick} disabled={loading === "AcceptReschedule"}
+                      style={{ width: "100%", padding: "10px", borderRadius: 8, border: "none", background: "#8b5cf6", color: "#ffffff", fontSize: "0.8rem", fontWeight: 700, cursor: loading ? "not-allowed" : "pointer" }}>
+                      {loading === "AcceptReschedule" ? "Rescheduling Container..." : "Accept New Proposed Window"}
+                    </button>
+                  </div>
+                )}
+
+                {allowed.length > 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 2px" }}>Available Logistics Transitions</p>
+                    {STATUS_FLOW.filter(f => allowed.includes(f.value)).map((flow) => (
+                      <button key={flow.value} onClick={() => handleActionClick(flow.value)} disabled={isBusy}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 16px", borderRadius: 10, border: flow.value === "Declined" ? "1px solid rgba(239,68,68,0.2)" : "1px solid #edf4f0", background: flow.bg, color: flow.color, fontSize: "0.84rem", fontWeight: 700, cursor: isBusy ? "not-allowed" : "pointer" }}>
+                        {loading === flow.value ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> : flow.icon}
+                        {flow.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  !isRescheduled && (
+                    <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#8aab97", textAlign: "center", margin: "12px 0" }}>This logistical workflow has terminated successfully.</p>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
       </div>
-
-      <CreateRequestModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onSubmit={handleCreateSubmit}
-      />
-
-      <OperatorRequestDetailModal
-        key={liveSelectedItem?.id + '-' + liveSelectedItem?.awaitingUserConfirmation}
-        item={liveSelectedItem}
-        onClose={() => setSelectedItem(null)}
-        onResubmit={handleResubmit}
-        onAcceptPickup={handleAcceptPickup}
-        onReschedulePickup={handleReschedulePickup}
-      />
     </>
+  );
+}
+
+export default function OperatorRequestsPage() {
+  const { user, profile } = useAuth();
+  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("All");
+  const [selectedRequest, setSelectedRequest] = useState<RequestItem | null>(null);
+
+  useEffect(() => {
+    const q = query(collection(db, "wasteRequests"), orderBy("windowStart", "desc"));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as FirestoreRequest[];
+      
+      setRequests(docsData.map(mapDoc));
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Dynamics Hook tracking operator coordinates during active transit periods
+  useLiveLocationBroadcaster(requests, user?.uid);
+
+  const handleStatusChange = async (id: string, displayStatus: string) => {
+    const internalStatus = STATUS_WRITE[displayStatus];
+    if (!internalStatus) return;
+    const docRef = doc(db, "wasteRequests", id);
+
+    const updates: Record<string, any> = { status: internalStatus };
+
+    // Stamp the operator's identity onto the request as soon as they
+    // schedule/accept it, so contractor-side UI (e.g. AcceptanceConfirmModal)
+    // can show who's handling the job before completion proof exists.
+    if (displayStatus === "Scheduled" && user) {
+      updates.operatorId = user.uid;
+      updates.operatorName =
+        (profile?.fullName as string) ||
+        (user.displayName as string) ||
+        "Operator";
+    }
+
+    await updateDoc(docRef, updates);
+    setSelectedRequest(prev =>
+      prev
+        ? {
+            ...prev,
+            status: displayStatus,
+            ...(updates.operatorName ? { operatorName: updates.operatorName } : {}),
+            ...(updates.operatorId ? { operatorId: updates.operatorId } : {}),
+          }
+        : null
+    );
+  };
+
+  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+    const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
+    const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
+      status: "completed",
+      operatorName: data.operatorName,
+      proofPhotoUrl: photoUrl,
+      signatureUrl: signatureUrl,
+    });
+    setSelectedRequest(null);
+  };
+
+  const handleDeclineConfirm = async (id: string, reason: string) => {
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
+      status: "declined",
+      declineReason: reason,
+    });
+    setSelectedRequest(null);
+  };
+
+  const handleAcceptReschedule = async (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => {
+    const docRef = doc(db, "wasteRequests", id);
+    const updates: Record<string, any> = {
+      status: "scheduled",
+      windowStart: rescheduleData.date,
+      windowEnd: rescheduleData.date,
+      availability: `${rescheduleData.fromTime} - ${rescheduleData.toTime}`,
+      rescheduleRequest: null,
+    };
+    if (user) {
+      updates.operatorId = user.uid;
+      updates.operatorName =
+        (profile?.fullName as string) ||
+        (user.displayName as string) ||
+        "Operator";
+    }
+    await updateDoc(docRef, updates);
+    setSelectedRequest(null);
+  };
+
+  const filteredRequests = requests.filter((req) => {
+    if (activeTab === "All") return true;
+    return req.status === activeTab;
+  });
+
+  if (loading) {
+    return <div style={{ padding: 24, fontFamily: "'Quicksand', sans-serif" }}>Loading operations hub...</div>;
+  }
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f9f5" }}>
+      <Sidebar collapsed={false} onCollapse={() => {}} onExpand={() => {}} isOpen={true} onClose={() => {}} />
+      <main style={{ flex: 1, padding: "32px 40px" }}>
+        <header style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>
+            Operator Requests Hub
+          </h1>
+          <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 0", fontFamily: "'Quicksand', sans-serif" }}>
+            Track, assign, and update logistical container transitions.
+          </p>
+        </header>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, overflowX: "auto", paddingBottom: 4 }}>
+          {TABS.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: "8px 16px", borderRadius: 99, fontSize: "0.82rem", fontWeight: 700,
+                background: activeTab === tab ? "#1a4d2e" : "#ffffff",
+                color: activeTab === tab ? "#B8D52E" : "#4a7a5a",
+                border: activeTab === tab ? "1px solid #1a4d2e" : "1px solid #e8f2eb",
+                cursor: "pointer", fontFamily: "'Quicksand', sans-serif", transition: "all 0.15s"
+              }}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: 20 }}>
+          {filteredRequests.map((req) => (
+            <RequestCard key={req.id} req={req} onViewDetails={(r) => setSelectedRequest(r)} />
+          ))}
+        </div>
+
+        {filteredRequests.length === 0 && (
+          <div style={{ textAlign: "center", padding: "60px 24px", background: "#ffffff", borderRadius: 16, border: "1px dashed #c6e2d0", marginTop: 12 }}>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "#6b8f7a", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>
+              No requests found matching "{activeTab}" status.
+            </p>
+          </div>
+        )}
+      </main>
+
+      {selectedRequest && (
+        <RequestActionModal
+          item={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+          onStatusChange={handleStatusChange}
+          onCompleteConfirm={handleCompleteConfirm}
+          onDeclineConfirm={handleDeclineConfirm}
+          onAcceptReschedule={handleAcceptReschedule}
+        />
+      )}
+    </div>
   );
 }

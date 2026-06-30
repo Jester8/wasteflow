@@ -7,7 +7,6 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
-import RequestDetailModal from "./components/RequestDetailModal";
 import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
@@ -584,6 +583,134 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Declined:     [],
 };
 
+function ContractorDetailsPanel({ item }: { item: RequestItem }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 10,
+      padding: "14px 16px", background: "#fbfdfb",
+      borderRadius: 12, border: "1px solid #edf4f0",
+    }}>
+      <p style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a",
+        textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
+      }}>
+        Contractor Details
+      </p>
+
+      {item.contractorName && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.contractorName}</span>
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.location}</span>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.dates}</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <WasteTypeBadge type={item.wasteType} />
+        <span style={{
+          display: "inline-flex", alignItems: "center", padding: "3px 9px", borderRadius: 999,
+          background: "#f0f7f2", border: "1px solid #e8f2eb",
+          fontSize: "0.7rem", fontWeight: 600, color: "#4a7a5a",
+        }}>{item.yards}</span>
+      </div>
+
+      {item.note && (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}>
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#6b8f7a" }}>{item.note}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DeclineReasonPanel({ reason }: { reason: string }) {
+  return (
+    <div style={{
+      padding: "12px 16px",
+      background: "rgba(239,68,68,0.06)",
+      border: "1px solid rgba(239,68,68,0.2)",
+      borderRadius: 12,
+    }}>
+      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#b91c1c", margin: "0 0 4px" }}>
+        Decline Reason
+      </p>
+      <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#7f1d1d", margin: 0 }}>
+        {reason}
+      </p>
+    </div>
+  );
+}
+
+function CompletionProofPanel({ item }: { item: RequestItem }) {
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", gap: 10,
+      padding: "14px 16px", background: "#f8fbf6",
+      border: "1px solid #edf4f0", borderRadius: 12,
+    }}>
+      <p style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#3a6b00",
+        textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
+      }}>
+        Completion Proof
+      </p>
+
+      {item.operatorName && (
+        <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f", margin: 0 }}>
+          Completed by <strong>{item.operatorName}</strong>
+        </p>
+      )}
+
+      {(item.proofPhotoUrl || item.signatureUrl) && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {item.proofPhotoUrl && (
+            <div style={{ flex: "1 1 120px" }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#8aab97", display: "block", marginBottom: 5 }}>Site Photo</span>
+              <a href={item.proofPhotoUrl} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={item.proofPhotoUrl}
+                  alt="Site proof"
+                  style={{ width: "100%", height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid #e8f2eb", display: "block" }}
+                />
+              </a>
+            </div>
+          )}
+          {item.signatureUrl && (
+            <div style={{ flex: "1 1 120px" }}>
+              <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#8aab97", display: "block", marginBottom: 5 }}>Signature</span>
+              <div style={{ background: "#fff", border: "1px solid #e8f2eb", borderRadius: 8, padding: 6 }}>
+                <img
+                  src={item.signatureUrl}
+                  alt="Signature"
+                  style={{ width: "100%", height: 88, objectFit: "contain", display: "block" }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RequestActionModal({
   item,
   onClose,
@@ -677,6 +804,16 @@ function RequestActionModal({
                   <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#4a7a5a" }}>Current Logistics Status</span>
                   <StatusBadge status={item.status} />
                 </div>
+
+                <ContractorDetailsPanel item={item} />
+
+                {item.status === "Declined" && item.declineReason && (
+                  <DeclineReasonPanel reason={item.declineReason} />
+                )}
+
+                {item.status === "Completed" && (item.operatorName || item.proofPhotoUrl || item.signatureUrl) && (
+                  <CompletionProofPanel item={item} />
+                )}
 
                 {isRescheduled && item.rescheduleRequest && (
                   <div style={{ background: "rgba(139,92,246,0.05)", border: "1px dashed rgba(139,92,246,0.3)", borderRadius: 12, padding: "14px 16px" }}>
