@@ -5,50 +5,21 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { geocodeAddress } from "../../../../lib/geocode";
-import { fetchOSRMRoute, formatDistance, formatDuration, RouteResult } from "../../../../lib/osrm";
+import { fetchOSRMRoute, formatDistance, formatDuration } from "../../../../lib/osrm";
 
-declare module "leaflet";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface LiveLocation {
-  lat: number;
-  lng: number;
-  heading: number | null;
-  speed: number | null;
-  updatedAt: { seconds: number } | null;
-}
-
-interface RequestDoc {
-  title: string;
-  location: string;
-  status: string;
-  contractorName?: string;
-  operatorName?: string;
-  destinationLat?: number;
-  destinationLng?: number;
-  liveLocation?: LiveLocation;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STALE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes → show stale warning
+const STALE_THRESHOLD_MS = 2 * 60 * 1000;
 const TRACKING_STATUSES = new Set(["arriving", "in_transit"]);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function secondsAgo(updatedAt: { seconds: number } | null): number | null {
+function secondsAgo(updatedAt) {
   if (!updatedAt) return null;
   return Math.floor(Date.now() / 1000 - updatedAt.seconds);
 }
 
-function formatSecondsAgo(secs: number): string {
+function formatSecondsAgo(secs) {
   if (secs < 60) return `${secs}s ago`;
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
   return `${Math.floor(secs / 3600)}h ago`;
 }
-
-// ─── Pulse animation CSS (injected once) ─────────────────────────────────────
 
 const PULSE_CSS = `
   @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
@@ -69,61 +40,51 @@ const PULSE_CSS = `
   .leaflet-container { font-family: 'Quicksand', sans-serif !important; }
 `;
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function LiveTrackingPage() {
   const params = useParams();
   const router = useRouter();
-  const requestId = params?.requestId as string;
+  const requestId = params?.requestId;
 
-  // Firestore live state
-  const [requestDoc, setRequestDoc] = useState<RequestDoc | null>(null);
+  const [requestDoc, setRequestDoc] = useState(null);
   const [docLoading, setDocLoading] = useState(true);
 
-  // Derived map state
-  const [destCoords, setDestCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [route, setRoute] = useState<RouteResult | null>(null);
+  const [destCoords, setDestCoords] = useState(null);
+  const [route, setRoute] = useState(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState(false);
 
-  // Staleness ticker
   const [ticker, setTicker] = useState(0);
 
-  // Map refs (Leaflet imperative)
-  const mapRef = useRef<any>(null);
-  const operatorMarkerRef = useRef<any>(null);
-  const destMarkerRef = useRef<any>(null);
-  const routeLayerRef = useRef<any>(null);
-  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef(null);
+  const operatorMarkerRef = useRef(null);
+  const destMarkerRef = useRef(null);
+  const routeLayerRef = useRef(null);
+  const mapContainerRef = useRef(null);
   const leafletLoadedRef = useRef(false);
   const mapInitialisedRef = useRef(false);
 
-  const prevLiveRef = useRef<{ lat: number; lng: number } | null>(null);
+  const prevLiveRef = useRef(null);
 
-  // ── Staleness ticker (every second) ──────────────────────────────────────
   useEffect(() => {
     const id = setInterval(() => setTicker((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // ── Subscribe to Firestore ────────────────────────────────────────────────
   useEffect(() => {
     if (!requestId) return;
     const unsub = onSnapshot(doc(db, "wasteRequests", requestId), (snap) => {
       if (snap.exists()) {
-        setRequestDoc(snap.data() as RequestDoc);
+        setRequestDoc(snap.data());
       }
       setDocLoading(false);
     });
     return () => unsub();
   }, [requestId]);
 
-  // ── Geocode destination (once) ────────────────────────────────────────────
   useEffect(() => {
     if (!requestDoc?.location) return;
-    if (destCoords) return; // already have it
+    if (destCoords) return;
 
-    // Try Firestore-cached coords first
     if (
       typeof requestDoc.destinationLat === "number" &&
       typeof requestDoc.destinationLng === "number"
@@ -138,9 +99,8 @@ export default function LiveTrackingPage() {
     });
   }, [requestDoc?.location, requestDoc?.destinationLat, requestDoc?.destinationLng]);
 
-  // ── Fetch / refresh OSRM route whenever operator moves ───────────────────
   const refreshRoute = useCallback(
-    async (opLat: number, opLng: number) => {
+    async (opLat, opLng) => {
       if (!destCoords) return;
       setRouteLoading(true);
       const result = await fetchOSRMRoute(opLat, opLng, destCoords.lat, destCoords.lng);
@@ -150,38 +110,33 @@ export default function LiveTrackingPage() {
     [destCoords]
   );
 
-  // ── Load Leaflet (dynamic, SSR-safe) ─────────────────────────────────────
   useEffect(() => {
     if (leafletLoadedRef.current) return;
     leafletLoadedRef.current = true;
 
-    // Inject Leaflet CSS
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
     document.head.appendChild(link);
   }, []);
 
-  // ── Initialise Leaflet map ────────────────────────────────────────────────
   useEffect(() => {
     if (mapInitialisedRef.current) return;
     if (!mapContainerRef.current) return;
     if (typeof window === "undefined") return;
 
-    // Wait for Leaflet to be importable
     import("leaflet").then((L) => {
       if (mapInitialisedRef.current) return;
       mapInitialisedRef.current = true;
 
-      // Fix default icon paths broken by webpack
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
         iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      const map = L.map(mapContainerRef.current!, {
+      const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
       });
@@ -195,10 +150,8 @@ export default function LiveTrackingPage() {
         maxZoom: 19,
       }).addTo(map);
 
-      // Default centre (Nigeria) until we have real coords
       map.setView([9.082, 8.6753], 6);
 
-      // ── Destination marker (flag pin style) ──
       const destIcon = L.divIcon({
         className: "",
         html: `
@@ -218,7 +171,6 @@ export default function LiveTrackingPage() {
         iconAnchor: [18, 36],
       });
 
-      // ── Operator marker (pulsing truck) ──
       const operatorIcon = L.divIcon({
         className: "",
         html: `
@@ -234,7 +186,6 @@ export default function LiveTrackingPage() {
 
       mapRef.current = map;
 
-      // Attach markers lazily (will be positioned when coords arrive)
       destMarkerRef.current = L.marker([0, 0], { icon: destIcon, zIndexOffset: 100 })
         .bindPopup("<b style='font-family:Quicksand,sans-serif'>Pickup destination</b>");
 
@@ -243,7 +194,6 @@ export default function LiveTrackingPage() {
     });
   }, []);
 
-  // ── Place / move destination marker ──────────────────────────────────────
   useEffect(() => {
     if (!destCoords || !mapRef.current || !destMarkerRef.current) return;
     import("leaflet").then((L) => {
@@ -253,7 +203,6 @@ export default function LiveTrackingPage() {
     });
   }, [destCoords]);
 
-  // ── Place / move operator marker & refresh route ──────────────────────────
   useEffect(() => {
     const live = requestDoc?.liveLocation;
     if (!live || !mapRef.current || !operatorMarkerRef.current) return;
@@ -272,7 +221,6 @@ export default function LiveTrackingPage() {
       if (!map.hasLayer(marker)) marker.addTo(map);
       marker.setLatLng([live.lat, live.lng]);
 
-      // Fit both markers in view
       if (destCoords) {
         const bounds = L.latLngBounds(
           [live.lat, live.lng],
@@ -283,16 +231,13 @@ export default function LiveTrackingPage() {
         map.setView([live.lat, live.lng], 14);
       }
 
-      // Refresh OSRM route
       refreshRoute(live.lat, live.lng);
     });
   }, [requestDoc?.liveLocation, destCoords, refreshRoute]);
 
-  // ── Draw / update route polyline ─────────────────────────────────────────
   useEffect(() => {
     if (!route || !mapRef.current) return;
     import("leaflet").then((L) => {
-      // Remove old route layer
       if (routeLayerRef.current) {
         mapRef.current.removeLayer(routeLayerRef.current);
       }
@@ -307,10 +252,6 @@ export default function LiveTrackingPage() {
     });
   }, [route]);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Derived values
-  // ─────────────────────────────────────────────────────────────────────────
-
   const live = requestDoc?.liveLocation;
   const updatedSecsAgo = live?.updatedAt ? secondsAgo(live.updatedAt) : null;
   const isStale =
@@ -322,10 +263,6 @@ export default function LiveTrackingPage() {
     requestDoc?.status === "in_transit" ? "In Transit" :
     requestDoc?.status === "arriving"   ? "Arriving"   :
     requestDoc?.status ?? "—";
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Render
-  // ─────────────────────────────────────────────────────────────────────────
 
   if (docLoading) {
     return (
@@ -370,7 +307,6 @@ export default function LiveTrackingPage() {
     }}>
       <style>{PULSE_CSS}</style>
 
-      {/* ── Top bar ── */}
       <div style={{
         flexShrink: 0, background: "#ffffff", borderBottom: "1px solid #e8f2eb",
         padding: "0 20px", height: 58,
@@ -404,7 +340,6 @@ export default function LiveTrackingPage() {
           </div>
         </div>
 
-        {/* Status badge */}
         <span style={{
           display: "inline-flex", alignItems: "center", gap: 5,
           fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.06em",
@@ -427,17 +362,13 @@ export default function LiveTrackingPage() {
         </span>
       </div>
 
-      {/* ── Map ── */}
       <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
         <div ref={mapContainerRef} style={{ width: "100%", height: "100%" }} />
 
-        {/* ── Info card (bottom sheet) ── */}
         <div style={{
           position: "absolute", bottom: 20, left: 16, right: 16,
           zIndex: 900, animation: "wfFadeIn 0.3s ease",
         }}>
-
-          {/* Stale warning */}
           {isStale && (
             <div style={{
               background: "rgba(251,191,36,0.95)",
@@ -456,12 +387,11 @@ export default function LiveTrackingPage() {
               <span style={{
                 fontSize: "0.75rem", fontWeight: 700, color: "#92400e",
               }}>
-                Location hasn't updated in {formatSecondsAgo(updatedSecsAgo!)} — operator may be offline
+                Location hasn't updated in {formatSecondsAgo(updatedSecsAgo)} — operator may be offline
               </span>
             </div>
           )}
 
-          {/* Not tracking yet */}
           {!isTrackingActive && (
             <div style={{
               background: "rgba(255,255,255,0.95)", borderRadius: 14,
@@ -486,7 +416,6 @@ export default function LiveTrackingPage() {
             </div>
           )}
 
-          {/* Main info card */}
           <div style={{
             background: "rgba(255,255,255,0.97)",
             borderRadius: 16, border: "1px solid #e8f2eb",
@@ -495,12 +424,11 @@ export default function LiveTrackingPage() {
             backdropFilter: "blur(10px)",
             display: "flex", flexDirection: "column", gap: 12,
           }}>
-
-            {/* Route stats row */}
             {route && (
               <div style={{
                 display: "flex", gap: 10,
                 borderBottom: "1px solid #f0f7f2", paddingBottom: 12,
+                position: "relative",
               }}>
                 <div style={{
                   flex: 1, background: "#f5faf6", borderRadius: 10,
@@ -538,7 +466,6 @@ export default function LiveTrackingPage() {
               </div>
             )}
 
-            {/* Operator row */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 9,
@@ -579,7 +506,6 @@ export default function LiveTrackingPage() {
               )}
             </div>
 
-            {/* Destination row */}
             <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
               <div style={{
                 width: 36, height: 36, borderRadius: 9,
@@ -605,7 +531,6 @@ export default function LiveTrackingPage() {
                 )}
               </div>
             </div>
-
           </div>
         </div>
       </div>
