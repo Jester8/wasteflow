@@ -306,8 +306,11 @@ export default function UserManagementList({ role, title }: { role: "operator" |
         {loading ? "Loading…" : `${users.length} account${users.length === 1 ? "" : "s"}`}
       </p>
 
-      <div style={{ background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 16, overflow: "hidden", boxShadow: SHADOW_SM }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+      <div style={{
+        background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 16,
+        boxShadow: SHADOW_SM, overflowX: "auto", WebkitOverflowScrolling: "touch",
+      }}>
+        <table style={{ width: "100%", minWidth: 760, borderCollapse: "collapse", fontSize: "0.82rem" }}>
           <thead>
             <tr style={{ background: "#f8fbf9", textAlign: "left" }}>
               {["Account", "KYC Status", "Account", "Joined", "Location", "Actions"].map((h, i) => (
