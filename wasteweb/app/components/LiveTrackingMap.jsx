@@ -86,6 +86,7 @@ export default function LiveTrackingMap({
   const [route, setRoute] = useState(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [geocodeError, setGeocodeError] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [, setTicker] = useState(0);
 
   const mapRef = useRef(null);
@@ -185,11 +186,18 @@ export default function LiveTrackingMap({
         .bindPopup("<b style='font-family:Quicksand,sans-serif'>Pickup destination</b>");
       operatorMarkerRef.current = L.marker([0, 0], { icon: operatorIcon, zIndexOffset: 200 })
         .bindPopup("<b style='font-family:Quicksand,sans-serif'>Operator location</b>");
+
+      // Flip state (not just a ref) so the marker-placement effects below,
+      // which may have already run once and bailed out while the map was
+      // still loading, are guaranteed to re-run now that it's ready —
+      // otherwise a last-known location/destination that arrived before the
+      // map finished loading would never get drawn until the *next* update.
+      setMapReady(true);
     });
   }, []);
 
   useEffect(() => {
-    if (!destCoords || !mapRef.current || !destMarkerRef.current) return;
+    if (!destCoords || !mapReady || !mapRef.current || !destMarkerRef.current) return;
     import("leaflet").then((L) => {
       const marker = destMarkerRef.current;
       if (!mapRef.current.hasLayer(marker)) marker.addTo(mapRef.current);
@@ -197,10 +205,10 @@ export default function LiveTrackingMap({
       if (!liveLocation) mapRef.current.setView([destCoords.lat, destCoords.lng], 13);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destCoords]);
+  }, [destCoords, mapReady]);
 
   useEffect(() => {
-    if (!liveLocation || !mapRef.current || !operatorMarkerRef.current) return;
+    if (!liveLocation || !mapReady || !mapRef.current || !operatorMarkerRef.current) return;
 
     const hasMoved =
       !prevLiveRef.current ||
@@ -228,7 +236,7 @@ export default function LiveTrackingMap({
 
       refreshRoute(liveLocation.lat, liveLocation.lng);
     });
-  }, [liveLocation, destCoords, refreshRoute]);
+  }, [liveLocation, destCoords, refreshRoute, mapReady]);
 
   useEffect(() => {
     if (!route || !mapRef.current) return;
