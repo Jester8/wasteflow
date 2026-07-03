@@ -69,6 +69,20 @@ const STATUS_DISPLAY_MAP: Record<string, string> = {
   awaiting_reschedule:  "Rescheduled",
 };
 
+// Same status vocabulary as the badges/timeline above — kept as one list so
+// the filter can never drift out of sync with the statuses actually shown.
+const STATUS_TABS = [
+  "All",
+  "Awaiting Approval",
+  "Accepted",
+  "Scheduled",
+  "Arriving",
+  "In Transit",
+  "Completed",
+  "Declined",
+  "Rescheduled",
+];
+
 function toDisplayStatus(rawStatus: string, awaitingUserConfirmation?: boolean): string {
   if (rawStatus === 'scheduled' && awaitingUserConfirmation === true) {
     return "Accepted";
@@ -285,8 +299,8 @@ function RequestCard({
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
               strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              <circle cx="12" cy="5" r="3" />
+              <path d="M6.5 8a2 2 0 0 0-1.905 1.46L2.1 18.5A2 2 0 0 0 4 21h16a2 2 0 0 0 1.925-2.54L19.4 9.5A2 2 0 0 0 17.5 8Z" />
             </svg>
           }
           text={item.volume}
@@ -355,6 +369,7 @@ export default function MyRequestsPage() {
   const [collapsed, setCollapsed]       = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [search, setSearch]             = useState("");
+  const [activeTab, setActiveTab]       = useState("All");
   const [requests, setRequests]         = useState<RequestItem[]>([]);
   const [loading, setLoading]           = useState(true);
   const [selectedItem, setSelectedItem] = useState<RequestItem | null>(null);
@@ -424,6 +439,7 @@ export default function MyRequestsPage() {
     : null;
 
   const filtered = requests.filter((item) => {
+    if (activeTab !== "All" && item.status !== activeTab) return false;
     const q = search.toLowerCase();
     return (
       !q ||
@@ -657,6 +673,25 @@ export default function MyRequestsPage() {
               </button>
             </div>
 
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 4 }}>
+              {STATUS_TABS.map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  style={{
+                    padding: "8px 16px", borderRadius: 99, fontSize: "0.82rem", fontWeight: 700,
+                    background: activeTab === tab ? "#1a4d2e" : "#ffffff",
+                    color: activeTab === tab ? "#B8D52E" : "#4a7a5a",
+                    border: activeTab === tab ? "1px solid #1a4d2e" : "1px solid #e8f2eb",
+                    cursor: "pointer", fontFamily: "'Quicksand', sans-serif",
+                    transition: "all 0.15s", whiteSpace: "nowrap", flexShrink: 0,
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             <div className="wf-search-row">
               <div className="wf-search-wrap">
                 <span className="wf-search-icon">
@@ -697,13 +732,21 @@ export default function MyRequestsPage() {
                     fontSize: "0.9rem", fontWeight: 700, color: "#3a5a45",
                     fontFamily: "'Quicksand', sans-serif",
                   }}>
-                    {search ? "No requests match your search" : "You haven't created any requests yet"}
+                    {search
+                      ? "No requests match your search"
+                      : activeTab !== "All"
+                      ? `No requests with status "${activeTab}"`
+                      : "You haven't created any requests yet"}
                   </p>
                   <p style={{
                     fontSize: "0.8rem", color: "#8aab97", fontWeight: 600,
                     fontFamily: "'Quicksand', sans-serif",
                   }}>
-                    {search ? "Try adjusting your search" : "Tap \"New Request\" to submit your first pickup"}
+                    {search
+                      ? "Try adjusting your search"
+                      : activeTab !== "All"
+                      ? "Try a different filter"
+                      : "Tap \"New Request\" to submit your first pickup"}
                   </p>
                 </div>
               ) : (
