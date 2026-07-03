@@ -9,6 +9,7 @@ import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
 import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 import LiveTrackingMap from "../../components/LiveTrackingMap";
+import { logAdminEvent } from "../../lib/adminLog";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
 
@@ -944,6 +945,12 @@ export default function OperatorRequestsPage() {
     const timestampField = STATUS_TIMESTAMP_FIELD[internalStatus];
     if (timestampField) updates[timestampField] = serverTimestamp();
     await updateDoc(docRef, updates);
+    logAdminEvent({
+      type: "status_change",
+      message: `Request moved to "${displayStatus}"`,
+      targetId: id,
+      meta: { toStatus: internalStatus },
+    });
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
@@ -958,6 +965,12 @@ export default function OperatorRequestsPage() {
       signatureUrl: signatureUrl,
       completedAt: serverTimestamp(),
     });
+    logAdminEvent({
+      type: "status_change",
+      message: `Request marked completed by ${data.operatorName}`,
+      targetId: id,
+      meta: { toStatus: "completed" },
+    });
     setSelectedRequest(null);
   };
 
@@ -967,6 +980,12 @@ export default function OperatorRequestsPage() {
       status: "declined",
       declineReason: reason,
       declinedAt: serverTimestamp(),
+    });
+    logAdminEvent({
+      type: "status_change",
+      message: `Request declined: ${reason}`,
+      targetId: id,
+      meta: { toStatus: "declined" },
     });
     setSelectedRequest(null);
   };
@@ -981,6 +1000,12 @@ export default function OperatorRequestsPage() {
       rescheduleRequest: null,
       scheduledAt: serverTimestamp(),
     });
+    logAdminEvent({
+      type: "status_change",
+      message: `Reschedule accepted for request`,
+      targetId: id,
+      meta: { toStatus: "scheduled" },
+    });
     setSelectedRequest(null);
   };
 
@@ -991,6 +1016,32 @@ export default function OperatorRequestsPage() {
 
   if (loading) {
     return <div style={{ padding: 24, fontFamily: "'Quicksand', sans-serif" }}>Loading operations hub...</div>;
+  }
+
+  if (profile?.kycStatus === "rejected") {
+    return (
+      <div style={{ display: "flex", minHeight: "100vh", background: "#f4f9f5" }}>
+        <Sidebar collapsed={false} onCollapse={() => {}} onExpand={() => {}} isOpen={true} onClose={() => {}} />
+        <main style={{ flex: 1, padding: "32px 40px", fontFamily: "'Quicksand', sans-serif" }}>
+          <div style={{
+            maxWidth: 560, margin: "60px auto 0", textAlign: "center",
+            background: "#ffffff", border: "1px solid #f5c6c6", borderRadius: 16, padding: 32,
+          }}>
+            <p style={{ fontSize: "1.1rem", fontWeight: 800, color: "#c0392b", margin: 0 }}>
+              Your KYC application was rejected
+            </p>
+            <p style={{ fontSize: "0.9rem", color: "#6b8f7a", margin: "10px 0 0", lineHeight: 1.6 }}>
+              {profile?.kycRejectionReason
+                ? profile.kycRejectionReason
+                : "Contact WasteFlow support for more details."}
+            </p>
+            <p style={{ fontSize: "0.8rem", color: "#9ab8a5", margin: "16px 0 0" }}>
+              You can't accept or manage pickup requests until this is resolved.
+            </p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (

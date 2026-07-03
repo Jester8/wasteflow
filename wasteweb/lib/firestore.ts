@@ -1,5 +1,6 @@
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { logAdminEvent } from "@/app/lib/adminLog";
 
 export async function saveUserProfile(
   uid: string,
@@ -17,10 +18,18 @@ export async function saveUserProfile(
     email: data.email,
     role: data.role,
     kycStatus: "pending",
+    accountStatus: "active",
     provider: data.provider ?? "email",
     emailVerified: false,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
+  });
+
+  logAdminEvent({
+    type: "user_signup",
+    message: `${data.fullName} signed up as ${data.role}`,
+    targetId: uid,
+    meta: { role: data.role, email: data.email },
   });
 }
 

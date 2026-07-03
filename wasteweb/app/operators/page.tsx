@@ -584,6 +584,21 @@ export default function OperatorDashboard() {
               <KycStatusBadge status={kycStatus} />
             </div>
 
+            {kycStatus === "rejected" && (
+              <div style={{
+                background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: 12,
+                padding: "14px 18px", marginBottom: 20, fontFamily: "'Quicksand', sans-serif",
+              }}>
+                <p style={{ fontSize: "0.85rem", fontWeight: 800, color: "#c0392b", margin: 0 }}>
+                  Your KYC application was rejected
+                </p>
+                <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "4px 0 0" }}>
+                  {profile?.kycRejectionReason || "Contact WasteFlow support for more details."}
+                  {" "}You can't accept or manage pickup requests until this is resolved.
+                </p>
+              </div>
+            )}
+
             <div className="wf-stats-grid">
               <StatCard
                 label="Total Requests" value={total} accent loading={dataLoading}

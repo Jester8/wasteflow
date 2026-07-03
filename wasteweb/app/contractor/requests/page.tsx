@@ -666,12 +666,32 @@ export default function MyRequestsPage() {
           </div>
 
           <div className="wf-content">
+            {profile?.kycStatus === "rejected" && (
+              <div style={{
+                background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: 12,
+                padding: "14px 18px", marginBottom: 16,
+              }}>
+                <p style={{ fontSize: "0.85rem", fontWeight: 800, color: "#c0392b", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>
+                  Your KYC application was rejected
+                </p>
+                <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "4px 0 0", fontFamily: "'Quicksand', sans-serif" }}>
+                  {profile?.kycRejectionReason || "Contact WasteFlow support for more details."}
+                  {" "}You can't create new pickup requests until this is resolved.
+                </p>
+              </div>
+            )}
+
             <div className="wf-page-header">
               <div>
                 <h1>My Requests</h1>
                 <p>Create and track your pickup requests</p>
               </div>
-              <button className="wf-new-btn" onClick={() => setCreateOpen(true)}>
+              <button
+                className="wf-new-btn"
+                onClick={() => setCreateOpen(true)}
+                disabled={profile?.kycStatus === "rejected"}
+                style={profile?.kycStatus === "rejected" ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                   strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
                   <line x1="12" y1="5" x2="12" y2="19" />

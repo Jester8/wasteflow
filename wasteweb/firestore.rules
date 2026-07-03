@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    function isAdminOrAbove() {
+      return isAdmin() || isSuperAdmin();
+    }
+
+    function isOperator() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operator';
+    }
+
+    function isContractor() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'contractor';
+    }
+
+    function isKycApproved(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.kycStatus == 'approved';
+    }
+
+    function hasKycStarted(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data.kycStatus
+             in ['pending', 'submitted', 'approved'];
+    }
+
+    match /users/{userId} {
+      // Self-serve signup is intentionally limited to operator/contractor —
+      // superadmin accounts are seeded directly via the Admin SDK and can
+      // never be created through this rule.
+      allow create: if isSignedIn()
+                    && isOwner(userId)
+                    && request.resource.data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'kycStatus'])
+                    && request.resource.data.role in ['operator', 'contractor']
+                    && request.resource.data.kycStatus == 'pending'
+                    && request.resource.data.uid == request.auth.uid;
+
+      // UPDATED: Allow operators to read contractor names, and contractors to read each other's names
+      allow read: if isSignedIn()
+                  && (
+                    isOwner(userId)                // Users can read their own profile
+                    || isAdminOrAbove()            // Admins/SuperAdmins can read all
+                    || isOperator()                // Operators can read all user profiles
+                    || isContractor()              // Contractors can read all user profiles
+                  );
+
+      allow update: if isSignedIn()
+                    && isOwner(userId)
+                    && !('role'      in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('kycStatus' in request.resource.data.diff(resource.data).affectedKeys())
+                    && !('uid'       in request.resource.data.diff(resource.data).affectedKeys());
+
+      // Super admin / admin management actions: suspend/reinstate, KYC override, etc.
+      allow update: if isAdminOrAbove();
+
+      allow delete: if false;
+    }
+
+    match /kyc/{userId} {
+      allow create: if isSignedIn()
+                    && isOwner(userId)
+                    && !exists(/databases/$(database)/documents/kyc/$(userId));
+
+      allow read: if isSignedIn()
+                  && (isOwner(userId) || isAdminOrAbove());
+
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /wasteRequests/{requestId} {
+
+      allow create: if isSignedIn()
+                    && isContractor()
+                    && hasKycStarted(request.auth.uid)
+                    && request.resource.data.contractorId == request.auth.uid
+                    && request.resource.data.status == 'pending';
+
+      allow read: if isSignedIn()
+                  && (
+                    (isContractor() && resource.data.contractorId == request.auth.uid)
+                    || (isOperator() && hasKycStarted(request.auth.uid))
+                    || isAdminOrAbove()
+                  );
+
+      allow update: if isSignedIn()
+                    && isContractor()
+                    && resource.data.contractorId == request.auth.uid
+                    && resource.data.status == 'pending'
+                    && request.resource.data.status == 'cancelled'
+                    && !('contractorId' in request.resource.data.diff(resource.data).affectedKeys());
+
+      allow update: if isSignedIn()
+                    && isContractor()
+                    && resource.data.contractorId == request.auth.uid
+                    && resource.data.status == 'scheduled'
+                    && request.resource.data.awaitingUserConfirmation == false
+                    && request.resource.data.status == 'confirmed'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['awaitingUserConfirmation', 'userConfirmedAt', 'updatedAt', 'status']);
+
+      allow update: if isSignedIn()
+                    && isContractor()
+                    && resource.data.contractorId == request.auth.uid
+                    && resource.data.status == 'scheduled'
+                    && request.resource.data.rescheduleRequest != null
+                    && request.resource.data.status == 'awaiting_reschedule'
+                    && !('contractorId' in request.resource.data.diff(resource.data).affectedKeys());
+
+      allow update: if isSignedIn()
+                    && isOperator()
+                    && hasKycStarted(request.auth.uid)
+                    && resource.data.status != 'completed'
+                    && resource.data.status != 'declined'
+                    && resource.data.status != 'cancelled'
+                    && !('contractorId' in request.resource.data.diff(resource.data).affectedKeys());
+
+      allow update: if isAdminOrAbove()
+                    && request.resource.data.status in [
+                      'pending', 'scheduled', 'arriving',
+                      'in_transit', 'completed', 'declined',
+                      'cancelled', 'archived', 'awaiting_reschedule'
+                    ];
+
+      allow delete: if false;
+    }
+
+    match /notifications/{userId}/items/{notifId} {
+      allow create: if false;
+      allow read:   if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn()
+                    && isOwner(userId)
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt']);
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+    // Audit trail: any signed-in user may write an entry for their OWN
+    // action (actorId must match their own uid, so it can't be forged),
+    // but only admins/superadmins can read the log back.
+    match /adminLogs/{logId} {
+      allow read:   if isAdminOrAbove();
+      allow create: if isSignedIn() && request.resource.data.actorId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

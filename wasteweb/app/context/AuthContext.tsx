@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { onSnapshot, doc } from "firebase/firestore";
 import { auth, db } from "../../lib/firebase";
 
@@ -35,11 +35,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileUnsub = onSnapshot(
           userRef,
           (snap) => {
-            if (snap.exists()) {
-              setProfile({ uid: snap.id, ...snap.data() });
-            } else {
+            const data = snap.exists() ? snap.data() : null;
+
+            // A suspended account gets signed out immediately, wherever in
+            // the app they are — the existing auth-only guards then take
+            // care of redirecting them to /login since `user` becomes null.
+            if (data?.accountStatus === "suspended") {
+              signOut(auth);
               setProfile(null);
+              setLoading(false);
+              return;
             }
+
+            setProfile(data ? { uid: snap.id, ...data } : null);
             setLoading(false);
           },
           () => {

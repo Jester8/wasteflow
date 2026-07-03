@@ -8,6 +8,7 @@ import {
   updateProfile,
   getAdditionalUserInfo,
 } from 'firebase/auth';
+import { logAdminEvent } from '@/app/lib/adminLog';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -24,6 +25,7 @@ export async function signUp(email: string, password: string, fullName: string) 
 export async function signInWithEmail(email: string, password: string) {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    logAdminEvent({ type: 'login', message: `${email} signed in`, targetId: userCredential.user.uid });
     return { success: true, user: userCredential.user, error: null };
   } catch (error: any) {
     return { success: false, user: null, error: friendlyError(error.code) };
@@ -34,6 +36,13 @@ export async function signInWithGoogle() {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const additionalInfo = getAdditionalUserInfo(result);
+    if (!additionalInfo?.isNewUser) {
+      logAdminEvent({
+        type: 'login',
+        message: `${result.user.email} signed in via Google`,
+        targetId: result.user.uid,
+      });
+    }
     return {
       success: true,
       uid: result.user.uid,
