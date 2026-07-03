@@ -83,7 +83,7 @@ function LocationAutocomplete({ value, onChange, error }) {
           onChange={handleInput}
           onFocus={() => { setFocused(true); if (suggestions.length) setOpen(true); }}
           onBlur={() => setFocused(false)}
-          placeholder="e.g. Victoria Island, Lagos"
+          placeholder="e.g. Oxford Street, London"
           autoComplete="off"
           style={{
             width: "100%",
