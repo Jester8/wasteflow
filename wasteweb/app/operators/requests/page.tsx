@@ -853,7 +853,7 @@ function RequestActionModal({
 }
 
 export default function OperatorRequestsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
@@ -881,7 +881,14 @@ export default function OperatorRequestsPage() {
     const internalStatus = STATUS_WRITE[displayStatus];
     if (!internalStatus) return;
     const docRef = doc(db, "wasteRequests", id);
-    await updateDoc(docRef, { status: internalStatus });
+    const updates: Record<string, any> = { status: internalStatus };
+    // Stamp the accepting operator so live-location broadcasting and
+    // the contractor's tracking view can resolve who to follow.
+    if (internalStatus === "scheduled") {
+      updates.operatorId = user?.uid;
+      updates.operatorName = profile?.fullName || profile?.businessName || "Operator";
+    }
+    await updateDoc(docRef, updates);
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 

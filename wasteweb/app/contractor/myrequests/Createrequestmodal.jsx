@@ -43,7 +43,7 @@ function LocationAutocomplete({ value, onChange, error }) {
         format: "json",
         addressdetails: "1",
         limit: "6",
-        countrycodes: "gb,ng",
+        countrycodes: "gb",
       });
       const res = await fetch(`${NOMINATIM_URL}?${params}`, { headers: { "Accept-Language": "en" } });
       const data = await res.json();

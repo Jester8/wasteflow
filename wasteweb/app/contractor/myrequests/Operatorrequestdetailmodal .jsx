@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import LiveTrackingMap from "./LiveTrackingMap";
 
 const STATUS_CONFIG = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
@@ -287,19 +289,9 @@ function Timeline({ status }) {
   );
 }
 
-/* --- OPENSTREETMAP LIVE TRACKING --- */
+/* --- LIVE OPERATOR TRACKING (OpenStreetMap / Leaflet, real-time via Firestore) --- */
 function LiveTrackingSection({ item }) {
-  const [eta, setEta] = useState(12);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setEta((prev) => (prev > 1 ? prev - 1 : 12));
-    }, 15000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const lat = item?.latitude || -33.8688;
-  const lon = item?.longitude || 151.2093;
+  const router = useRouter();
 
   return (
     <div style={{
@@ -324,38 +316,34 @@ function LiveTrackingSection({ item }) {
             Truck is currently en-route to your destination
           </p>
         </div>
-        <div style={{
-          background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)",
-          padding: "4px 10px", borderRadius: 8, textAlign: "right", flexShrink: 0,
-        }}>
-          <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#7c3aed", margin: 0, textTransform: "uppercase" }}>Est. Arrival</p>
-          <p style={{ fontSize: "0.9rem", fontWeight: 800, color: "#1a2e1f", margin: 0, fontFamily: "'Quicksand', sans-serif" }}>{eta} mins</p>
-        </div>
+        <button
+          onClick={() => router.push(`/contractor/myrequests/Tracking/${item.id}`)}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            background: "#1a4d2e", border: "none", cursor: "pointer",
+            padding: "6px 12px", borderRadius: 8, flexShrink: 0,
+            color: "#B8D52E", fontSize: "0.72rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif",
+          }}
+        >
+          Full screen
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+          </svg>
+        </button>
       </div>
 
-      <div style={{
-        width: "100%", aspectRatio: "16 / 9", maxHeight: 220, borderRadius: 12, overflow: "hidden",
-        border: "1px solid #e8f2eb", background: "#f5faf6", position: "relative"
-      }}>
-        <iframe
-          width="100%"
-          height="100%"
-          frameBorder="0"
-          scrolling="no"
-          marginHeight={0}
-          marginWidth={0}
-          loading="lazy"
-          src={`https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.01}%2C${lat-0.005}%2C${lon+0.01}%2C${lat+0.005}&layer=mapnik&marker=${lat}%2C${lon}`}
-          style={{ border: "none", display: "block" }}
-        />
-        <div style={{
-          position: "absolute", bottom: 8, right: 8, background: "rgba(255,255,255,0.9)",
-          padding: "3px 8px", borderRadius: 4, fontSize: "0.6rem", fontWeight: 600, color: "#4a7a5a",
-          border: "1px solid #e8f2eb", fontFamily: "sans-serif"
-        }}>
-          © OpenStreetMap contributors
-        </div>
-      </div>
+      <LiveTrackingMap
+        requestId={item.id}
+        location={item.location}
+        destinationLat={item.destinationLat}
+        destinationLng={item.destinationLng}
+        liveLocation={item.liveLocation}
+        operatorName={item.operatorName}
+        rawStatus={item.rawStatus}
+        height={240}
+      />
     </div>
   );
 }

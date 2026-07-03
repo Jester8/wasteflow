@@ -45,6 +45,16 @@ export type RequestItem = {
     toTime: string;
     note: string;
   };
+  operatorId?: string;
+  destinationLat?: number;
+  destinationLng?: number;
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
+  } | null;
 };
 
 const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -391,6 +401,10 @@ export default function MyRequestsPage() {
               proposedDate: data.proposedDate || "",
               proposedTime: data.proposedTime || "",
               rescheduleRequest: data.rescheduleRequest || null,
+              operatorId: data.operatorId || "",
+              destinationLat: typeof data.destinationLat === "number" ? data.destinationLat : undefined,
+              destinationLng: typeof data.destinationLng === "number" ? data.destinationLng : undefined,
+              liveLocation: data.liveLocation || null,
             } as RequestItem;
           })
         );
@@ -633,14 +647,14 @@ export default function MyRequestsPage() {
                 <h1>My Requests</h1>
                 <p>Create and track your pickup requests</p>
               </div>
-              {/* <button className="wf-new-btn" onClick={() => setCreateOpen(true)}>
+              <button className="wf-new-btn" onClick={() => setCreateOpen(true)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
                   strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 New Request
-              </button> */}
+              </button>
             </div>
 
             <div className="wf-search-row">

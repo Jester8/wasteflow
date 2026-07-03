@@ -48,6 +48,7 @@ export default function LiveTrackingPage() {
 
   const [requestDoc, setRequestDoc] = useState(null);
   const [docLoading, setDocLoading] = useState(true);
+  const [docError, setDocError] = useState(null);
 
   const [destCoords, setDestCoords] = useState(null);
   const [route, setRoute] = useState(null);
@@ -73,12 +74,24 @@ export default function LiveTrackingPage() {
 
   useEffect(() => {
     if (!requestId) return;
-    const unsub = onSnapshot(doc(db, "wasteRequests", requestId), (snap) => {
-      if (snap.exists()) {
-        setRequestDoc(snap.data());
+    const unsub = onSnapshot(
+      doc(db, "wasteRequests", requestId),
+      (snap) => {
+        if (snap.exists()) {
+          setRequestDoc(snap.data());
+        }
+        setDocLoading(false);
+      },
+      (err) => {
+        console.error("[LiveTrackingPage] Firestore error:", err);
+        setDocError(
+          err.code === "permission-denied"
+            ? "You don't have permission to view this request. Please sign in as the contractor who created it."
+            : "Something went wrong loading this request."
+        );
+        setDocLoading(false);
       }
-      setDocLoading(false);
-    });
+    );
     return () => unsub();
   }, [requestId]);
 
@@ -280,16 +293,16 @@ export default function LiveTrackingPage() {
     );
   }
 
-  if (!requestDoc) {
+  if (docError || !requestDoc) {
     return (
       <div style={{
         height: "100vh", display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center", background: "#f5faf6",
-        gap: 12, fontFamily: "'Quicksand', sans-serif",
+        gap: 12, fontFamily: "'Quicksand', sans-serif", padding: 24, textAlign: "center",
       }}>
         <style>{PULSE_CSS}</style>
         <p style={{ fontSize: "1rem", fontWeight: 700, color: "#1a2e1f" }}>
-          Request not found
+          {docError || "Request not found"}
         </p>
         <button onClick={() => router.back()} style={{
           padding: "10px 20px", borderRadius: 10, border: "none",

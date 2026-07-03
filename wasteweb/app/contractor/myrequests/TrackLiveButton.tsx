@@ -39,7 +39,7 @@ export function TrackLiveButton({ requestId, status, style }: TrackLiveButtonPro
 
   return (
     <button
-      onClick={() => router.push(`/contractor/tracking/${requestId}`)}
+      onClick={() => router.push(`/contractor/myrequests/Tracking/${requestId}`)}
       style={{
         width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
         padding: "11px 16px", borderRadius: 10, border: "none", cursor: "pointer",
@@ -75,116 +75,7 @@ export function TrackLiveButton({ requestId, status, style }: TrackLiveButtonPro
   );
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH 1: app/operator/requests/page.tsx
-//
-// Add these two things to RequestsPage:
-//
-// 1. Import the hook at the top:
-//    import { useLiveLocationBroadcaster } from "@/hooks/useLiveLocationBroadcaster";
-//
-// 2. Add this ONE line inside the RequestsPage component body,
-//    right after the line:  const { user } = useAuth();
-//
-//    useLiveLocationBroadcaster(enrichedRequests, user?.uid);
-//
-//    NOTE: enrichedRequests is computed lower in the file, so move the hook
-//    call to AFTER the enrichedRequests declaration, or pass `requests`
-//    directly (the hook only needs status + operatorId fields which exist on
-//    both).  Easiest placement:
-//
-//    -- FIND this block (near the bottom of RequestsPage, before `filtered`):
-//
-//      const enrichedRequests = requests.map((r) => ({
-//        ...r,
-//        contractorName: r.contractorName || contractorNames[r.contractorId || ""] || "",
-//      }));
-//
-//    -- ADD immediately after it:
-//
-//      useLiveLocationBroadcaster(enrichedRequests, user?.uid);
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH 2: RequestItem type in page.tsx
-//
-// The broadcaster needs to know which requests belong to THIS operator.
-// The Firestore doc stores `operatorId` (written during the Scheduled step).
-// We need to surface it through the RequestItem type and mapDoc.
-//
-// 1. In the `FirestoreRequest` type, the field already exists in Firestore —
-//    add it if not already there:
-//
-//      operatorId?: string;        // ← add this line
-//
-// 2. In the `RequestItem` type, add:
-//
-//      operatorId?: string;        // ← add this line
-//
-// 3. In `mapDoc`, add:
-//
-//      operatorId: d.operatorId,   // ← add to the returned object
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH 3: Contractor request card / detail modal
-//
-// Wherever you show a contractor's pickup card (e.g. MyRequestsPage or a
-// detail modal), import and render TrackLiveButton:
-//
-//   import { TrackLiveButton } from "@/app/contractor/requests/components/TrackLiveButton";
-//
-//   // Inside the card/modal JSX, after your existing action buttons:
-//   <TrackLiveButton requestId={req.id} status={req.status} />
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PATCH 4: next.config.js  — allow Leaflet tile images and OSM/OSRM domains
-//
-// Add these to your Content-Security-Policy / next/image domains if applicable.
-// Most projects just need this in next.config.js:
-//
-//   /** @type {import('next').NextConfig} */
-//   const nextConfig = {
-//     images: {
-//       domains: ["unpkg.com", "tile.openstreetmap.org"],
-//     },
-//   };
-//   module.exports = nextConfig;
-//
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FIRESTORE RULES — paste into your firestore.rules file
-//
-// rules_version = '2';
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//
-//     match /wasteRequests/{requestId} {
-//
-//       // ... your existing rules ...
-//
-//       // Allow the assigned operator to write liveLocation (and only liveLocation)
-//       allow update: if request.auth != null
-//         && request.auth.uid == resource.data.operatorId
-//         && request.resource.data.diff(resource.data).affectedKeys()
-//              .hasOnly(['liveLocation', 'destinationLat', 'destinationLng', 'updatedAt']);
-//
-//       // Allow the assigned contractor to read the doc (for the tracking page)
-//       allow read: if request.auth != null
-//         && (request.auth.uid == resource.data.contractorId
-//             || request.auth.uid == resource.data.operatorId);
-//     }
-//   }
-// }
-//
-// ─────────────────────────────────────────────────────────────────────────────
+// Firestore security rules must allow:
+//  - the assigned operator (resource.data.operatorId) to update liveLocation
+//  - the assigned contractor/operator to read the request doc
+// See app/hooks/useLiveLocationBroadcaster.ts for the write path.
