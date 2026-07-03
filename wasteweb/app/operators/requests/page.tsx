@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
 import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
+import LiveTrackingMap from "../../components/LiveTrackingMap";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
 
@@ -98,6 +99,15 @@ export type FirestoreRequest = {
     note: string;
     requestedAt?: any;
   };
+  destinationLat?: number;
+  destinationLng?: number;
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
+  } | null;
 };
 
 export type RequestItem = {
@@ -105,6 +115,7 @@ export type RequestItem = {
   title: string;
   wasteType: string;
   status: string;
+  rawStatus: string;
   location: string;
   dates: string;
   yards: string;
@@ -122,6 +133,15 @@ export type RequestItem = {
     toTime: string;
     note: string;
     requestedAt?: any;
+  };
+  destinationLat?: number;
+  destinationLng?: number;
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
   };
 };
 
@@ -151,6 +171,7 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     title: d.title,
     wasteType: d.wasteType,
     status: STATUS_DISPLAY[d.status] ?? "Pending",
+    rawStatus: d.status,
     location: d.location,
     dates: formatDateRange(d.windowStart, d.windowEnd, d.availability),
     yards: d.volume || "—",
@@ -163,6 +184,9 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     signatureUrl: d.signatureUrl,
     declineReason: d.declineReason,
     rescheduleRequest: d.rescheduleRequest || undefined,
+    destinationLat: typeof d.destinationLat === "number" ? d.destinationLat : undefined,
+    destinationLng: typeof d.destinationLng === "number" ? d.destinationLng : undefined,
+    liveLocation: d.liveLocation || undefined,
   };
 }
 
@@ -807,6 +831,24 @@ function RequestActionModal({
 
                 <ContractorDetailsPanel item={item} />
 
+                {(item.status === "Arriving" || item.status === "In Transit") && (
+                  <div>
+                    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 8px" }}>
+                      Your Live Location
+                    </p>
+                    <LiveTrackingMap
+                      requestId={item.id}
+                      location={item.location}
+                      destinationLat={item.destinationLat}
+                      destinationLng={item.destinationLng}
+                      liveLocation={item.liveLocation}
+                      operatorName={item.operatorName}
+                      rawStatus={item.rawStatus}
+                      height={220}
+                    />
+                  </div>
+                )}
+
                 {item.status === "Declined" && item.declineReason && (
                   <DeclineReasonPanel reason={item.declineReason} />
                 )}
@@ -983,7 +1025,7 @@ export default function OperatorRequestsPage() {
 
       {selectedRequest && (
         <RequestActionModal
-          item={selectedRequest}
+          item={requests.find((r) => r.id === selectedRequest.id) ?? selectedRequest}
           onClose={() => setSelectedRequest(null)}
           onStatusChange={handleStatusChange}
           onCompleteConfirm={handleCompleteConfirm}

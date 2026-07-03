@@ -1,11 +1,42 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { geocodeAddress } from "../../lib/geocode";
-import { fetchOSRMRoute, formatDistance, formatDuration } from "../../lib/osrm";
+import { geocodeAddress } from "../lib/geocode";
+import { fetchOSRMRoute, formatDistance, formatDuration } from "../lib/osrm";
 
 const STALE_THRESHOLD_MS = 2 * 60 * 1000;
 const TRACKING_STATUSES = new Set(["arriving", "in_transit"]);
+
+// Truck pin — when a compass heading is available it gets a rotated arrow
+// so the icon visibly points the way the operator is moving; otherwise it
+// falls back to a plain pulsing "live" dot with no direction implied.
+function buildOperatorIcon(L, headingDeg) {
+  const hasHeading = typeof headingDeg === "number" && !Number.isNaN(headingDeg);
+  return L.divIcon({
+    className: "",
+    html: `
+      <div style="position:relative;width:40px;height:40px;">
+        <div class="wf-live-pulse" style="
+          position:absolute;inset:2px;border-radius:50%;
+          background:#B8D52E;border:3px solid #1a4d2e;
+          display:flex;align-items:center;justify-content:center;
+          font-size:16px;
+        ">🚛</div>
+        ${hasHeading ? `
+          <div style="
+            position:absolute;top:-6px;left:50%;
+            width:0;height:0;
+            border-left:6px solid transparent;
+            border-right:6px solid transparent;
+            border-bottom:10px solid #1a4d2e;
+            transform:translateX(-50%) rotate(${headingDeg}deg);
+            transform-origin:50% 26px;
+          "></div>` : ""}
+      </div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+  });
+}
 
 function haversineDistanceM(lat1, lng1, lat2, lng2) {
   const R = 6_371_000;
@@ -147,18 +178,7 @@ export default function LiveTrackingMap({
         iconAnchor: [16, 32],
       });
 
-      const operatorIcon = L.divIcon({
-        className: "",
-        html: `
-          <div style="
-            width:36px;height:36px;border-radius:50%;
-            background:#B8D52E;border:3px solid #1a4d2e;
-            display:flex;align-items:center;justify-content:center;
-            font-size:16px;
-          ">🚛</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-      });
+      const operatorIcon = buildOperatorIcon(L, null);
 
       mapRef.current = map;
       destMarkerRef.current = L.marker([0, 0], { icon: destIcon, zIndexOffset: 100 })
@@ -193,6 +213,7 @@ export default function LiveTrackingMap({
       const marker = operatorMarkerRef.current;
       const map = mapRef.current;
       if (!map.hasLayer(marker)) marker.addTo(map);
+      marker.setIcon(buildOperatorIcon(L, liveLocation.heading));
       marker.setLatLng([liveLocation.lat, liveLocation.lng]);
 
       if (destCoords) {
@@ -236,6 +257,14 @@ export default function LiveTrackingMap({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <style>{`
+        @keyframes wfLivePulse {
+          0%   { box-shadow: 0 0 0 0 rgba(184,213,46,0.55); }
+          70%  { box-shadow: 0 0 0 10px rgba(184,213,46,0); }
+          100% { box-shadow: 0 0 0 0 rgba(184,213,46,0); }
+        }
+        .wf-live-pulse { animation: wfLivePulse 1.8s ease-out infinite; }
+      `}</style>
       <div style={{
         width: "100%", height, borderRadius: 14, overflow: "hidden",
         border: "1px solid #e8f2eb", position: "relative", background: "#f5faf6",

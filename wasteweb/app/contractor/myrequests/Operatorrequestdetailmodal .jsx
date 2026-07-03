@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import LiveTrackingMap from "./LiveTrackingMap";
+import LiveTrackingMap from "../../components/LiveTrackingMap";
 
 const STATUS_CONFIG = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
