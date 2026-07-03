@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LiveTrackingMap from "../../components/LiveTrackingMap";
+import { downloadCompletedRequestReport } from "../../lib/generateRequestReportPdf";
 
 const STATUS_CONFIG = {
   "Awaiting Approval": { bg: "rgba(251,191,36,0.12)",  color: "#b45309", border: "rgba(251,191,36,0.35)",  dot: "#f59e0b",  label: "Awaiting Approval" },
@@ -307,25 +308,77 @@ function Timeline({ status, createdAt, scheduledAt, arrivingAt, inTransitAt, com
 
 /* --- COMPLETION PROOF (photo + signature captured by the Site Manager) --- */
 function CompletionProofSection({ item }) {
-  if (!item.proofPhotoUrl && !item.signatureUrl) return null;
+  const [downloading, setDownloading] = useState(false);
+
+  async function handleDownload() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadCompletedRequestReport(item);
+    } catch (err) {
+      console.error("[CompletionProofSection] Failed to generate PDF:", err);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div style={{
       marginTop: 20, paddingTop: 20, borderTop: "1px solid #f0f7f2"
     }}>
-      <p style={{
-        fontSize: "0.68rem", fontWeight: 700, color: "#3a6b00",
-        fontFamily: "'Quicksand', sans-serif",
-        textTransform: "uppercase", letterSpacing: "0.06em", margin: 0
+      <div style={{
+        display: "flex", flexWrap: "wrap", justifyContent: "space-between",
+        alignItems: "center", gap: 10, marginBottom: 12,
       }}>
-        ✅ Completion Proof
-      </p>
-      <p style={{
-        fontSize: "0.74rem", fontWeight: 600, color: "#6b8f7a",
-        fontFamily: "'Quicksand', sans-serif", margin: "2px 0 12px"
-      }}>
-        Captured by the Site Manager on collection
-      </p>
+        <div style={{ minWidth: 0 }}>
+          <p style={{
+            fontSize: "0.68rem", fontWeight: 700, color: "#3a6b00",
+            fontFamily: "'Quicksand', sans-serif",
+            textTransform: "uppercase", letterSpacing: "0.06em", margin: 0
+          }}>
+            ✅ Completion Proof
+          </p>
+          <p style={{
+            fontSize: "0.74rem", fontWeight: 600, color: "#6b8f7a",
+            fontFamily: "'Quicksand', sans-serif", margin: "2px 0 0"
+          }}>
+            Captured by the Site Manager on collection
+          </p>
+        </div>
+        <button
+          onClick={handleDownload}
+          disabled={downloading}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            background: "#1a4d2e", border: "none", cursor: downloading ? "default" : "pointer",
+            padding: "8px 14px", borderRadius: 8, flexShrink: 0,
+            color: "#B8D52E", fontSize: "0.75rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif",
+            opacity: downloading ? 0.7 : 1,
+          }}
+        >
+          {downloading ? (
+            <>
+              <div style={{
+                width: 12, height: 12, borderRadius: "50%",
+                border: "2px solid rgba(184,213,46,0.35)", borderTopColor: "#B8D52E",
+                animation: "orSpin 0.7s linear infinite",
+              }} />
+              Preparing…
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download Report (PDF)
+            </>
+          )}
+        </button>
+      </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {item.proofPhotoUrl && (
@@ -908,6 +961,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
 
         @keyframes orBackdropIn { from{opacity:0} to{opacity:1} }
         @keyframes orModalIn    { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes orSpin       { to{transform:rotate(360deg)} }
 
         .or-backdrop {
           position:fixed; inset:0; z-index:400;
