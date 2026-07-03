@@ -55,6 +55,10 @@ export type RequestItem = {
     speed: number | null;
     updatedAt: any;
   } | null;
+  scheduledAt?: string | null;
+  arrivingAt?: string | null;
+  inTransitAt?: string | null;
+  completedAt?: string | null;
 };
 
 const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -420,6 +424,10 @@ export default function MyRequestsPage() {
               destinationLat: typeof data.destinationLat === "number" ? data.destinationLat : undefined,
               destinationLng: typeof data.destinationLng === "number" ? data.destinationLng : undefined,
               liveLocation: data.liveLocation || null,
+              scheduledAt: data.scheduledAt ? formatTimestamp(data.scheduledAt) : null,
+              arrivingAt: data.arrivingAt ? formatTimestamp(data.arrivingAt) : null,
+              inTransitAt: data.inTransitAt ? formatTimestamp(data.inTransitAt) : null,
+              completedAt: data.completedAt ? formatTimestamp(data.completedAt) : null,
             } as RequestItem;
           })
         );

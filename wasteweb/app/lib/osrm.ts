@@ -55,9 +55,14 @@ export async function fetchOSRMRoute(
   }
 }
 
+const METRES_PER_YARD = 1.09361;
+const YARDS_PER_MILE = 1760;
+
+// UK convention: short distances in yards, longer ones in miles.
 export function formatDistance(metres: number): string {
-  if (metres < 1000) return `${Math.round(metres)} m`;
-  return `${(metres / 1000).toFixed(1)} km`;
+  const yards = metres * METRES_PER_YARD;
+  if (yards < YARDS_PER_MILE) return `${Math.round(yards)} yd`;
+  return `${(yards / YARDS_PER_MILE).toFixed(1)} mi`;
 }
 
 export function formatDuration(seconds: number): string {

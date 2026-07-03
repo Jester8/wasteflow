@@ -55,6 +55,15 @@ const STATUS_WRITE: Record<string, string> = {
   Rescheduled:  "awaiting_reschedule",
 };
 
+// Which Firestore field records the moment each stage was reached, so the
+// contractor's request timeline can show a real date/time per step.
+const STATUS_TIMESTAMP_FIELD: Record<string, string> = {
+  scheduled:  "scheduledAt",
+  arriving:   "arrivingAt",
+  in_transit: "inTransitAt",
+  declined:   "declinedAt",
+};
+
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
@@ -930,6 +939,10 @@ export default function OperatorRequestsPage() {
       updates.operatorId = user?.uid;
       updates.operatorName = profile?.fullName || profile?.businessName || "Operator";
     }
+    // Stamp when each stage happened so the contractor's request timeline
+    // can show a real date/time next to each step, not just its label.
+    const timestampField = STATUS_TIMESTAMP_FIELD[internalStatus];
+    if (timestampField) updates[timestampField] = serverTimestamp();
     await updateDoc(docRef, updates);
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
@@ -943,6 +956,7 @@ export default function OperatorRequestsPage() {
       operatorName: data.operatorName,
       proofPhotoUrl: photoUrl,
       signatureUrl: signatureUrl,
+      completedAt: serverTimestamp(),
     });
     setSelectedRequest(null);
   };
@@ -952,6 +966,7 @@ export default function OperatorRequestsPage() {
     await updateDoc(docRef, {
       status: "declined",
       declineReason: reason,
+      declinedAt: serverTimestamp(),
     });
     setSelectedRequest(null);
   };
@@ -964,6 +979,7 @@ export default function OperatorRequestsPage() {
       windowEnd: rescheduleData.date,
       availability: `${rescheduleData.fromTime} - ${rescheduleData.toTime}`,
       rescheduleRequest: null,
+      scheduledAt: serverTimestamp(),
     });
     setSelectedRequest(null);
   };

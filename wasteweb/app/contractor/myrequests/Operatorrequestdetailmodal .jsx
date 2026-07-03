@@ -32,10 +32,10 @@ const STATUS_STEPS = {
 };
 
 const TIMELINE_STEPS = [
-  { label: "Request submitted",    sub: "You raised this pickup request"       },
-  { label: "Accepted by operator", sub: "An operator confirmed the job"        },
-  { label: "Pickup in progress",   sub: "An operator is collecting the waste"  },
-  { label: "Completed",            sub: "Waste successfully collected"         },
+  { label: "Request submitted",    sub: "You raised this pickup request"                  },
+  { label: "Accepted by operator", sub: "An operator confirmed the job"                    },
+  { label: "Pickup in progress",   sub: "An operator is collecting the waste"              },
+  { label: "Completed",            sub: "Waste successfully collected by the Site Manager" },
 ];
 
 const BANNERS = {
@@ -217,9 +217,15 @@ function StatusBanner({ status }) {
   );
 }
 
-function Timeline({ status }) {
+function Timeline({ status, createdAt, scheduledAt, arrivingAt, inTransitAt, completedAt }) {
   const steps    = STATUS_STEPS[status] || STATUS_STEPS["Awaiting Approval"];
   const declined = status === "Declined";
+  const stepTimestamps = [
+    createdAt,
+    scheduledAt,
+    arrivingAt || inTransitAt,
+    completedAt,
+  ];
   return (
     <div style={{ paddingTop: 20 }}>
       <p style={{
@@ -232,9 +238,10 @@ function Timeline({ status }) {
       </p>
       <div style={{ display: "flex", flexDirection: "column" }}>
         {TIMELINE_STEPS.map((step, i, arr) => {
-          const done     = steps[i];
-          const isDenied = declined && i > 0;
-          const isLast   = i === arr.length - 1;
+          const done      = steps[i];
+          const isDenied  = declined && i > 0;
+          const isLast    = i === arr.length - 1;
+          const stepStamp = done && !isDenied ? stepTimestamps[i] : null;
           return (
             <div key={i} style={{ display: "flex", gap: 12 }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -280,10 +287,90 @@ function Timeline({ status }) {
                 }}>
                   {isDenied ? "Not applicable — request was declined" : step.sub}
                 </p>
+                {stepStamp && (
+                  <p style={{
+                    fontSize: "0.68rem", fontWeight: 700, margin: "3px 0 0",
+                    color: "#4a7a5a",
+                    fontFamily: "'Quicksand', sans-serif",
+                  }}>
+                    {stepStamp}
+                  </p>
+                )}
               </div>
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/* --- COMPLETION PROOF (photo + signature captured by the Site Manager) --- */
+function CompletionProofSection({ item }) {
+  if (!item.proofPhotoUrl && !item.signatureUrl) return null;
+
+  return (
+    <div style={{
+      marginTop: 20, paddingTop: 20, borderTop: "1px solid #f0f7f2"
+    }}>
+      <p style={{
+        fontSize: "0.68rem", fontWeight: 700, color: "#3a6b00",
+        fontFamily: "'Quicksand', sans-serif",
+        textTransform: "uppercase", letterSpacing: "0.06em", margin: 0
+      }}>
+        ✅ Completion Proof
+      </p>
+      <p style={{
+        fontSize: "0.74rem", fontWeight: 600, color: "#6b8f7a",
+        fontFamily: "'Quicksand', sans-serif", margin: "2px 0 12px"
+      }}>
+        Captured by the Site Manager on collection
+      </p>
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        {item.proofPhotoUrl && (
+          <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+            <p style={{
+              fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
+              textTransform: "uppercase", letterSpacing: "0.05em",
+              fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px",
+            }}>
+              Photo Evidence
+            </p>
+            <div style={{
+              borderRadius: 10, overflow: "hidden", border: "1px solid #e8f2eb",
+              background: "#f5faf6", aspectRatio: "4 / 3",
+            }}>
+              <img
+                src={item.proofPhotoUrl}
+                alt="Proof of collection"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            </div>
+          </div>
+        )}
+        {item.signatureUrl && (
+          <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+            <p style={{
+              fontSize: "0.65rem", fontWeight: 700, color: "#9ab8a5",
+              textTransform: "uppercase", letterSpacing: "0.05em",
+              fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px",
+            }}>
+              Site Manager's Signature
+            </p>
+            <div style={{
+              borderRadius: 10, overflow: "hidden", border: "1px solid #e8f2eb",
+              background: "#ffffff", aspectRatio: "4 / 3",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <img
+                src={item.signatureUrl}
+                alt="Site Manager's signature"
+                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -985,9 +1072,17 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
               </div>
             )}
 
-            <Timeline status={item.status} />
+            <Timeline
+              status={item.status}
+              createdAt={item.createdAt}
+              scheduledAt={item.scheduledAt}
+              arrivingAt={item.arrivingAt}
+              inTransitAt={item.inTransitAt}
+              completedAt={item.completedAt}
+            />
 
             {showLiveTracking && <LiveTrackingSection item={item} />}
+            {isCompleted && <CompletionProofSection item={item} />}
           </div>
 
           <div className="or-footer">
