@@ -5,7 +5,6 @@ import {
   initializeFirestore,
   getFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -30,8 +29,14 @@ function initDb() {
     return getFirestore(app);
   }
   try {
+    // Single-tab persistence only — the multi-tab manager coordinates the
+    // offline mutation queue across tabs via IndexedDB, which is where a
+    // known class of "already exists" replay errors comes from when a
+    // fire-and-forget write (e.g. an audit log entry) races a tab
+    // switch/navigation. Most users don't have this app open in two tabs
+    // at once, so it's not worth that complexity/risk.
     return initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      localCache: persistentLocalCache(),
     });
   } catch {
     // Firestore was already initialized elsewhere in this session (e.g. Fast
