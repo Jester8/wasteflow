@@ -9,7 +9,7 @@ export interface CompletedRequestReportData {
   volume: string;
   note?: string;
   operatorName?: string;
-  createdAt?: string;
+  createdAt?: string | null;
   scheduledAt?: string | null;
   arrivingAt?: string | null;
   inTransitAt?: string | null;
@@ -86,7 +86,7 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
   detailRow("Pickup Window", `${item.dates} (${item.availability})`);
   detailRow("Estimated Volume", item.volume);
   if (item.note && item.note !== "—") detailRow("Notes", item.note);
-  detailRow("Site Manager", item.operatorName || "—");
+  detailRow("Operator", item.operatorName || "—");
 
   y += 6;
   doc.setDrawColor(...LINE_COLOR);
@@ -102,8 +102,9 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
   const timelineSteps = [
     { label: "Request submitted", ts: item.createdAt },
     { label: "Accepted by operator", ts: item.scheduledAt },
-    { label: "Pickup in progress", ts: item.arrivingAt || item.inTransitAt },
-    { label: "Completed by Site Manager", ts: item.completedAt },
+    { label: "Arriving at site", ts: item.arrivingAt },
+    { label: "In transit", ts: item.inTransitAt },
+    { label: "Completed by Operator", ts: item.completedAt },
   ];
 
   timelineSteps.forEach((step) => {
@@ -152,7 +153,7 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...TEXT_MUTED);
-      doc.text("Site Manager's Signature", sigX, y + 12);
+      doc.text("Operator's Signature", sigX, y + 12);
       doc.addImage(signatureData, imageFormatFromDataUrl(signatureData), sigX, y + 16, imgW, imgH);
       maxImgH = Math.max(maxImgH, imgH);
     }

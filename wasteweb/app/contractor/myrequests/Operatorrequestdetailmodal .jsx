@@ -36,7 +36,7 @@ const TIMELINE_STEPS = [
   { label: "Request submitted",    sub: "You raised this pickup request"                  },
   { label: "Accepted by operator", sub: "An operator confirmed the job"                    },
   { label: "Pickup in progress",   sub: "An operator is collecting the waste"              },
-  { label: "Completed",            sub: "Waste successfully collected by the Site Manager" },
+  { label: "Completed",            sub: "Waste successfully collected by the Operator" },
 ];
 
 const BANNERS = {
@@ -306,7 +306,7 @@ function Timeline({ status, createdAt, scheduledAt, arrivingAt, inTransitAt, com
   );
 }
 
-/* --- COMPLETION PROOF (photo + signature captured by the Site Manager) --- */
+/* --- COMPLETION PROOF (photo + signature captured by the Site Foreman) --- */
 function CompletionProofSection({ item }) {
   const [downloading, setDownloading] = useState(false);
 
@@ -342,7 +342,7 @@ function CompletionProofSection({ item }) {
             fontSize: "0.74rem", fontWeight: 600, color: "#6b8f7a",
             fontFamily: "'Quicksand', sans-serif", margin: "2px 0 0"
           }}>
-            Captured by the Site Manager on collection
+            Captured by the Site Foreman on collection
           </p>
         </div>
         <button
@@ -409,7 +409,7 @@ function CompletionProofSection({ item }) {
               textTransform: "uppercase", letterSpacing: "0.05em",
               fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px",
             }}>
-              Site Manager's Signature
+              Operator's Signature
             </p>
             <div style={{
               borderRadius: 10, overflow: "hidden", border: "1px solid #e8f2eb",
@@ -418,7 +418,7 @@ function CompletionProofSection({ item }) {
             }}>
               <img
                 src={item.signatureUrl}
-                alt="Site Manager's signature"
+                alt="Site Foreman's signature"
                 style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
               />
             </div>

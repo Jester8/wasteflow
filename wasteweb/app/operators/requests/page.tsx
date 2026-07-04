@@ -10,6 +10,7 @@ import Sidebar from "../../components/Sidebar";
 import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 import LiveTrackingMap from "../../components/LiveTrackingMap";
 import { logAdminEvent } from "../../lib/adminLog";
+import { downloadCompletedRequestReport } from "../../lib/generateRequestReportPdf";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
 
@@ -118,6 +119,12 @@ export type FirestoreRequest = {
     speed: number | null;
     updatedAt: any;
   } | null;
+  createdAt?: any;
+  scheduledAt?: any;
+  arrivingAt?: any;
+  inTransitAt?: any;
+  completedAt?: any;
+  declinedAt?: any;
 };
 
 export type RequestItem = {
@@ -128,6 +135,7 @@ export type RequestItem = {
   rawStatus: string;
   location: string;
   dates: string;
+  availability?: string;
   yards: string;
   note: string;
   contractorName?: string;
@@ -137,6 +145,12 @@ export type RequestItem = {
   proofPhotoUrl?: string;
   signatureUrl?: string;
   declineReason?: string;
+  createdAt?: string | null;
+  scheduledAt?: string | null;
+  arrivingAt?: string | null;
+  inTransitAt?: string | null;
+  completedAt?: string | null;
+  declinedAt?: string | null;
   rescheduleRequest?: {
     date: string;
     fromTime: string;
@@ -175,6 +189,28 @@ function formatDateRange(start?: string, end?: string, availability?: string) {
   return `${fmt(start, startTime)} – ${fmt(end, endTime)}`;
 }
 
+// Renders every recorded stage timestamp so the operator's completed-request
+// view and the generated PDF report show a full, real date/time per step.
+function formatTimestamp(ts: any): string | null {
+  if (!ts) return null;
+
+  let date: Date;
+  if (typeof ts?.toDate === "function") {
+    date = ts.toDate();
+  } else if (typeof ts === "object" && typeof ts.seconds === "number") {
+    date = new Date(ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6));
+  } else {
+    date = new Date(ts);
+  }
+
+  if (isNaN(date.getTime())) return null;
+  return (
+    date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " +
+    date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
 function mapDoc(d: FirestoreRequest): RequestItem {
   return {
     id: d.id,
@@ -184,6 +220,7 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     rawStatus: d.status,
     location: d.location,
     dates: formatDateRange(d.windowStart, d.windowEnd, d.availability),
+    availability: d.availability,
     yards: d.volume || "—",
     note: d.notes || "",
     contractorName: d.contractorName,
@@ -192,6 +229,12 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     operatorName: d.operatorName,
     proofPhotoUrl: d.proofPhotoUrl,
     signatureUrl: d.signatureUrl,
+    createdAt: formatTimestamp(d.createdAt),
+    scheduledAt: formatTimestamp(d.scheduledAt),
+    arrivingAt: formatTimestamp(d.arrivingAt),
+    inTransitAt: formatTimestamp(d.inTransitAt),
+    completedAt: formatTimestamp(d.completedAt),
+    declinedAt: formatTimestamp(d.declinedAt),
     declineReason: d.declineReason,
     rescheduleRequest: d.rescheduleRequest || undefined,
     destinationLat: typeof d.destinationLat === "number" ? d.destinationLat : undefined,
@@ -508,11 +551,11 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Complete this job</p>
-        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the operator's name, a site photo, and signature to mark as completed.</p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the Operators's name, a site photo, and signature to mark as completed.</p>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Operator name</label>
-        <input type="text" value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="e.g. John Adeyemi"
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site Manager</label>
+        <input type="text" value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="e.g. John "
           style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -693,19 +736,152 @@ function DeclineReasonPanel({ reason }: { reason: string }) {
   );
 }
 
+const OPERATOR_TIMELINE_STEPS = [
+  { label: "Request submitted",    sub: "Contractor raised this pickup request" },
+  { label: "Accepted by operator", sub: "You confirmed the job" },
+  { label: "Pickup in progress",   sub: "Waste is being collected" },
+  { label: "Completed",            sub: "Job successfully fulfilled by the operator" },
+];
+
+function RequestTimeline({ item }: { item: RequestItem }) {
+  const declined = item.status === "Declined";
+  const stamps = [item.createdAt, item.scheduledAt, item.arrivingAt || item.inTransitAt, item.completedAt];
+  return (
+    <div>
+      <p style={{
+        fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a",
+        textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 12px",
+      }}>
+        Request Timeline
+      </p>
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {OPERATOR_TIMELINE_STEPS.map((step, i, arr) => {
+          const stamp = stamps[i];
+          const done = declined ? i === 0 : !!stamp;
+          const isDenied = declined && i > 0;
+          const isLast = i === arr.length - 1;
+          return (
+            <div key={i} style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div style={{
+                  width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
+                  background: isDenied ? "rgba(239,68,68,0.08)" : done ? "#1a4d2e" : "#f0f7f2",
+                  border: isDenied ? "2px solid rgba(239,68,68,0.3)" : done ? "2px solid #1a4d2e" : "2px solid #c6e2d0",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  marginTop: 2,
+                }}>
+                  {isDenied ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}>
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  ) : done ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#B8D52E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}>
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  ) : null}
+                </div>
+                {!isLast && (
+                  <div style={{
+                    width: 2, flex: 1, minHeight: 20,
+                    background: done && !isDenied ? "#1a4d2e" : "#e8f2eb",
+                    margin: "3px 0",
+                  }} />
+                )}
+              </div>
+              <div style={{ paddingBottom: isLast ? 0 : 14, paddingTop: 1, minWidth: 0 }}>
+                <p style={{
+                  fontSize: "0.8rem", fontWeight: 700, margin: 0,
+                  color: isDenied ? "#b91c1c" : done ? "#1a2e1f" : "#9ab8a5",
+                }}>
+                  {step.label}
+                </p>
+                <p style={{
+                  fontSize: "0.72rem", fontWeight: 600, margin: "2px 0 0",
+                  color: isDenied ? "rgba(185,28,28,0.6)" : "#8aab97",
+                }}>
+                  {isDenied ? "Not applicable — request declined" : step.sub}
+                </p>
+                {stamp && !isDenied && (
+                  <p style={{ fontSize: "0.66rem", fontWeight: 700, margin: "3px 0 0", color: "#4a7a5a" }}>
+                    {stamp}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function CompletionProofPanel({ item }: { item: RequestItem }) {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await downloadCompletedRequestReport({
+        id: item.id,
+        wasteType: item.wasteType,
+        location: item.location,
+        dates: item.dates,
+        availability: item.availability || "",
+        volume: item.yards,
+        note: item.note,
+        operatorName: item.operatorName,
+        createdAt: item.createdAt,
+        scheduledAt: item.scheduledAt,
+        arrivingAt: item.arrivingAt,
+        inTransitAt: item.inTransitAt,
+        completedAt: item.completedAt,
+        proofPhotoUrl: item.proofPhotoUrl,
+        signatureUrl: item.signatureUrl,
+      });
+    } catch (err) {
+      console.error("[CompletionProofPanel] Failed to generate PDF:", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div style={{
       display: "flex", flexDirection: "column", gap: 10,
       padding: "14px 16px", background: "#f8fbf6",
       border: "1px solid #edf4f0", borderRadius: 12,
     }}>
-      <p style={{
-        fontSize: "0.72rem", fontWeight: 700, color: "#3a6b00",
-        textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
-      }}>
-        Completion Proof
-      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <p style={{
+          fontSize: "0.72rem", fontWeight: 700, color: "#3a6b00",
+          textTransform: "uppercase", letterSpacing: "0.04em", margin: 0,
+        }}>
+          Completion Proof
+        </p>
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            background: "#1a4d2e", border: "none", cursor: downloading ? "default" : "pointer",
+            padding: "7px 12px", borderRadius: 8, flexShrink: 0,
+            color: "#B8D52E", fontSize: "0.72rem", fontWeight: 700,
+            fontFamily: "'Quicksand', sans-serif",
+            opacity: downloading ? 0.7 : 1,
+          }}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          {downloading ? "Preparing…" : "Download Report (PDF)"}
+        </button>
+      </div>
+
+      <RequestTimeline item={item} />
 
       {item.operatorName && (
         <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f", margin: 0 }}>
@@ -944,6 +1120,14 @@ export default function OperatorRequestsPage() {
     // can show a real date/time next to each step, not just its label.
     const timestampField = STATUS_TIMESTAMP_FIELD[internalStatus];
     if (timestampField) updates[timestampField] = serverTimestamp();
+    // "Accepted" can jump straight to "In Transit", skipping the Arriving
+    // stage entirely. Backfill arrivingAt with the same moment so the
+    // timeline/report never shows "Not recorded" for a step that simply
+    // never had a distinct arrival moment.
+    if (internalStatus === "in_transit") {
+      const existing = requests.find((r) => r.id === id);
+      if (existing && !existing.arrivingAt) updates.arrivingAt = serverTimestamp();
+    }
     await updateDoc(docRef, updates);
     logAdminEvent({
       type: "status_change",
