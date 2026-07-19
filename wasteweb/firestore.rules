@@ -34,6 +34,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'contractor';
     }
 
+    function isContractorAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'contractorAdmin';
+    }
+
+    function isOperatorAdmin() {
+      return isSignedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'operatorAdmin';
+    }
+
     function isKycApproved(userId) {
       return get(/databases/$(database)/documents/users/$(userId)).data.kycStatus == 'approved';
     }
@@ -61,6 +71,8 @@ service cloud.firestore {
                     || isAdminOrAbove()            // Admins/SuperAdmins can read all
                     || isOperator()                // Operators can read all user profiles
                     || isContractor()              // Contractors can read all user profiles
+                    || isContractorAdmin()         // Contractor Admin oversight
+                    || isOperatorAdmin()           // Operator Admin oversight/assignment
                   );
 
       allow update: if isSignedIn()
@@ -71,6 +83,11 @@ service cloud.firestore {
 
       // Super admin / admin management actions: suspend/reinstate, KYC override, etc.
       allow update: if isAdminOrAbove();
+
+      // Operator Admin may only ever set an operator's declared fleet size —
+      // nothing else on the profile.
+      allow update: if isOperatorAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fleetSize']);
 
       allow delete: if false;
     }
@@ -98,8 +115,12 @@ service cloud.firestore {
       allow read: if isSignedIn()
                   && (
                     (isContractor() && resource.data.contractorId == request.auth.uid)
-                    || (isOperator() && hasKycStarted(request.auth.uid))
+                    || (isOperator() && hasKycStarted(request.auth.uid)
+                        && ('assignedOperatorId' in resource.data)
+                        && resource.data.assignedOperatorId == request.auth.uid)
                     || isAdminOrAbove()
+                    || isContractorAdmin()
+                    || isOperatorAdmin()
                   );
 
       allow update: if isSignedIn()
@@ -128,10 +149,18 @@ service cloud.firestore {
       allow update: if isSignedIn()
                     && isOperator()
                     && hasKycStarted(request.auth.uid)
+                    && ('assignedOperatorId' in resource.data)
+                    && resource.data.assignedOperatorId == request.auth.uid
                     && resource.data.status != 'completed'
                     && resource.data.status != 'declined'
                     && resource.data.status != 'cancelled'
                     && !('contractorId' in request.resource.data.diff(resource.data).affectedKeys());
+
+      // Operator Admin assigns an unactioned request to a specific operator —
+      // nothing else on the request may change in the same write.
+      allow update: if isOperatorAdmin()
+                    && resource.data.status == 'pending'
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedOperatorId', 'assignedAt', 'updatedAt']);
 
       allow update: if isAdminOrAbove()
                     && request.resource.data.status in [
