@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { signUp, signInWithGoogle } from "@/lib/auth";
 import { saveUserProfile, getUserProfile } from "@/lib/firestore";
 import { sendEmailVerification } from "firebase/auth";
@@ -210,8 +211,10 @@ function HeroText() {
   );
 }
 
-export default function SignupPage() {
-  const [role, setRole] = useState("operator");
+function SignupPageContent() {
+  const searchParams = useSearchParams();
+  const initialRole = searchParams.get("role") === "contractor" ? "contractor" : "operatorAdmin";
+  const [role, setRole] = useState(initialRole);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -302,7 +305,10 @@ export default function SignupPage() {
           window.location.href = "/kyc";
         } else if (existingProfile.kycStatus === "pending" || existingProfile.kycStatus === "approved") {
           // KYC done — go to their dashboard
-          window.location.href = existingProfile.role === "operator" ? "/operators/" : "/contractor/";
+          window.location.href =
+            existingProfile.role === "operator" ? "/operators/" :
+            existingProfile.role === "operatorAdmin" ? "/operator-admin/" :
+            "/contractor/";
         } else {
           window.location.href = "/kyc";
         }
@@ -389,9 +395,9 @@ export default function SignupPage() {
               <p className="wf-sub">Join WasteFlow to start managing construction waste efficiently.</p>
 
               <div className="wf-toggle">
-                {["operator", "contractor"].map(r => (
+                {["operatorAdmin", "contractor"].map(r => (
                   <button key={r} type="button" className={`wf-toggle-btn${role === r ? " active" : ""}`} onClick={() => setRole(r)}>
-                    {r === "operator" ? "Operator" : "Contractor"}
+                    {r === "operatorAdmin" ? "Operators (Admin)" : "Contractor (Admin)"}
                   </button>
                 ))}
               </div>
@@ -459,5 +465,19 @@ export default function SignupPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      </div>
+    }>
+      <SignupPageContent />
+    </Suspense>
   );
 }

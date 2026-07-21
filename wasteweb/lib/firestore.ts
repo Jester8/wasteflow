@@ -5,7 +5,7 @@ import { logAdminEvent } from "@/app/lib/adminLog";
 export async function saveUserProfile(
   uid: string,
   data: {
-    role: "operator" | "contractor";
+    role: "operator" | "contractor" | "operatorAdmin";
     fullName: string;
     email: string;
     provider?: "email" | "google";
@@ -56,10 +56,11 @@ export async function getKycSubmission(uid: string) {
   return null;
 }
 
-export async function markKycSubmitted(uid: string) {
+export async function markKycSubmitted(uid: string, extraFields?: Record<string, any>) {
   const userRef = doc(db, "users", uid);
   await setDoc(userRef, {
     kycStatus: "submitted",
     updatedAt: serverTimestamp(),
+    ...(extraFields || {}),
   }, { merge: true });
 }

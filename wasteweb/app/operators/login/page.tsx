@@ -1,47 +1,93 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { signInWithEmail } from "@/lib/auth";
+import { useAuth } from "../../context/AuthContext";
 
-export default function OperatorAdminSignIn({ wrongRoleError }: { wrongRoleError?: boolean }) {
+export default function FleetOperatorLoginPage() {
+  const router = useRouter();
+  const { user, profile, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [postSignInPending, setPostSignInPending] = useState(false);
+
+  useEffect(() => {
+    if (!postSignInPending) return;
+    if (authLoading) return;
+    if (!user) return;
+    if (!profile) return;
+
+    if (profile.role !== "operator") {
+      setError("This account isn't registered as a Fleet Operator.");
+      setPostSignInPending(false);
+      return;
+    }
+
+    if (!profile.kycStatus) {
+      router.push("/kyc");
+    } else {
+      router.push("/operators");
+    }
+    setPostSignInPending(false);
+  }, [postSignInPending, authLoading, user, profile, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!email || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
     setLoading(true);
     const result = await signInWithEmail(email, password);
     if (!result.success) {
-      setError(result.error || "Sign in failed.");
+      setError(result.error || "Sign in failed. Please try again.");
       setLoading(false);
       return;
     }
+    setPostSignInPending(true);
+    setLoading(false);
   }
 
   return (
     <div style={{
-      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      background: "#f4f9f5", fontFamily: "'Quicksand', sans-serif", padding: 16,
+      position: "relative", minHeight: "100vh", display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontFamily: "'Quicksand', sans-serif", padding: 16, overflow: "hidden",
     }}>
+      <Image
+        src="/truck2.png"
+        alt=""
+        fill
+        priority
+        style={{ objectFit: "cover", objectPosition: "center" }}
+        sizes="100vw"
+      />
       <div style={{
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(5,15,8,0.88) 0%, rgba(5,15,8,0.68) 45%, rgba(5,15,8,0.5) 100%)",
+      }} />
+
+      <div style={{
+        position: "relative", zIndex: 1,
         width: "100%", maxWidth: 380, background: "#ffffff", borderRadius: 16,
         padding: 32, boxShadow: "0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06)",
       }}>
-        <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#3a6b00", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+        <p style={{ fontSize: "0.68rem", fontWeight: 700, color: "#B8D52E", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
           WasteFlow
         </p>
         <h1 style={{ fontSize: "1.4rem", fontWeight: 800, color: "#1a2e1f", margin: "4px 0 24px" }}>
-          Operator Admin Sign In
+          Fleet Operator Sign In
         </h1>
 
-        {(error || wrongRoleError) && (
+        {error && (
           <div style={{ background: "#fff5f5", border: "1px solid #f5c6c6", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
-            <p style={{ fontSize: "0.78rem", color: "#c0392b", fontWeight: 600, margin: 0 }}>
-              {wrongRoleError ? "This account doesn't have operator admin access." : error}
-            </p>
+            <p style={{ fontSize: "0.78rem", color: "#c0392b", fontWeight: 600, margin: 0 }}>{error}</p>
           </div>
         )}
 
@@ -93,6 +139,10 @@ export default function OperatorAdminSignIn({ wrongRoleError }: { wrongRoleError
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <p style={{ textAlign: "center", fontSize: "0.8rem", fontWeight: 600, color: "#6b8f7a", marginTop: 16 }}>
+          Not a fleet operator? <Link href="/login" style={{ color: "#1a4d2e", fontWeight: 700, textDecoration: "none" }}>Go to main sign in</Link>
+        </p>
       </div>
     </div>
   );

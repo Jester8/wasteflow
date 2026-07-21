@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 
 type GuardType = "guest-only" | "auth-only" | "kyc-complete";
-type Role = "operator" | "contractor";
+type Role = "operator" | "contractor" | "operatorAdmin";
+
+function dashboardPathFor(role: string) {
+  if (role === "operator") return "/operators/";
+  if (role === "operatorAdmin") return "/operator-admin/";
+  return "/contractor/";
+}
 
 export function useAuthGuard(type: GuardType, requiredRole?: Role) {
   const { user, profile, loading } = useAuth();
@@ -19,7 +25,7 @@ export function useAuthGuard(type: GuardType, requiredRole?: Role) {
         if (!profile.kycStatus) {
           router.replace("/kyc");
         } else {
-          router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
+          router.replace(dashboardPathFor(profile.role));
         }
       }
       return;
@@ -41,7 +47,7 @@ export function useAuthGuard(type: GuardType, requiredRole?: Role) {
 
     // ── Role enforcement (new) ──────────────────────────────────────────
     if (requiredRole && profile && profile.role !== requiredRole) {
-      router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
+      router.replace(dashboardPathFor(profile.role));
       return;
     }
   }, [user, profile, loading, router, type, requiredRole]);

@@ -5,8 +5,15 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { updateUserKYC, markKycSubmitted } from "@/lib/firestore";
 import { useAuthGuard } from "../hooks/Useauthguard ";
+import { UK_REGIONS } from "../operator-admin/lib/ukRegion";
 
-type Role = "operator" | "contractor";
+type Role = "operator" | "contractor" | "operatorAdmin";
+
+function dashboardPathFor(role: string) {
+  if (role === "operator") return "/operators/";
+  if (role === "operatorAdmin") return "/operator-admin/";
+  return "/contractor/";
+}
 
 const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
 const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
@@ -293,7 +300,7 @@ function KycStepIndicator({ current, labels }: { current: number; labels: string
   );
 }
 
-function OperatorBusinessStep({ data, setData, errors }: any) {
+function OperatorBusinessStep({ data, setData, errors, isOperatorAdmin }: any) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <Input label="Company / Organisation Name" placeholder="GreenHaul Services Ltd." required value={data.companyName ?? ""} onChange={(e: any) => setData({ ...data, companyName: e.target.value })} error={errors.companyName} />
@@ -316,6 +323,38 @@ function OperatorBusinessStep({ data, setData, errors }: any) {
         <Input label="Number of Vehicles" type="number" placeholder="e.g. 6" value={data.vehicles ?? ""} onChange={(e: any) => setData({ ...data, vehicles: e.target.value })} hint="Optional" />
         <Input label="Tonnage Capacity" placeholder="e.g. 20t/day" value={data.tonnage ?? ""} onChange={(e: any) => setData({ ...data, tonnage: e.target.value })} hint="Optional" />
       </div>
+      {isOperatorAdmin && (
+        <div>
+          <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", display: "block", marginBottom: 6 }}>
+            Regions you operate in<span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
+          </label>
+          <select
+            multiple
+            value={data.regions ?? []}
+            onChange={(e) => setData({ ...data, regions: Array.from(e.target.selectedOptions, (o: HTMLOptionElement) => o.value) })}
+            size={6}
+            style={{
+              width: "100%", padding: "8px", borderRadius: 10,
+              border: errors.regions ? "1px solid #e05c5c" : "1px solid #c6e2d0",
+              background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
+              fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
+              boxSizing: "border-box",
+            }}
+          >
+            {UK_REGIONS.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          <span style={{ fontSize: "0.7rem", color: "#6b8f7a", fontFamily: "'Quicksand',sans-serif", display: "block", marginTop: 6 }}>
+            Hold Ctrl (or Cmd) to select more than one.
+          </span>
+          {errors.regions && (
+            <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600, display: "block", marginTop: 6 }}>
+              {errors.regions}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -454,7 +493,7 @@ export default function KycPage() {
       return;
     }
     if (profile?.kycStatus === "submitted") {
-      router.replace(profile.role === "operator" ? "/operators/" : "/contractor/");
+      router.replace(dashboardPathFor(profile.role));
     }
   }, [user, profile, authLoading, router]);
 
@@ -470,7 +509,7 @@ export default function KycPage() {
   }
 
   const role = profile.role as Role;
-  const isOperator = role === "operator";
+  const isOperator = role === "operator" || role === "operatorAdmin";
 
   const operatorStepLabels = ["Business Info", "Compliance"];
   const contractorStepLabels = ["Business & Site", "Waste Profile"];
@@ -486,6 +525,7 @@ export default function KycPage() {
         if (!data.yearsOp) errs.yearsOp = "Years in operation is required";
         if (!data.serviceArea) errs.serviceArea = "Service area is required";
         if (!data.wasteHandled?.length) errs.wasteHandled = "Select at least one type";
+        if (role === "operatorAdmin" && !data.regions?.length) errs.regions = "Select at least one region you operate in";
       }
       if (step === 1) {
         if (!data.wasteCarrierDoc) errs.wasteCarrierDoc = "Please upload your EA Waste Carrier Licence";
@@ -554,12 +594,12 @@ export default function KycPage() {
 
       setUploadProgress("Saving your details…");
       await updateUserKYC(uid, kycData);
-      await markKycSubmitted(uid);
+      await markKycSubmitted(uid, role === "operatorAdmin" ? { regions: data.regions } : undefined);
 
       setSubmitting(false);
       setUploadProgress("");
 
-      router.replace(isOperator ? "/operators/" : "/contractor/");
+      router.replace(dashboardPathFor(role));
 
     } catch (err) {
       console.error(err);
@@ -653,10 +693,10 @@ export default function KycPage() {
               <KycStepIndicator current={step} labels={stepLabels} />
 
               <h1 style={{ fontSize: "1.45rem", fontWeight: 700, color: "#1a2e1f", letterSpacing: "-0.02em", lineHeight: 1.2, marginBottom: 4, fontFamily: "'Quicksand',sans-serif" }}>
-                {headings[role][step]}
+                {headings[isOperator ? "operator" : "contractor"][step]}
               </h1>
               <p style={{ fontSize: "0.875rem", color: "#6b8f7a", fontWeight: 600, marginBottom: 20, lineHeight: 1.55, fontFamily: "'Quicksand',sans-serif" }}>
-                {subs[role][step]}
+                {subs[isOperator ? "operator" : "contractor"][step]}
               </p>
             </div>
 
@@ -668,7 +708,7 @@ export default function KycPage() {
                 </div>
               )}
 
-              {isOperator && step === 0 && <OperatorBusinessStep data={data} setData={setData} errors={errors} />}
+              {isOperator && step === 0 && <OperatorBusinessStep data={data} setData={setData} errors={errors} isOperatorAdmin={role === "operatorAdmin"} />}
               {isOperator && step === 1 && <OperatorComplianceStep data={data} setData={setData} errors={errors} />}
               {!isOperator && step === 0 && <ContractorBusinessStep data={data} setData={setData} errors={errors} />}
               {!isOperator && step === 1 && <ContractorWasteStep data={data} setData={setData} errors={errors} />}

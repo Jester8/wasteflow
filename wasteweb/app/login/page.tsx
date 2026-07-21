@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signInWithGoogle, signInWithEmail } from "@/lib/auth";
 import { useAuth } from "../context/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthGuard } from "../hooks/Useauthguard ";
 
 function useTypewriter(text: string, speed = 45) {
@@ -488,15 +488,22 @@ function HeroText() {
   );
 }
 
-type Role = "operator" | "contractor";
+type Role = "operator" | "operatorAdmin" | "contractor";
 
 const ROLE_CONFIG: Record<
   Role,
   { label: string; emoji: string; placeholder: string }
 > = {
   operator: { label: "Operator", emoji: "", placeholder: "you@company.co.uk" },
+  operatorAdmin: { label: "Operator Admin", emoji: "", placeholder: "you@company.co.uk" },
   contractor: { label: "Contractor", emoji: "", placeholder: "you@haulage.co.uk" },
 };
+
+function dashboardPathFor(role: string) {
+  if (role === "operator") return "/operators";
+  if (role === "operatorAdmin") return "/operator-admin";
+  return "/contractor";
+}
 
 function routeAfterAuth(
   router: ReturnType<typeof useRouter>,
@@ -508,9 +515,7 @@ function routeAfterAuth(
   // Role mismatch
   if (role !== selectedRole) {
     throw new Error(
-      `This account is registered as ${
-        role === "operator" ? "Operator" : "Contractor"
-      }.`
+      `This account is registered as ${ROLE_CONFIG[role as Role]?.label || role}.`
     );
   }
 
@@ -520,17 +525,19 @@ function routeAfterAuth(
   }
 
   if (kycStatus === "pending" || kycStatus === "approved") {
-    router.push(role === "operator" ? "/operators" : "/contractor");
+    router.push(dashboardPathFor(role));
     return;
   }
 
   router.push("/kyc");
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, profile, loading: authLoading } = useAuth();
-  const [role, setRole] = useState<Role>("operator");
+  const initialRole: Role = searchParams.get("role") === "contractor" ? "contractor" : "operatorAdmin";
+  const [role, setRole] = useState<Role>(initialRole);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -718,7 +725,7 @@ export default function LoginPage() {
               </p>
 
               <div className="wf-toggle">
-                {(["operator", "contractor"] as Role[]).map((r) => (
+                {(["operatorAdmin", "contractor"] as Role[]).map((r) => (
                   <button
                     key={r}
                     type="button"
@@ -874,5 +881,19 @@ export default function LoginPage() {
         </div>
       </div>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f5faf6" }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1a4d2e" strokeWidth="2.5" style={{ width: 28, height: 28, animation: "wfSpin 0.8s linear infinite" }}>
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

@@ -2,6 +2,7 @@
 import { ArrowRight, Play, ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import GetStartedModal from "./GetStartedModal";
 
 // ─── TYPEWRITER HOOK ──────────────────────────────────────────────────────────
 function useTypewriter(text: string, speed = 55, startDelay = 600) {
@@ -52,6 +53,7 @@ const heroSlides = [
 export default function Hero() {
   const [slideIndex, setSlideIndex] = useState(0);
   const [autoplay, setAutoplay] = useState(true);
+  const [showGetStarted, setShowGetStarted] = useState(false);
 
   const slide = heroSlides[slideIndex];
   const { displayed: dH, done: doneH } = useTypewriter(slide.headline, 48, 500);
@@ -277,9 +279,10 @@ export default function Hero() {
               transition={{ duration: 0.4, delay: 0.2 }}
               style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "0.65rem", flexWrap: "nowrap" }}
             >
-              <a className="btn-primary" href="/signup">
+              <button className="btn-primary" onClick={() => setShowGetStarted(true)}>
                 Get Started Free
-              </a>
+              </button>
+              {showGetStarted && <GetStartedModal onClose={() => setShowGetStarted(false)} />}
               <button className="btn-secondary">
                 <span style={{
                   width: "1.3rem", height: "1.3rem", borderRadius: "50%",

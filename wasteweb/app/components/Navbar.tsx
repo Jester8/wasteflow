@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import "./navbar.css";
+import GetStartedModal from "./GetStartedModal";
 
 const navLinks = [
   { label: "Features", href: "#features" },
@@ -13,6 +14,7 @@ const navLinks = [
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showGetStarted, setShowGetStarted] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 16);
@@ -48,9 +50,9 @@ export default function Navbar() {
 
           {/* Desktop CTA */}
           <div className="wf-desktop-cta">
-            <a href="/signup" className="wf-cta-btn">
+            <button onClick={() => setShowGetStarted(true)} className="wf-cta-btn" style={{ border: "none", cursor: "pointer" }}>
               Get Started
-            </a>
+            </button>
           </div>
 
           {/* Mobile Menu Toggle Button */}
@@ -97,13 +99,13 @@ export default function Navbar() {
             </div>
 
             <div className="wf-mobile-buttons">
-              <a
-                href="/signup"
-                onClick={() => setMobileOpen(false)}
+              <button
+                onClick={() => { setMobileOpen(false); setShowGetStarted(true); }}
                 className="wf-mobile-btn-primary"
+                style={{ border: "none", cursor: "pointer" }}
               >
                 Get Started
-              </a>
+              </button>
               <a
                 href="#demo"
                 onClick={() => setMobileOpen(false)}
@@ -115,6 +117,8 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {showGetStarted && <GetStartedModal onClose={() => setShowGetStarted(false)} />}
     </>
   );
 }
