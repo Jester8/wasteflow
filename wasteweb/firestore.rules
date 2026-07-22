@@ -54,26 +54,21 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Self-serve signup is intentionally limited to contractor/operatorAdmin —
-      // fleet operator ("operator") accounts are only ever created by their
-      // operatorAdmin via the admin-SDK create-driver route, never self-signup,
-      // and superadmin accounts are seeded directly via the Admin SDK.
       allow create: if isSignedIn()
                     && isOwner(userId)
                     && request.resource.data.keys().hasAll(['uid', 'fullName', 'email', 'role', 'kycStatus'])
-                    && request.resource.data.role in ['contractor', 'operatorAdmin']
+                    && request.resource.data.role in ['contractorAdmin', 'operatorAdmin']
                     && request.resource.data.kycStatus == 'pending'
                     && request.resource.data.uid == request.auth.uid;
 
-      // UPDATED: Allow operators to read contractor names, and contractors to read each other's names
       allow read: if isSignedIn()
                   && (
-                    isOwner(userId)                // Users can read their own profile
-                    || isAdminOrAbove()            // Admins/SuperAdmins can read all
-                    || isOperator()                // Operators can read all user profiles
-                    || isContractor()              // Contractors can read all user profiles
-                    || isContractorAdmin()         // Contractor Admin oversight
-                    || isOperatorAdmin()           // Operator Admin oversight/assignment
+                    isOwner(userId)
+                    || isAdminOrAbove()
+                    || isOperator()
+                    || isContractor()
+                    || isContractorAdmin()
+                    || isOperatorAdmin()
                   );
 
       allow update: if isSignedIn()
@@ -85,7 +80,6 @@ service cloud.firestore {
                       || (resource.data.kycStatus == 'pending' && request.resource.data.kycStatus == 'submitted')
                     );
 
-      // Super admin / admin management actions: suspend/reinstate, KYC override, etc.
       allow update: if isAdminOrAbove();
 
       allow delete: if false;
@@ -160,22 +154,12 @@ service cloud.firestore {
                     && resource.data.status != 'cancelled'
                     && !('contractorId' in request.resource.data.diff(resource.data).affectedKeys());
 
-      // Any Operator Admin may tag a request's derived UK region once —
-      // harmless, deterministic, and needed before region-gated assignment
-      // below can ever succeed.
       allow update: if isOperatorAdmin()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['region']);
 
-      // Operator Admin assigns an unactioned request to one of their own
-      // fleet operators — only allowed once the request's region matches a
-      // region this admin covers (or the region couldn't be determined).
       allow update: if isOperatorAdmin()
                     && resource.data.status == 'pending'
-                    && (
-                      !('region' in resource.data)
-                      || resource.data.region == 'Unknown'
-                      || resource.data.region in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('regions', [])
-                    )
+                    && resource.data.targetOperatorAdminId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignedOperatorId', 'assignedAt', 'updatedAt']);
 
       allow update: if isAdminOrAbove()
@@ -197,9 +181,6 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isOwner(userId);
     }
 
-    // Audit trail: any signed-in user may write an entry for their OWN
-    // action (actorId must match their own uid, so it can't be forged),
-    // but only admins/superadmins can read the log back.
     match /adminLogs/{logId} {
       allow read:   if isAdminOrAbove();
       allow create: if isSignedIn() && request.resource.data.actorId == request.auth.uid;

@@ -25,6 +25,7 @@ export interface RequestRow {
   location: string;
   status: string;
   assignedOperatorId?: string;
+  targetOperatorAdminId?: string;
   region?: string;
   createdAt: any;
 }
@@ -58,10 +59,11 @@ export function useOperatorAdminData() {
           id: d.id,
           title: data.title || "Untitled",
           wasteType: data.wasteType || "General",
-          contractorName: data.contractorName || "—",
-          location: data.location || "—",
+          contractorName: data.contractorName || "N/A",
+          location: data.location || "N/A",
           status: data.status || "pending",
           assignedOperatorId: data.assignedOperatorId,
+          targetOperatorAdminId: data.targetOperatorAdminId,
           region: data.region,
           createdAt: data.createdAt,
         } as RequestRow;
@@ -77,9 +79,7 @@ export function useOperatorAdminData() {
       const region = deriveRegionFromLocation(r.location);
       try {
         await updateDoc(doc(db, "wasteRequests", r.id), { region });
-      } catch {
-        // another admin may have already tagged it — non-fatal
-      }
+      } catch {}
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requests]);
@@ -96,11 +96,10 @@ export function useOperatorAdminData() {
     return counts;
   }, [requests]);
 
-  const unassigned = useMemo(() => requests.filter((r) => {
-    if (r.status !== "pending" || r.assignedOperatorId) return false;
-    if (!r.region || r.region === "Unknown") return true;
-    return myRegions.includes(r.region);
-  }), [requests, myRegions]);
+  const unassigned = useMemo(
+    () => requests.filter((r) => r.status === "pending" && !r.assignedOperatorId && r.targetOperatorAdminId === uid),
+    [requests, uid]
+  );
 
   const myFleetFeed = useMemo(
     () => requests.filter((r) => r.assignedOperatorId && driverIds.has(r.assignedOperatorId)),

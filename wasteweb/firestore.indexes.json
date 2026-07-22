@@ -1,0 +1,30 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "wasteRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedOperatorId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wasteRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedOperatorId", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "wasteRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedOperatorId", "order": "ASCENDING" },
+        { "fieldPath": "windowStart", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { signOut } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { collection, query, orderBy, onSnapshot, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot, limit, doc, updateDoc, writeBatch } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import { useAuthGuard } from "../hooks/Useauthguard ";
@@ -383,6 +383,7 @@ export default function OperatorDashboard() {
 
     const q = query(
       collection(db, "wasteRequests"),
+      where("assignedOperatorId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
 

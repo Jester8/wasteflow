@@ -222,6 +222,7 @@ export default function HistoryPage() {
 
     const q = query(
       collection(db, "wasteRequests"),
+      where("assignedOperatorId", "==", user.uid),
       where("status", "==", "completed"),
       orderBy("createdAt", "desc")
     );

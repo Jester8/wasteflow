@@ -4,8 +4,8 @@ import Link from "next/link";
 
 const OPTIONS = [
   {
-    title: "Sign up as a Company",
-    sub: "Operator Admin — onboard your fleet, price list, and dispatch",
+    title: "Sign up as Operator Company",
+    sub: "Operator Admin, onboard your fleet, price list, and dispatch",
     href: "/signup?role=operatorAdmin",
   },
   {
@@ -14,14 +14,14 @@ const OPTIONS = [
     href: "/operators/login",
   },
   {
-    title: "Sign up your Site",
-    sub: "Contractor — request skips for your construction site",
-    href: "/signup?role=contractor",
+    title: "Sign up as Contractor Company",
+    sub: "Contractor Admin, onboard your sites and place requests",
+    href: "/signup?role=contractorAdmin",
   },
   {
     title: "Sign in as Contractor",
-    sub: "Returning site contractor",
-    href: "/login?role=contractor",
+    sub: "Site access to your own requests",
+    href: "/contractor/login",
   },
 ];
 

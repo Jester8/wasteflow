@@ -488,7 +488,7 @@ function HeroText() {
   );
 }
 
-type Role = "operator" | "operatorAdmin" | "contractor";
+type Role = "operator" | "operatorAdmin" | "contractor" | "contractorAdmin";
 
 const ROLE_CONFIG: Record<
   Role,
@@ -497,11 +497,13 @@ const ROLE_CONFIG: Record<
   operator: { label: "Operator", emoji: "", placeholder: "you@company.co.uk" },
   operatorAdmin: { label: "Operator Admin", emoji: "", placeholder: "you@company.co.uk" },
   contractor: { label: "Contractor", emoji: "", placeholder: "you@haulage.co.uk" },
+  contractorAdmin: { label: "Contractor Admin", emoji: "", placeholder: "you@haulage.co.uk" },
 };
 
 function dashboardPathFor(role: string) {
   if (role === "operator") return "/operators";
   if (role === "operatorAdmin") return "/operator-admin";
+  if (role === "contractorAdmin") return "/contractor-admin";
   return "/contractor";
 }
 
@@ -512,7 +514,6 @@ function routeAfterAuth(
 ) {
   const { kycStatus, role } = profile || {};
 
-  // Role mismatch
   if (role !== selectedRole) {
     throw new Error(
       `This account is registered as ${ROLE_CONFIG[role as Role]?.label || role}.`
@@ -725,7 +726,7 @@ function LoginPageContent() {
               </p>
 
               <div className="wf-toggle">
-                {(["operatorAdmin", "contractor"] as Role[]).map((r) => (
+                {(["operatorAdmin", "contractorAdmin"] as Role[]).map((r) => (
                   <button
                     key={r}
                     type="button"

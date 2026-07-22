@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { deriveRegionFromLocation } from "../../operator-admin/lib/ukRegion";
 
 const WASTE_TYPES = ["Mixed", "Metal", "Concrete", "Green", "Hazardous", "General"];
 
@@ -320,6 +321,8 @@ const EMPTY_FORM = {
   title: "",
   wasteType: "",
   location: "",
+  operatorAdminId: "",
+  operatorAdminName: "",
   dateFrom: "",
   dateTo: "",
   volume: "",
@@ -329,12 +332,20 @@ const EMPTY_FORM = {
   note: "",
 };
 
-export default function CreateRequestModal({ open, onClose, onSubmit }) {
+export default function CreateRequestModal({ open, onClose, onSubmit, operatorAdmins }) {
   const [step, setStep]           = useState(0);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [errors, setErrors]       = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const allOperators = operatorAdmins || [];
+  const region = useMemo(() => deriveRegionFromLocation(form.location), [form.location]);
+  const matchingOperators = useMemo(() => {
+    if (region === "Unknown") return allOperators;
+    const matches = allOperators.filter((o) => o.regions?.includes(region));
+    return matches.length > 0 ? matches : allOperators;
+  }, [allOperators, region]);
 
   const bodyRef = useRef(null);
 
@@ -375,6 +386,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
       if (!form.title.trim())    e.title     = "Job title is required";
       if (!form.wasteType)       e.wasteType = "Please select a waste type";
       if (!form.location.trim()) e.location  = "Location is required";
+      if (!form.operatorAdminId) e.operatorAdminId = "Please choose an operator";
       if (!form.volume?.trim())  e.volume    = "Estimated volume is required";
     }
     if (s === 1) {
@@ -413,7 +425,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
         id,
         status: "Pending",
         submittedAt: new Date(),
-        dates: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}`,
+        dates: `${fmt(form.dateFrom)} to ${fmt(form.dateTo)}`,
         availability: `${form.availableFromTime} - ${form.availableToTime}`,
         volume: `${form.volume.trim()} ${cleanedVolumeUnit}`.trim(),
       };
@@ -608,7 +620,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
               }}>
                 {[
                   { icon: "📍", label: form.location },
-                  { icon: "📅", label: `${fmt(form.dateFrom)} – ${fmt(form.dateTo)}` },
+                  { icon: "📅", label: `${fmt(form.dateFrom)} to ${fmt(form.dateTo)}` },
                   { icon: "🕒", label: `${form.availableFromTime} - ${form.availableToTime}` },
                   { icon: "🚛", label: `${form.volume} ${form.volumeUnit}` },
                 ].map(({ icon, label }) => (
@@ -634,7 +646,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                     <Label required>Job Title</Label>
                     <FocusInput
                       type="text"
-                      placeholder="e.g. Site clearance — Phase 2"
+                      placeholder="e.g. Site clearance, Phase 2"
                       value={form.title}
                       onChange={set("title")}
                       error={!!errors.title}
@@ -673,6 +685,35 @@ export default function CreateRequestModal({ open, onClose, onSubmit }) {
                     />
                     {errors.location && <span className="cr-error">{errors.location}</span>}
                     <FieldHint>Type at least 3 characters to search for a real address.</FieldHint>
+                  </div>
+
+                  <div className="cr-field">
+                    <Label required>Operator</Label>
+                    <select
+                      className="cr-unit-select"
+                      style={{ width: "100%" }}
+                      value={form.operatorAdminId}
+                      onChange={(e) => {
+                        const chosen = matchingOperators.find((o) => o.id === e.target.value);
+                        setForm((p) => ({
+                          ...p,
+                          operatorAdminId: e.target.value,
+                          operatorAdminName: chosen?.fullName || "",
+                        }));
+                        setErrors((e2) => ({ ...e2, operatorAdminId: null }));
+                      }}
+                    >
+                      <option value="">Select an operator</option>
+                      {matchingOperators.map((o) => (
+                        <option key={o.id} value={o.id}>{o.fullName}</option>
+                      ))}
+                    </select>
+                    {errors.operatorAdminId && <span className="cr-error">{errors.operatorAdminId}</span>}
+                    <FieldHint>
+                      {region === "Unknown"
+                        ? "Showing all operators."
+                        : `Showing operators covering ${region}.`}
+                    </FieldHint>
                   </div>
 
                   <div className="cr-field">

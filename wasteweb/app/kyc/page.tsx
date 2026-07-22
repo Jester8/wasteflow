@@ -7,11 +7,12 @@ import { updateUserKYC, markKycSubmitted } from "@/lib/firestore";
 import { useAuthGuard } from "../hooks/Useauthguard ";
 import { UK_REGIONS } from "../operator-admin/lib/ukRegion";
 
-type Role = "operator" | "contractor" | "operatorAdmin";
+type Role = "operator" | "contractor" | "operatorAdmin" | "contractorAdmin";
 
 function dashboardPathFor(role: string) {
   if (role === "operator") return "/operators/";
   if (role === "operatorAdmin") return "/operator-admin/";
+  if (role === "contractorAdmin") return "/contractor-admin/";
   return "/contractor/";
 }
 

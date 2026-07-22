@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
 
 type GuardType = "guest-only" | "auth-only" | "kyc-complete";
-type Role = "operator" | "contractor" | "operatorAdmin";
+type Role = "operator" | "contractor" | "operatorAdmin" | "contractorAdmin";
 
 function dashboardPathFor(role: string) {
   if (role === "operator") return "/operators/";
   if (role === "operatorAdmin") return "/operator-admin/";
+  if (role === "contractorAdmin") return "/contractor-admin/";
   return "/contractor/";
 }
 
@@ -45,7 +46,6 @@ export function useAuthGuard(type: GuardType, requiredRole?: Role) {
       }
     }
 
-    // ── Role enforcement (new) ──────────────────────────────────────────
     if (requiredRole && profile && profile.role !== requiredRole) {
       router.replace(dashboardPathFor(profile.role));
       return;

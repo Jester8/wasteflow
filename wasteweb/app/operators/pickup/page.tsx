@@ -251,6 +251,7 @@ export default function MyPickupsPage() {
 
     const q = query(
       collection(db, "wasteRequests"),
+      where("assignedOperatorId", "==", user.uid),
       where("status", "in", ACTIVE_STATUSES),
       orderBy("createdAt", "desc")
     );

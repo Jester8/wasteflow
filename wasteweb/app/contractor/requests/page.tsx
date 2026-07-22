@@ -73,8 +73,6 @@ const STATUS_DISPLAY_MAP: Record<string, string> = {
   awaiting_reschedule:  "Rescheduled",
 };
 
-// Same status vocabulary as the badges/timeline above — kept as one list so
-// the filter can never drift out of sync with the statuses actually shown.
 const STATUS_TABS = [
   "All",
   "Awaiting Approval",
@@ -95,15 +93,15 @@ function toDisplayStatus(rawStatus: string, awaitingUserConfirmation?: boolean):
 }
 
 function formatDateRange(start?: string, end?: string) {
-  if (!start) return "—";
+  if (!start) return "N/A";
   const fmt = (iso: string) =>
     new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   if (!end || end === start) return fmt(start);
-  return `${fmt(start)} – ${fmt(end)}`;
+  return `${fmt(start)} to ${fmt(end)}`;
 }
 
 function formatTimestamp(ts: any): string {
-  if (!ts) return "—";
+  if (!ts) return "N/A";
 
   let date: Date;
   if (typeof ts?.toDate === "function") {
@@ -114,7 +112,7 @@ function formatTimestamp(ts: any): string {
     date = new Date(ts);
   }
 
-  if (isNaN(date.getTime())) return "—";
+  if (isNaN(date.getTime())) return "N/A";
   return (
     date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
     " · " +
@@ -309,7 +307,7 @@ function RequestCard({
           }
           text={item.volume}
         />
-        {item.createdAt && item.createdAt !== "—" && (
+        {item.createdAt && item.createdAt !== "N/A" && (
           <MetaRow
             icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
@@ -378,6 +376,7 @@ export default function MyRequestsPage() {
   const [loading, setLoading]           = useState(true);
   const [selectedItem, setSelectedItem] = useState<RequestItem | null>(null);
   const [createOpen, setCreateOpen]     = useState(false);
+  const [operatorAdmins, setOperatorAdmins] = useState<{ id: string; fullName: string; regions?: string[] }[]>([]);
 
   const { user, profile } = useAuth();
 
@@ -402,11 +401,11 @@ export default function MyRequestsPage() {
               id: d.id,
               title: data.title || "Untitled",
               wasteType: data.wasteType || "General",
-              location: data.location || "—",
+              location: data.location || "N/A",
               dates: formatDateRange(data.windowStart, data.windowEnd),
-              availability: data.availability || "—",
-              volume: data.volume || "—",
-              note: data.notes || "—",
+              availability: data.availability || "N/A",
+              volume: data.volume || "N/A",
+              note: data.notes || "N/A",
               status: toDisplayStatus(rawStatus, awaitingUserConfirmation),
               rawStatus,
               createdAt: formatTimestamp(data.createdAt),
@@ -442,6 +441,17 @@ export default function MyRequestsPage() {
     return () => unsub();
   }, [user]);
 
+  useEffect(() => {
+    const q = query(collection(db, "users"), where("role", "==", "operatorAdmin"));
+    const unsub = onSnapshot(q, (snap) => {
+      setOperatorAdmins(snap.docs.map((d) => {
+        const data = d.data();
+        return { id: d.id, fullName: data.fullName || "Operator", regions: data.regions || [] };
+      }));
+    });
+    return () => unsub();
+  }, []);
+
   const liveSelectedItem = selectedItem
     ? requests.find((r) => r.id === selectedItem.id) ?? selectedItem
     : null;
@@ -471,6 +481,8 @@ export default function MyRequestsPage() {
         notes:        formPayload.note,
         contractorId: user.uid,
         contractorName: profile?.fullName || "Unknown contractor",
+        targetOperatorAdminId: formPayload.operatorAdminId,
+        targetOperatorAdminName: formPayload.operatorAdminName,
         status:       "pending",
         createdAt:    serverTimestamp(),
         awaitingUserConfirmation: false,
@@ -795,6 +807,7 @@ export default function MyRequestsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateSubmit}
+        operatorAdmins={operatorAdmins}
       />
 
       <OperatorRequestDetailModal

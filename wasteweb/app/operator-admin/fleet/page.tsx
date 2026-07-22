@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useOperatorAdminData } from "../lib/useOperatorAdminData";
+import { useOperatorAdminData, Driver } from "../lib/useOperatorAdminData";
 import AddDriverModal from "../components/AddDriverModal";
+import DriverDetailModal from "../components/DriverDetailModal";
 
 export default function FleetPage() {
-  const { drivers, activeJobCounts, loading } = useOperatorAdminData();
+  const { drivers, activeJobCounts, myFleetFeed, loading } = useOperatorAdminData();
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
 
   return (
     <div>
@@ -33,7 +35,11 @@ export default function FleetPage() {
 
       <div style={{ display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
         {drivers.map((d) => (
-          <div key={d.id} style={{ background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14, padding: 18 }}>
+          <div
+            key={d.id}
+            onClick={() => setSelectedDriver(d)}
+            style={{ background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14, padding: 18, cursor: "pointer" }}
+          >
             <p style={{ fontSize: "0.92rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>{d.fullName}</p>
             <p style={{ fontSize: "0.76rem", color: "#6b8f7a", margin: "4px 0 0" }}>{d.email}</p>
             {d.mobileNumber && <p style={{ fontSize: "0.76rem", color: "#6b8f7a", margin: "2px 0 0" }}>{d.mobileNumber}</p>}
@@ -62,6 +68,14 @@ export default function FleetPage() {
       </div>
 
       {showAdd && <AddDriverModal onClose={() => setShowAdd(false)} />}
+      {selectedDriver && (
+        <DriverDetailModal
+          driver={selectedDriver}
+          feed={myFleetFeed.filter((r) => r.assignedOperatorId === selectedDriver.id)}
+          activeCount={activeJobCounts[selectedDriver.id] || 0}
+          onClose={() => setSelectedDriver(null)}
+        />
+      )}
     </div>
   );
 }

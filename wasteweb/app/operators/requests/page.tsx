@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import {
-  collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, serverTimestamp,
+  collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
@@ -1088,19 +1088,25 @@ export default function OperatorRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<RequestItem | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, "wasteRequests"), orderBy("windowStart", "desc"));
+    if (!user) return;
+
+    const q = query(
+      collection(db, "wasteRequests"),
+      where("assignedOperatorId", "==", user.uid),
+      orderBy("windowStart", "desc")
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const docsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as FirestoreRequest[];
-      
+
       setRequests(docsData.map(mapDoc));
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Dynamics Hook tracking operator coordinates during active transit periods
   useLiveLocationBroadcaster(requests, user?.uid);

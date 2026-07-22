@@ -205,7 +205,7 @@ function HeroText() {
         )}
       </p>
       <p style={{ fontSize: "0.875rem", color: "#5a8a6a", fontWeight: 600, lineHeight: 1.65, maxWidth: 340, fontFamily: "'Quicksand',sans-serif", opacity: done1 ? 1 : 0, transition: "opacity 0.6s ease" }}>
-        Manage skip orders, track pickups in real time, and keep your site compliant — all from one platform.
+        Manage skip orders, track pickups in real time, and keep your site compliant, all from one platform.
       </p>
     </div>
   );
@@ -213,7 +213,7 @@ function HeroText() {
 
 function SignupPageContent() {
   const searchParams = useSearchParams();
-  const initialRole = searchParams.get("role") === "contractor" ? "contractor" : "operatorAdmin";
+  const initialRole = searchParams.get("role") === "contractorAdmin" ? "contractorAdmin" : "operatorAdmin";
   const [role, setRole] = useState(initialRole);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -251,7 +251,6 @@ function SignupPageContent() {
       fullName,
       email,
       provider: "email",
-      // ✅ No kycStatus field - will be set after KYC submission
     });
 
     if (auth.currentUser) {
@@ -259,7 +258,6 @@ function SignupPageContent() {
     }
 
     setLoading(false);
-    // ✅ Email signup: Go to verify email first, then KYC after verification
     window.location.href = "/verify-email";
   };
 
@@ -277,7 +275,6 @@ function SignupPageContent() {
       }
 
       if (result.isNewUser) {
-        // Brand new user — write profile with selected role, then go to KYC
         const currentUser = auth.currentUser;
         if (currentUser) {
           await saveUserProfile(result.uid, {
@@ -285,7 +282,6 @@ function SignupPageContent() {
             fullName: currentUser.displayName || "",
             email: currentUser.email || "",
             provider: "google",
-            // ✅ No kycStatus field - will be set after KYC submission
           });
         } else {
           setGlobalError("Something went wrong. Please try again.");
@@ -293,21 +289,18 @@ function SignupPageContent() {
           return;
         }
         setGoogleLoading(false);
-        // ✅ Google signup: Go directly to KYC (no email verification needed)
         window.location.href = "/kyc";
       } else {
-        // Existing user — fetch their profile and route based on kycStatus
         const existingProfile = await getUserProfile(result.uid);
         setGoogleLoading(false);
 
         if (!existingProfile || !existingProfile.kycStatus) {
-          // Account exists but KYC never submitted
           window.location.href = "/kyc";
         } else if (existingProfile.kycStatus === "pending" || existingProfile.kycStatus === "approved") {
-          // KYC done — go to their dashboard
           window.location.href =
             existingProfile.role === "operator" ? "/operators/" :
             existingProfile.role === "operatorAdmin" ? "/operator-admin/" :
+            existingProfile.role === "contractorAdmin" ? "/contractor-admin/" :
             "/contractor/";
         } else {
           window.location.href = "/kyc";
@@ -395,9 +388,9 @@ function SignupPageContent() {
               <p className="wf-sub">Join WasteFlow to start managing construction waste efficiently.</p>
 
               <div className="wf-toggle">
-                {["operatorAdmin", "contractor"].map(r => (
+                {["operatorAdmin", "contractorAdmin"].map(r => (
                   <button key={r} type="button" className={`wf-toggle-btn${role === r ? " active" : ""}`} onClick={() => setRole(r)}>
-                    {r === "operatorAdmin" ? "Operators (Admin)" : "Contractor (Admin)"}
+                    {r === "operatorAdmin" ? "Operator Company" : "Contractor Company"}
                   </button>
                 ))}
               </div>
