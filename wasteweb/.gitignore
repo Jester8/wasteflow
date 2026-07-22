@@ -38,6 +38,7 @@ yarn-error.log*
 
 ServiceAccountKey.json
 *ServiceAccountKey*.json
+VERCEL_ENV_VALUES.local.txt
 
 # typescript
 *.tsbuildinfo

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { collection, doc, getDoc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { logAdminEvent } from "../../lib/adminLog";
 import LiveTrackingMap from "../../components/LiveTrackingMap";
@@ -185,7 +187,19 @@ function RejectReasonModal({
   );
 }
 
-export default function UserManagementList({ role, title }: { role: "operator" | "contractor"; title: string }) {
+export default function UserManagementList(props: { role: "operator" | "contractor"; title: string }) {
+  return (
+    <Suspense fallback={<p style={{ color: "#9ab8a5", fontSize: "0.85rem" }}>Loading…</p>}>
+      <UserManagementListInner {...props} />
+    </Suspense>
+  );
+}
+
+function UserManagementListInner({ role, title }: { role: "operator" | "contractor"; title: string }) {
+  const searchParams = useSearchParams();
+  const adminId = searchParams.get("adminId");
+  const adminIdField = role === "operator" ? "operatorAdminId" : "contractorAdminId";
+
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -193,9 +207,22 @@ export default function UserManagementList({ role, title }: { role: "operator" |
   const [tracking, setTracking] = useState<{ user: ManagedUser; request: ActiveRequest } | null>(null);
   const [viewingKyc, setViewingKyc] = useState<ManagedUser | null>(null);
   const [rejecting, setRejecting] = useState<ManagedUser | null>(null);
+  const [adminName, setAdminName] = useState<string | null>(null);
 
   useEffect(() => {
-    const q = query(collection(db, "users"), where("role", "==", role));
+    if (!adminId) {
+      setAdminName(null);
+      return;
+    }
+    getDoc(doc(db, "users", adminId)).then((snap) => {
+      setAdminName(snap.exists() ? (snap.data().fullName || "this company") : "this company");
+    });
+  }, [adminId]);
+
+  useEffect(() => {
+    const q = adminId
+      ? query(collection(db, "users"), where("role", "==", role), where(adminIdField, "==", adminId))
+      : query(collection(db, "users"), where("role", "==", role));
     const unsub = onSnapshot(q, (snap) => {
       setUsers(
         snap.docs.map((d) => {
@@ -214,7 +241,7 @@ export default function UserManagementList({ role, title }: { role: "operator" |
       setLoading(false);
     });
     return () => unsub();
-  }, [role]);
+  }, [role, adminId, adminIdField]);
 
   // One shared subscription for every request currently being tracked live,
   // keyed by whichever id (operatorId or contractorId) this page cares about
@@ -302,9 +329,26 @@ export default function UserManagementList({ role, title }: { role: "operator" |
   return (
     <div>
       <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: 0 }}>{title}</h1>
-      <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 24px" }}>
+      <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 12px" }}>
         {loading ? "Loading…" : `${users.length} account${users.length === 1 ? "" : "s"}`}
       </p>
+
+      {adminId && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap",
+          background: "rgba(184,213,46,0.10)", border: "1px solid rgba(184,213,46,0.3)",
+          borderRadius: 10, padding: "10px 14px", marginBottom: 16,
+        }}>
+          <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1a4d2e", margin: 0 }}>
+            Filtered to {adminName || "this company"}'s team
+          </p>
+          <Link href={`/superadmin/${role === "operator" ? "operators" : "contractors"}`} style={{
+            fontSize: "0.76rem", fontWeight: 700, color: "#1a4d2e", textDecoration: "underline",
+          }}>
+            Clear filter
+          </Link>
+        </div>
+      )}
 
       <div style={{
         background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 16,

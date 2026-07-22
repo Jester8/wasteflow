@@ -1,20 +1,5 @@
-export const SKIP_SIZES = [4, 6, 8, 10, 12, 14, 20, 25, 30, 35, 40];
-
-export function parseSkipSize(volume?: string): number | null {
-  if (!volume) return null;
-  if (!/yard/i.test(volume)) return null;
-  const match = volume.match(/\d+(\.\d+)?/);
-  if (!match) return null;
-  const n = parseFloat(match[0]);
-  return Number.isFinite(n) ? n : null;
-}
-
-export function formatGBP(value: number): string {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(value || 0);
-}
-
 export function formatDate(ts: any): string {
-  if (!ts?.seconds) return "—";
+  if (!ts?.seconds) return "N/A";
   const d = new Date(ts.seconds * 1000);
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
     " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });

@@ -4,10 +4,15 @@ import { useState } from "react";
 import { useOperatorAdminData, RequestRow } from "../lib/useOperatorAdminData";
 import { STATUS_STYLE, formatDate } from "../lib/constants";
 import AssignModal from "../components/AssignModal";
+import LiveMapModal from "../components/LiveMapModal";
+
+const TRACKABLE_STATUSES = new Set(["arriving", "in_transit"]);
 
 export default function DispatchPage() {
   const { drivers, unassigned, myFleetFeed, myRegions, loading } = useOperatorAdminData();
   const [assigning, setAssigning] = useState<RequestRow | null>(null);
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const tracking = trackingId ? myFleetFeed.find((r) => r.id === trackingId) : null;
 
   return (
     <div>
@@ -68,9 +73,23 @@ export default function DispatchPage() {
                         {r.contractorName} · Driver: {driver?.fullName || "—"} · {formatDate(r.createdAt)}
                       </p>
                     </div>
-                    <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "4px 10px", borderRadius: 999, background: style.bg, color: style.color, textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                      {style.label}
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: "0.68rem", fontWeight: 700, padding: "4px 10px", borderRadius: 999, background: style.bg, color: style.color, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        {style.label}
+                      </span>
+                      {TRACKABLE_STATUSES.has(r.status) && (
+                        <button
+                          onClick={() => setTrackingId(r.id)}
+                          style={{
+                            padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+                            background: "#1a4d2e", color: "#B8D52E", fontSize: "0.72rem", fontWeight: 700,
+                            fontFamily: "'Quicksand', sans-serif",
+                          }}
+                        >
+                          Track Live
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -81,6 +100,9 @@ export default function DispatchPage() {
 
       {assigning && (
         <AssignModal request={assigning} drivers={drivers} onClose={() => setAssigning(null)} />
+      )}
+      {tracking && (
+        <LiveMapModal request={tracking} onClose={() => setTrackingId(null)} />
       )}
     </div>
   );

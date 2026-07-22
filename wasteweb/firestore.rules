@@ -88,6 +88,17 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if isOwner(userId) && isOperatorAdmin();
       }
+
+      match /private/{docId} {
+        allow read: if isSignedIn()
+                    && (
+                      isOwner(userId)
+                      || isAdminOrAbove()
+                      || (isOperatorAdmin() && get(/databases/$(database)/documents/users/$(userId)).data.operatorAdminId == request.auth.uid)
+                      || (isContractorAdmin() && get(/databases/$(database)/documents/users/$(userId)).data.contractorAdminId == request.auth.uid)
+                    );
+        allow write: if false;
+      }
     }
 
     match /kyc/{userId} {

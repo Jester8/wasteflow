@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Driver, RequestRow } from "../lib/useOperatorAdminData";
+import { parseSkipSize } from "../lib/constants";
 
 export default function AssignModal({
   request, drivers, onClose,
@@ -13,6 +14,14 @@ export default function AssignModal({
   onClose: () => void;
 }) {
   const [assigning, setAssigning] = useState<string | null>(null);
+
+  const requestedSize = useMemo(() => parseSkipSize(request.volume), [request.volume]);
+  const eligibleDrivers = useMemo(
+    () => requestedSize == null
+      ? drivers
+      : drivers.filter((d) => d.skipCapacity?.includes(requestedSize)),
+    [drivers, requestedSize]
+  );
 
   async function handleAssign(driverId: string) {
     setAssigning(driverId);
@@ -42,12 +51,17 @@ export default function AssignModal({
         maxHeight: "90vh", overflowY: "auto",
       }}>
         <p style={{ fontSize: "1rem", fontWeight: 800, color: "#1a2e1f", margin: 0 }}>Assign to Fleet Operator</p>
-        <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "4px 0 20px" }}>
+        <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "4px 0 4px" }}>
           {request.title} · {request.contractorName}
         </p>
+        {requestedSize != null && (
+          <p style={{ fontSize: "0.76rem", color: "#4a7a5a", fontWeight: 700, margin: "0 0 20px" }}>
+            Requires a {requestedSize} yd skip · showing only drivers who carry that size
+          </p>
+        )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {drivers.map((d) => (
+          {eligibleDrivers.map((d) => (
             <div key={d.id} style={{
               display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
               padding: "12px 16px", borderRadius: 12, border: "1px solid #e8f2eb",
@@ -72,6 +86,11 @@ export default function AssignModal({
           {drivers.length === 0 && (
             <p style={{ fontSize: "0.85rem", color: "#9ab8a5", textAlign: "center", padding: "20px 0" }}>
               Add a fleet operator first.
+            </p>
+          )}
+          {drivers.length > 0 && eligibleDrivers.length === 0 && (
+            <p style={{ fontSize: "0.85rem", color: "#9ab8a5", textAlign: "center", padding: "20px 0" }}>
+              No fleet operator carries a {requestedSize} yd skip yet.
             </p>
           )}
         </div>

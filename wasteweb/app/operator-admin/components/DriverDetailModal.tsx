@@ -4,11 +4,13 @@ import type { Driver, RequestRow } from "../lib/useOperatorAdminData";
 import { STATUS_STYLE, formatDate } from "../lib/constants";
 
 export default function DriverDetailModal({
-  driver, feed, activeCount, onClose,
+  driver, feed, activeCount, password, onResetPassword, onClose,
 }: {
   driver: Driver;
   feed: RequestRow[];
   activeCount: number;
+  password?: string;
+  onResetPassword: () => void;
   onClose: () => void;
 }) {
   return (
@@ -46,6 +48,27 @@ export default function DriverDetailModal({
               {driver.skipCapacity?.length ? driver.skipCapacity.map((c) => `${c}yd`).join(", ") : "N/A"}
             </p>
           </div>
+        </div>
+
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+          background: "#f8fbf9", border: "1px solid #edf4f0", borderRadius: 12, padding: "12px 14px", marginBottom: 20,
+        }}>
+          <div>
+            <p style={{ fontSize: "0.66rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>Password</p>
+            <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#1a2e1f", margin: "4px 0 0", fontFamily: "monospace" }}>
+              {password || "Loading…"}
+            </p>
+          </div>
+          <button
+            onClick={onResetPassword}
+            style={{
+              padding: "7px 12px", borderRadius: 8, border: "1px solid #e8f2eb", background: "#fff",
+              color: "#4a7a5a", fontSize: "0.74rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Quicksand', sans-serif",
+            }}
+          >
+            Reset Password
+          </button>
         </div>
 
         <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>

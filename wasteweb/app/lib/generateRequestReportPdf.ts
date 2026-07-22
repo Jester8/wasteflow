@@ -153,9 +153,13 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...TEXT_MUTED);
-      doc.text("Operator's Signature", sigX, y + 12);
+      doc.text("Manager's Signature", sigX, y + 12);
       doc.addImage(signatureData, imageFormatFromDataUrl(signatureData), sigX, y + 16, imgW, imgH);
-      maxImgH = Math.max(maxImgH, imgH);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(...TEXT_MUTED);
+      doc.text(`Operator: ${item.operatorName || "N/A"}`, sigX, y + 16 + imgH + 12);
+      maxImgH = Math.max(maxImgH, imgH + 14);
     }
     y += maxImgH + 30;
   }

@@ -5,7 +5,7 @@ import { adminDb } from "../../../lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const { idToken, fullName, email, password } = await req.json();
+    const { idToken, contractorId, newPassword } = await req.json();
 
     if (!idToken) {
       return NextResponse.json({ error: "Missing auth token" }, { status: 401 });
@@ -23,39 +23,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (!fullName || !email || !password || password.length < 8) {
-      return NextResponse.json({ error: "Missing required fields, or password under 8 characters" }, { status: 400 });
+    if (!contractorId || !newPassword || newPassword.length < 8) {
+      return NextResponse.json({ error: "Missing contractor, or password under 8 characters" }, { status: 400 });
     }
 
-    const created = await adminAuth.createUser({
-      email,
-      password,
-      displayName: fullName,
-      emailVerified: true,
-    });
+    const contractorSnap = await adminDb.doc(`users/${contractorId}`).get();
+    const contractorData = contractorSnap.data();
+    if (!contractorSnap.exists || contractorData?.role !== "contractor" || contractorData?.contractorAdminId !== decoded.uid) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    await adminDb.doc(`users/${created.uid}`).set({
-      uid: created.uid,
-      fullName,
-      email,
-      role: "contractor",
-      contractorAdminId: decoded.uid,
-      kycStatus: "approved",
-      accountStatus: "active",
-      provider: "email",
-      emailVerified: true,
-      createdAt: FieldValue.serverTimestamp(),
+    await adminAuth.updateUser(contractorId, { password: newPassword });
+
+    await adminDb.doc(`users/${contractorId}/private/creds`).set({
+      password: newPassword,
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    await adminDb.doc(`users/${created.uid}/private/creds`).set({
-      password,
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-
-    return NextResponse.json({ success: true, uid: created.uid });
+    return NextResponse.json({ success: true });
   } catch (err: any) {
-    console.error("[contractor-admin/create-contractor]", err);
+    console.error("[contractor-admin/reset-contractor-password]", err);
     return NextResponse.json(
       { error: err.message ?? "Internal server error" },
       { status: 500 }

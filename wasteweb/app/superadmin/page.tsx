@@ -1,19 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, getCountFromServer, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useSuperAdminData } from "./lib/useSuperAdminData";
+import { STATUS_STYLE, formatDate } from "./lib/constants";
+import FleetLiveMap from "./components/FleetLiveMap";
 
-const REQUEST_STATUS_CONFIG: { key: string; label: string; bg: string; color: string }[] = [
-  { key: "pending",             label: "Pending",     bg: "rgba(251,191,36,0.12)", color: "#b45309" },
-  { key: "scheduled",           label: "Scheduled",   bg: "rgba(59,130,246,0.10)", color: "#1d4ed8" },
-  { key: "arriving",            label: "Arriving",    bg: "rgba(34,211,238,0.10)", color: "#0e7490" },
-  { key: "in_transit",          label: "In Transit",  bg: "rgba(168,85,247,0.10)", color: "#7c3aed" },
-  { key: "completed",           label: "Completed",   bg: "rgba(184,213,46,0.14)", color: "#3a6b00" },
-  { key: "declined",            label: "Declined",    bg: "rgba(239,68,68,0.10)",  color: "#b91c1c" },
-  { key: "awaiting_reschedule", label: "Rescheduled",  bg: "rgba(139,92,246,0.12)", color: "#7c3aed" },
-];
+const SHADOW_SM = "0 1px 2px rgba(16,24,18,0.06)";
 
 const LOG_TYPE_COLOR: Record<string, { bg: string; color: string }> = {
   user_signup:   { bg: "rgba(59,130,246,0.10)", color: "#1d4ed8" },
@@ -30,102 +25,95 @@ interface LogEntry {
   createdAt: any;
 }
 
-function formatDateTime(ts: any): string {
-  if (!ts?.seconds) return "—";
-  const d = new Date(ts.seconds * 1000);
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) +
-    " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-}
-
-const SHADOW_SM = "0 1px 2px rgba(16,24,18,0.06)";
-
-function StatCard({ label, value, href, loading }: { label: string; value: number; href: string; loading: boolean }) {
-  return (
-    <Link href={href} style={{ textDecoration: "none" }}>
-      <div style={{
-        background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 16,
-        padding: 24, minWidth: 200, boxShadow: SHADOW_SM, transition: "box-shadow 0.15s",
-      }}>
-        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
-          {label}
-        </p>
-        <p style={{ fontSize: "2.2rem", fontWeight: 800, color: "#1a2e1f", margin: "6px 0 0" }}>
-          {loading ? "—" : value.toLocaleString()}
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function RequestStatusCard({ label, value, bg, color, loading }: { label: string; value: number; bg: string; color: string; loading: boolean }) {
-  return (
+function KpiCard({ label, value, sub, href }: { label: string; value: string | number; sub?: string; href?: string }) {
+  const content = (
     <div style={{
       background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14,
-      padding: "16px 18px", minWidth: 140, flex: "1 1 140px", boxShadow: SHADOW_SM,
+      padding: "18px 20px", boxShadow: SHADOW_SM, minWidth: 0, height: "100%", boxSizing: "border-box",
     }}>
-      <span style={{
-        display: "inline-block", fontSize: "0.65rem", fontWeight: 700, padding: "3px 9px",
-        borderRadius: 999, background: bg, color, textTransform: "uppercase", letterSpacing: "0.04em",
-      }}>
+      <p style={{ fontSize: "0.66rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
         {label}
-      </span>
-      <p style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: "8px 0 0" }}>
-        {loading ? "—" : value.toLocaleString()}
       </p>
+      <p style={{ fontSize: "1.8rem", fontWeight: 800, color: "#1a2e1f", margin: "6px 0 0", lineHeight: 1 }}>
+        {value}
+      </p>
+      {sub && <p style={{ fontSize: "0.7rem", color: "#6b8f7a", fontWeight: 600, margin: "4px 0 0" }}>{sub}</p>}
+    </div>
+  );
+  if (href) {
+    return <Link href={href} style={{ textDecoration: "none" }}>{content}</Link>;
+  }
+  return content;
+}
+
+function BarList({ title, rows, emptyLabel }: { title: string; rows: { label: string; value: number; color?: string }[]; emptyLabel: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div style={{ background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14, padding: 20, boxShadow: SHADOW_SM }}>
+      <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: "0 0 16px" }}>{title}</p>
+      {rows.length === 0 ? (
+        <p style={{ fontSize: "0.8rem", color: "#9ab8a5", margin: 0 }}>{emptyLabel}</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {rows.map((r) => (
+            <div key={r.label}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, gap: 8 }}>
+                <span style={{ fontSize: "0.76rem", fontWeight: 600, color: "#3a5a45", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.label}</span>
+                <span style={{ fontSize: "0.76rem", fontWeight: 700, color: "#1a2e1f", flexShrink: 0 }}>{r.value}</span>
+              </div>
+              <div style={{ height: 8, borderRadius: 999, background: "#f0f7f2", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${(r.value / max) * 100}%`,
+                  background: r.color || "#1a4d2e", borderRadius: 999,
+                  transition: "width 0.3s ease",
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+function TrendChart({ days }: { days: { label: string; count: number }[] }) {
+  const max = Math.max(1, ...days.map((d) => d.count));
+  return (
+    <div style={{ background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14, padding: 20, boxShadow: SHADOW_SM }}>
+      <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: "0 0 16px" }}>Platform requests — last 7 days</p>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+        {days.map((d) => (
+          <div key={d.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, minWidth: 0 }}>
+            <div style={{
+              width: "100%", maxWidth: 28, height: `${(d.count / max) * 90}px`, minHeight: d.count > 0 ? 4 : 0,
+              background: "#B8D52E", borderRadius: "4px 4px 0 0",
+            }} />
+            <span style={{ fontSize: "0.66rem", fontWeight: 700, color: "#9ab8a5" }}>{d.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+      {children}
+    </p>
+  );
+}
+
 export default function SuperAdminDashboard() {
-  const [accountCounts, setAccountCounts] = useState({ operators: 0, contractors: 0 });
-  const [accountsLoading, setAccountsLoading] = useState(true);
+  const {
+    operatorAdmins, contractorAdmins, drivers, contractors,
+    fleetSizeByAdmin, contractorCountByAdmin,
+    statusCounts, trendDays, liveJobs, loading,
+  } = useSuperAdminData();
 
-  const [requestCounts, setRequestCounts] = useState<Record<string, number>>({});
-  const [requestsLoading, setRequestsLoading] = useState(true);
-
+  const [focusId, setFocusId] = useState<string | null>(null);
   const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadAccountCounts() {
-      try {
-        const [operatorsSnap, contractorsSnap] = await Promise.all([
-          getCountFromServer(query(collection(db, "users"), where("role", "==", "operator"))),
-          getCountFromServer(query(collection(db, "users"), where("role", "==", "contractor"))),
-        ]);
-        setAccountCounts({
-          operators: operatorsSnap.data().count,
-          contractors: contractorsSnap.data().count,
-        });
-      } catch (err) {
-        console.error("[SuperAdminDashboard] Failed to load account counts:", err);
-      } finally {
-        setAccountsLoading(false);
-      }
-    }
-    loadAccountCounts();
-  }, []);
-
-  useEffect(() => {
-    async function loadRequestCounts() {
-      try {
-        const entries = await Promise.all(
-          REQUEST_STATUS_CONFIG.map(async ({ key }) => {
-            const snap = await getCountFromServer(
-              query(collection(db, "wasteRequests"), where("status", "==", key))
-            );
-            return [key, snap.data().count] as const;
-          })
-        );
-        setRequestCounts(Object.fromEntries(entries));
-      } catch (err) {
-        console.error("[SuperAdminDashboard] Failed to load request counts:", err);
-      } finally {
-        setRequestsLoading(false);
-      }
-    }
-    loadRequestCounts();
-  }, []);
 
   useEffect(() => {
     const q = query(collection(db, "adminLogs"), orderBy("createdAt", "desc"), limit(10));
@@ -137,8 +125,8 @@ export default function SuperAdminDashboard() {
             const data = d.data();
             return {
               id: d.id,
-              type: data.type || "—",
-              message: data.message || "—",
+              type: data.type || "N/A",
+              message: data.message || "N/A",
               actorEmail: data.actorEmail || null,
               createdAt: data.createdAt,
             };
@@ -154,38 +142,105 @@ export default function SuperAdminDashboard() {
     return () => unsub();
   }, []);
 
+  const statusRows = useMemo(() =>
+    Object.entries(statusCounts).map(([status, value]) => ({
+      label: STATUS_STYLE[status]?.label || status,
+      value,
+      color: STATUS_STYLE[status]?.color,
+    })),
+  [statusCounts]);
+
+  const topOperatorAdmins = useMemo(() =>
+    operatorAdmins
+      .map((a) => ({ label: a.fullName, value: fleetSizeByAdmin[a.id] || 0 }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6),
+  [operatorAdmins, fleetSizeByAdmin]);
+
+  const topContractorAdmins = useMemo(() =>
+    contractorAdmins
+      .map((a) => ({ label: a.fullName, value: contractorCountByAdmin[a.id] || 0 }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6),
+  [contractorAdmins, contractorCountByAdmin]);
+
+  const activeCount = (statusCounts.pending || 0) + (statusCounts.scheduled || 0) +
+    (statusCounts.arriving || 0) + (statusCounts.in_transit || 0) + (statusCounts.awaiting_reschedule || 0);
+  const completedCount = statusCounts.completed || 0;
+
   return (
     <div>
-      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: 0 }}>Overview</h1>
-      <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 28px" }}>
-        Platform-wide account and pickup totals.
+      <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "#1a2e1f", margin: 0 }}>Platform Overview</h1>
+      <p style={{ fontSize: "0.88rem", color: "#6b8f7a", margin: "4px 0 24px" }}>
+        Live, platform-wide view across every operator company, contractor company, and their teams.
       </p>
 
-      <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginBottom: 32 }}>
-        <StatCard label="Operators" value={accountCounts.operators} href="/superadmin/operators" loading={accountsLoading} />
-        <StatCard label="Contractors" value={accountCounts.contractors} href="/superadmin/contractors" loading={accountsLoading} />
+      <div style={{
+        display: "grid", gap: 14, gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", marginBottom: 28,
+      }}>
+        <KpiCard label="Operator Admins" value={loading ? "—" : operatorAdmins.length} href="/superadmin/operator-admins" sub="Companies" />
+        <KpiCard label="Fleet Drivers" value={loading ? "—" : drivers.length} href="/superadmin/operators" sub="Under all operators" />
+        <KpiCard label="Contractor Admins" value={loading ? "—" : contractorAdmins.length} href="/superadmin/contractor-admins" sub="Companies" />
+        <KpiCard label="Site Contractors" value={loading ? "—" : contractors.length} href="/superadmin/contractors" sub="Under all contractors" />
+        <KpiCard label="Active Jobs" value={loading ? "—" : activeCount} sub="Pending through in transit" />
+        <KpiCard label="Completed" value={loading ? "—" : completedCount} sub="All time" />
       </div>
 
-      <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
-        Pickup Requests by Status
-      </p>
-      <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 32 }}>
-        {REQUEST_STATUS_CONFIG.map((s) => (
-          <RequestStatusCard
-            key={s.key}
-            label={s.label}
-            value={requestCounts[s.key] || 0}
-            bg={s.bg}
-            color={s.color}
-            loading={requestsLoading}
-          />
-        ))}
+      <SectionLabel>Live Fleet Map</SectionLabel>
+      <div className="sa-live-grid" style={{
+        display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 2fr) minmax(220px, 1fr)", marginBottom: 28,
+      }}>
+        <FleetLiveMap jobs={liveJobs} focusId={focusId} height={420} />
+        <div style={{
+          background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 14,
+          boxShadow: SHADOW_SM, padding: 14, maxHeight: 420, overflowY: "auto",
+          display: "flex", flexDirection: "column", gap: 8,
+        }}>
+          <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>
+            {liveJobs.length} job{liveJobs.length === 1 ? "" : "s"} in transit
+          </p>
+          {liveJobs.length === 0 && (
+            <p style={{ fontSize: "0.8rem", color: "#9ab8a5", margin: 0 }}>Nothing moving right now.</p>
+          )}
+          {liveJobs.map((job) => {
+            const style = STATUS_STYLE[job.status] || STATUS_STYLE.pending;
+            return (
+              <button
+                key={job.id}
+                onClick={() => setFocusId(job.id)}
+                style={{
+                  textAlign: "left", padding: "10px 12px", borderRadius: 10, cursor: "pointer",
+                  border: focusId === job.id ? "1.5px solid #1a4d2e" : "1px solid #e8f2eb",
+                  background: focusId === job.id ? "#f0f7f2" : "#fff",
+                  fontFamily: "'Quicksand', sans-serif",
+                }}
+              >
+                <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>{job.operatorName}</p>
+                <p style={{ fontSize: "0.72rem", color: "#8aab97", margin: "2px 0 6px" }}>{job.contractorName} · {job.title}</p>
+                <span style={{
+                  fontSize: "0.62rem", fontWeight: 700, padding: "3px 8px", borderRadius: 999,
+                  background: style.bg, color: style.color, textTransform: "uppercase", letterSpacing: "0.04em",
+                }}>
+                  {style.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 20 }}>
+        <TrendChart days={trendDays} />
+        <BarList title="Requests by status" rows={statusRows} emptyLabel="No requests yet." />
+      </div>
+
+      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", marginBottom: 28 }}>
+        <BarList title="Top Operator Admins by fleet size" rows={topOperatorAdmins} emptyLabel="No operator admins yet." />
+        <BarList title="Top Contractor Admins by contractor count" rows={topContractorAdmins} emptyLabel="No contractor admins yet." />
       </div>
 
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-        <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
-          Recent Activity
-        </p>
+        <SectionLabel>Recent Activity</SectionLabel>
         <Link href="/superadmin/logs" style={{ fontSize: "0.75rem", fontWeight: 700, color: "#1a4d2e", textDecoration: "none" }}>
           View full log →
         </Link>
@@ -196,7 +251,7 @@ export default function SuperAdminDashboard() {
           return (
             <div key={log.id} style={{
               background: "#ffffff", border: "1px solid #e8f2eb", borderRadius: 12,
-              padding: "10px 14px", display: "flex", alignItems: "center", gap: 12,
+              padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
               boxShadow: SHADOW_SM,
             }}>
               <span style={{
@@ -210,7 +265,7 @@ export default function SuperAdminDashboard() {
                 {log.message}
               </p>
               <span style={{ fontSize: "0.7rem", color: "#9ab8a5", flexShrink: 0, whiteSpace: "nowrap" }}>
-                {formatDateTime(log.createdAt)}
+                {formatDate(log.createdAt)}
               </span>
             </div>
           );
@@ -221,6 +276,12 @@ export default function SuperAdminDashboard() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 900px) {
+          .sa-live-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

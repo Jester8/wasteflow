@@ -1,10 +1,16 @@
 "use client";
 
+import { useState } from "react";
 import { useContractorAdminData } from "../lib/useContractorAdminData";
 import { STATUS_STYLE, formatDate } from "../lib/constants";
+import LiveMapModal from "../components/LiveMapModal";
+
+const TRACKABLE_STATUSES = new Set(["arriving", "in_transit"]);
 
 export default function ContractorAdminRequestsPage() {
   const { myRequests, loading } = useContractorAdminData();
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const tracking = trackingId ? myRequests.find((r) => r.id === trackingId) : null;
 
   return (
     <div>
@@ -40,16 +46,34 @@ export default function ContractorAdminRequestsPage() {
                   {r.targetOperatorAdminName ? `Operator: ${r.targetOperatorAdminName}` : "No operator chosen"}
                 </p>
               </div>
-              <span style={{
-                fontSize: "0.68rem", fontWeight: 700, padding: "4px 10px", borderRadius: 999,
-                background: style.bg, color: style.color, textTransform: "uppercase", letterSpacing: "0.04em",
-              }}>
-                {style.label}
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{
+                  fontSize: "0.68rem", fontWeight: 700, padding: "4px 10px", borderRadius: 999,
+                  background: style.bg, color: style.color, textTransform: "uppercase", letterSpacing: "0.04em",
+                }}>
+                  {style.label}
+                </span>
+                {TRACKABLE_STATUSES.has(r.status) && (
+                  <button
+                    onClick={() => setTrackingId(r.id)}
+                    style={{
+                      padding: "6px 12px", borderRadius: 8, border: "none", cursor: "pointer",
+                      background: "#1a4d2e", color: "#B8D52E", fontSize: "0.72rem", fontWeight: 700,
+                      fontFamily: "'Quicksand', sans-serif",
+                    }}
+                  >
+                    Track Live
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {tracking && (
+        <LiveMapModal request={tracking} onClose={() => setTrackingId(null)} />
+      )}
     </div>
   );
 }

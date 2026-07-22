@@ -5,11 +5,13 @@ import { useContractorAdminData } from "../lib/useContractorAdminData";
 import { SiteContractor } from "../lib/useContractorAdminData";
 import AddContractorModal from "../components/AddContractorModal";
 import ContractorDetailModal from "../components/ContractorDetailModal";
+import ResetPasswordModal from "../components/ResetPasswordModal";
 
 export default function ContractorsPage() {
-  const { contractors, myRequests, activeRequestCounts, loading } = useContractorAdminData();
+  const { contractors, myRequests, activeRequestCounts, loading, contractorPasswords, refreshContractorPassword } = useContractorAdminData();
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<SiteContractor | null>(null);
+  const [resetting, setResetting] = useState<SiteContractor | null>(null);
 
   return (
     <div>
@@ -46,6 +48,22 @@ export default function ContractorsPage() {
             <p style={{ fontSize: "0.7rem", color: "#9ab8a5", margin: "8px 0 0" }}>
               Active requests: {activeRequestCounts[c.id] || 0}
             </p>
+            <div style={{ marginTop: 10, padding: "8px 10px", background: "#f8fbf9", border: "1px solid #edf4f0", borderRadius: 9 }}>
+              <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>Password</p>
+              <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "#1a2e1f", margin: "3px 0 0", fontFamily: "monospace" }}>
+                {contractorPasswords[c.id] || "Loading…"}
+              </p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setResetting(c); }}
+              style={{
+                marginTop: 8, width: "100%", padding: "7px 10px", borderRadius: 8,
+                border: "1px solid #e8f2eb", background: "#fff", color: "#4a7a5a",
+                fontSize: "0.74rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Quicksand', sans-serif",
+              }}
+            >
+              Reset Password
+            </button>
           </div>
         ))}
         {!loading && contractors.length === 0 && (
@@ -65,7 +83,17 @@ export default function ContractorsPage() {
           contractor={selected}
           feed={myRequests.filter((r) => r.contractorId === selected.id)}
           activeCount={activeRequestCounts[selected.id] || 0}
+          password={contractorPasswords[selected.id]}
+          onResetPassword={() => setResetting(selected)}
           onClose={() => setSelected(null)}
+        />
+      )}
+      {resetting && (
+        <ResetPasswordModal
+          contractorId={resetting.id}
+          contractorName={resetting.fullName}
+          onClose={() => setResetting(null)}
+          onReset={() => refreshContractorPassword(resetting.id)}
         />
       )}
     </div>

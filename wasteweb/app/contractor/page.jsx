@@ -7,16 +7,87 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 import Sidebar from "./sidebar";
 import { useAuthGuard } from "../hooks/Useauthguard ";
+import OperatorRequestDetailModal from "./myrequests/Operatorrequestdetailmodal ";
 
-import { 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  query,
+  where,
+  orderBy,
   onSnapshot,
-  Timestamp 
+  updateDoc,
+  doc,
+  serverTimestamp,
+  Timestamp
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+const STATUS_DISPLAY_MAP = {
+  pending: "Awaiting Approval",
+  scheduled: "Scheduled",
+  confirmed: "Accepted",
+  arriving: "Arriving",
+  in_transit: "In Transit",
+  completed: "Completed",
+  declined: "Declined",
+  cancelled: "Declined",
+  awaiting_reschedule: "Rescheduled",
+};
+
+function toDisplayStatus(rawStatus, awaitingUserConfirmation) {
+  if (rawStatus === "scheduled" && awaitingUserConfirmation === true) return "Accepted";
+  return STATUS_DISPLAY_MAP[rawStatus] || "Awaiting Approval";
+}
+
+function formatTimestamp(ts) {
+  if (!ts) return null;
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) +
+    " · " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatDateRange(start, end) {
+  if (!start) return "N/A";
+  const fmt = (v) => new Date(v).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  if (!end || end === start) return fmt(start);
+  return `${fmt(start)} to ${fmt(end)}`;
+}
+
+function toDetailItem(raw) {
+  const rawStatus = raw.status || "pending";
+  const awaitingUserConfirmation = raw.awaitingUserConfirmation ?? false;
+  return {
+    id: raw.id,
+    title: raw.title || "Untitled",
+    wasteType: raw.wasteType || "General",
+    location: raw.location || "N/A",
+    dates: formatDateRange(raw.windowStart, raw.windowEnd),
+    availability: raw.availability || "N/A",
+    volume: raw.volume || "N/A",
+    note: raw.notes || "N/A",
+    status: toDisplayStatus(rawStatus, awaitingUserConfirmation),
+    rawStatus,
+    createdAt: formatTimestamp(raw.createdAt),
+    imageUrl: raw.imageUrl || raw.proofPhotoUrl || "",
+    signatureUrl: raw.signatureUrl || "",
+    operatorName: raw.operatorName || "",
+    proofPhotoUrl: raw.proofPhotoUrl || "",
+    awaitingUserConfirmation,
+    driverName: raw.driverName || "",
+    driverRating: raw.driverRating ?? null,
+    proposedDate: raw.proposedDate || "",
+    proposedTime: raw.proposedTime || "",
+    rescheduleRequest: raw.rescheduleRequest || null,
+    operatorId: raw.operatorId || "",
+    destinationLat: typeof raw.destinationLat === "number" ? raw.destinationLat : undefined,
+    destinationLng: typeof raw.destinationLng === "number" ? raw.destinationLng : undefined,
+    liveLocation: raw.liveLocation || null,
+    scheduledAt: raw.scheduledAt ? formatTimestamp(raw.scheduledAt) : null,
+    arrivingAt: raw.arrivingAt ? formatTimestamp(raw.arrivingAt) : null,
+    inTransitAt: raw.inTransitAt ? formatTimestamp(raw.inTransitAt) : null,
+    completedAt: raw.completedAt ? formatTimestamp(raw.completedAt) : null,
+  };
+}
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon, accent = false }) {
@@ -133,6 +204,7 @@ export default function AdminDashboard() {
   const [signingOut, setSigningOut] = useState(false);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRequestId, setSelectedRequestId] = useState(null);
   const router = useRouter();
   
   // ─── Authentication Guard ──────────────────────────────────────────────
@@ -184,6 +256,42 @@ export default function AdminDashboard() {
 
   // Get only the 5 most recent requests for the table
   const recentRequests = requests.slice(0, 5);
+
+  const selectedRequest = selectedRequestId
+    ? requests.find((r) => r.id === selectedRequestId)
+    : null;
+  const selectedDetailItem = selectedRequest ? toDetailItem(selectedRequest) : null;
+
+  async function handleAcceptPickup(item) {
+    try {
+      await updateDoc(doc(db, "wasteRequests", item.id), {
+        awaitingUserConfirmation: false,
+        status: "confirmed",
+        userConfirmedAt: serverTimestamp(),
+      });
+      setSelectedRequestId(null);
+    } catch (err) {
+      console.error("Failed to confirm pickup:", err);
+      throw err;
+    }
+  }
+
+  async function handleReschedulePickup(item, rescheduleData) {
+    try {
+      await updateDoc(doc(db, "wasteRequests", item.id), {
+        awaitingUserConfirmation: false,
+        rescheduleRequest: {
+          ...rescheduleData,
+          requestedAt: serverTimestamp(),
+        },
+        status: "awaiting_reschedule",
+      });
+      setSelectedRequestId(null);
+    } catch (err) {
+      console.error("Failed to send reschedule:", err);
+      throw err;
+    }
+  }
 
   const handleSignOut = async () => {
     if (signingOut) return;
@@ -487,7 +595,7 @@ export default function AdminDashboard() {
             <div className="wf-table-card">
               <div className="wf-table-header">
                 <span className="wf-table-title">Recent Requests</span>
-                <a href="/admin/requests" className="wf-view-all">
+                <a href="/contractor/requests" className="wf-view-all">
                   View all
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
                     <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -525,9 +633,9 @@ export default function AdminDashboard() {
                           <td style={{ color: "#8aab97" }}>{formatDate(req.createdAt)}</td>
                           <td><StatusBadge status={req.status} /></td>
                           <td>
-                            <button 
+                            <button
                               className="wf-action-btn"
-                              onClick={() => router.push(`/admin/requests/${req.id}`)}
+                              onClick={() => setSelectedRequestId(req.id)}
                             >
                               View
                             </button>
@@ -542,6 +650,14 @@ export default function AdminDashboard() {
           </div>
         </main>
       </div>
+
+      <OperatorRequestDetailModal
+        key={selectedDetailItem?.id + "-" + selectedDetailItem?.awaitingUserConfirmation}
+        item={selectedDetailItem}
+        onClose={() => setSelectedRequestId(null)}
+        onAcceptPickup={handleAcceptPickup}
+        onReschedulePickup={handleReschedulePickup}
+      />
     </>
   );
 }

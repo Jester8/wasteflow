@@ -59,6 +59,11 @@ export async function POST(req: NextRequest) {
       updatedAt: FieldValue.serverTimestamp(),
     });
 
+    await adminDb.doc(`users/${created.uid}/private/creds`).set({
+      password,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
     return NextResponse.json({ success: true, uid: created.uid });
   } catch (err: any) {
     console.error("[operator-admin/create-driver]", err);

@@ -7,8 +7,10 @@ import { useAuth } from "../../context/AuthContext";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/superadmin", exact: true },
-  { label: "Operators", href: "/superadmin/operators" },
-  { label: "Contractors", href: "/superadmin/contractors" },
+  { label: "Operator Admins", href: "/superadmin/operator-admins" },
+  { label: "Fleet Drivers", href: "/superadmin/operators" },
+  { label: "Contractor Admins", href: "/superadmin/contractor-admins" },
+  { label: "Site Contractors", href: "/superadmin/contractors" },
   { label: "Logs", href: "/superadmin/logs" },
 ];
 

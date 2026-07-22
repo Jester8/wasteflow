@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, doc, onSnapshot, orderBy, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, orderBy, query, updateDoc, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { deriveRegionFromLocation } from "./ukRegion";
@@ -23,10 +23,21 @@ export interface RequestRow {
   wasteType: string;
   contractorName: string;
   location: string;
+  volume?: string;
   status: string;
   assignedOperatorId?: string;
   targetOperatorAdminId?: string;
   region?: string;
+  operatorName?: string;
+  destinationLat?: number;
+  destinationLng?: number;
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
+  } | null;
   createdAt: any;
 }
 
@@ -39,6 +50,7 @@ export function useOperatorAdminData() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [driversLoading, setDriversLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [driverPasswords, setDriverPasswords] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!uid) return;
@@ -51,6 +63,21 @@ export function useOperatorAdminData() {
   }, [uid]);
 
   useEffect(() => {
+    const missing = drivers.filter((d) => !(d.id in driverPasswords));
+    if (missing.length === 0) return;
+    missing.forEach(async (d) => {
+      const snap = await getDoc(doc(db, "users", d.id, "private", "creds"));
+      setDriverPasswords((prev) => ({ ...prev, [d.id]: snap.exists() ? (snap.data().password || "") : "" }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drivers]);
+
+  async function refreshDriverPassword(driverId: string) {
+    const snap = await getDoc(doc(db, "users", driverId, "private", "creds"));
+    setDriverPasswords((prev) => ({ ...prev, [driverId]: snap.exists() ? (snap.data().password || "") : "" }));
+  }
+
+  useEffect(() => {
     const q = query(collection(db, "wasteRequests"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
       setRequests(snap.docs.map((d) => {
@@ -61,10 +88,15 @@ export function useOperatorAdminData() {
           wasteType: data.wasteType || "General",
           contractorName: data.contractorName || "N/A",
           location: data.location || "N/A",
+          volume: data.volume,
           status: data.status || "pending",
           assignedOperatorId: data.assignedOperatorId,
           targetOperatorAdminId: data.targetOperatorAdminId,
           region: data.region,
+          operatorName: data.operatorName,
+          destinationLat: typeof data.destinationLat === "number" ? data.destinationLat : undefined,
+          destinationLng: typeof data.destinationLng === "number" ? data.destinationLng : undefined,
+          liveLocation: data.liveLocation || null,
           createdAt: data.createdAt,
         } as RequestRow;
       }));
@@ -117,5 +149,7 @@ export function useOperatorAdminData() {
     activeJobCounts,
     unassigned,
     myFleetFeed,
+    driverPasswords,
+    refreshDriverPassword,
   };
 }

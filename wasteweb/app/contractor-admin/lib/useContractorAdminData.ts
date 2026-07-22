@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import { ACTIVE_STATUSES } from "./constants";
@@ -22,6 +22,16 @@ export interface RequestRow {
   contractorId: string;
   contractorName: string;
   targetOperatorAdminName?: string;
+  operatorName?: string;
+  destinationLat?: number;
+  destinationLng?: number;
+  liveLocation?: {
+    lat: number;
+    lng: number;
+    heading: number | null;
+    speed: number | null;
+    updatedAt: any;
+  } | null;
   createdAt: any;
 }
 
@@ -33,6 +43,7 @@ export function useContractorAdminData() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [contractorsLoading, setContractorsLoading] = useState(true);
   const [requestsLoading, setRequestsLoading] = useState(true);
+  const [contractorPasswords, setContractorPasswords] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!uid) return;
@@ -43,6 +54,21 @@ export function useContractorAdminData() {
     });
     return () => unsub();
   }, [uid]);
+
+  useEffect(() => {
+    const missing = contractors.filter((c) => !(c.id in contractorPasswords));
+    if (missing.length === 0) return;
+    missing.forEach(async (c) => {
+      const snap = await getDoc(doc(db, "users", c.id, "private", "creds"));
+      setContractorPasswords((prev) => ({ ...prev, [c.id]: snap.exists() ? (snap.data().password || "") : "" }));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractors]);
+
+  async function refreshContractorPassword(contractorId: string) {
+    const snap = await getDoc(doc(db, "users", contractorId, "private", "creds"));
+    setContractorPasswords((prev) => ({ ...prev, [contractorId]: snap.exists() ? (snap.data().password || "") : "" }));
+  }
 
   useEffect(() => {
     const q = query(collection(db, "wasteRequests"), orderBy("createdAt", "desc"));
@@ -58,6 +84,10 @@ export function useContractorAdminData() {
           contractorId: data.contractorId,
           contractorName: data.contractorName || "N/A",
           targetOperatorAdminName: data.targetOperatorAdminName,
+          operatorName: data.operatorName,
+          destinationLat: typeof data.destinationLat === "number" ? data.destinationLat : undefined,
+          destinationLng: typeof data.destinationLng === "number" ? data.destinationLng : undefined,
+          liveLocation: data.liveLocation || null,
           createdAt: data.createdAt,
         } as RequestRow;
       }));
@@ -91,5 +121,7 @@ export function useContractorAdminData() {
     myRequests,
     activeRequestCounts,
     loading: contractorsLoading || requestsLoading,
+    contractorPasswords,
+    refreshContractorPassword,
   };
 }
