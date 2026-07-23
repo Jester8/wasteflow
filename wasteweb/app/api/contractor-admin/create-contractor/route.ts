@@ -5,7 +5,7 @@ import { adminDb } from "../../../lib/firebase-admin";
 
 export async function POST(req: NextRequest) {
   try {
-    const { idToken, fullName, email, password } = await req.json();
+    const { idToken, fullName, email, password, mobileNumber } = await req.json();
 
     if (!idToken) {
       return NextResponse.json({ error: "Missing auth token" }, { status: 401 });
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
       email,
       role: "contractor",
       contractorAdminId: decoded.uid,
+      mobileNumber: mobileNumber || "",
       kycStatus: "approved",
       accountStatus: "active",
       provider: "email",

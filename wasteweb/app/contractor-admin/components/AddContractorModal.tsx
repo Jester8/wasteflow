@@ -7,6 +7,7 @@ export default function AddContractorModal({ onClose }: { onClose: () => void })
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,7 +24,7 @@ export default function AddContractorModal({ onClose }: { onClose: () => void })
       const res = await fetch("/api/contractor-admin/create-contractor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, fullName: fullName.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ idToken, fullName: fullName.trim(), email: email.trim(), password, mobileNumber: mobileNumber.trim() }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -66,6 +67,7 @@ export default function AddContractorModal({ onClose }: { onClose: () => void })
           { label: "Contractor name", value: fullName, onChange: setFullName, placeholder: "e.g. Priya Shah" },
           { label: "Email", value: email, onChange: setEmail, placeholder: "site@company.co.uk", type: "email" },
           { label: "Initial password", value: password, onChange: setPassword, placeholder: "Min 8 characters" },
+          { label: "Mobile number", value: mobileNumber, onChange: setMobileNumber, placeholder: "e.g. 07123 456789" },
         ].map((f) => (
           <div key={f.label}>
             <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", display: "block", marginBottom: 6 }}>

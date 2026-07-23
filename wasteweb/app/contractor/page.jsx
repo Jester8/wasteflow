@@ -79,6 +79,7 @@ function toDetailItem(raw) {
     proposedTime: raw.proposedTime || "",
     rescheduleRequest: raw.rescheduleRequest || null,
     operatorId: raw.operatorId || "",
+    assignedOperatorId: raw.assignedOperatorId || "",
     destinationLat: typeof raw.destinationLat === "number" ? raw.destinationLat : undefined,
     destinationLng: typeof raw.destinationLng === "number" ? raw.destinationLng : undefined,
     liveLocation: raw.liveLocation || null,

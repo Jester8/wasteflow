@@ -45,6 +45,8 @@ export type RequestItem = {
     toTime: string;
     note: string;
   };
+  operatorId?: string;
+  assignedOperatorId?: string;
 };
 
 const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -403,6 +405,8 @@ export default function MyRequestsPage() {
               proposedDate: data.proposedDate || "",
               proposedTime: data.proposedTime || "",
               rescheduleRequest: data.rescheduleRequest || null,
+              operatorId: data.operatorId || "",
+              assignedOperatorId: data.assignedOperatorId || "",
             } as RequestItem;
           })
         );

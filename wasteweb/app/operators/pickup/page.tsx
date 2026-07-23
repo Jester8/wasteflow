@@ -19,6 +19,7 @@ export type PickupItem = {
   dates: string;
   weight: string;
   note: string;
+  contractorId?: string;
   contractorName?: string;
   createdAt?: string;
 };
@@ -271,6 +272,7 @@ export default function MyPickupsPage() {
             dates:          formatDateRange(data.windowStart, data.windowEnd),
             weight:         data.quantity     || "—",
             note:           data.notes        || "",
+            contractorId:   data.contractorId,
             contractorName: data.contractorName,
             createdAt:      data.createdAt,
           } as PickupItem;

@@ -661,6 +661,16 @@ const ALLOWED_TRANSITIONS: Record<string, string[]> = {
 };
 
 function ContractorDetailsPanel({ item }: { item: RequestItem }) {
+  const [contractorPhone, setContractorPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    setContractorPhone(null);
+    if (!item.contractorId) return;
+    getDoc(doc(db, "users", item.contractorId)).then((snap) => {
+      setContractorPhone(snap.exists() ? (snap.data().mobileNumber || snap.data().phone || null) : null);
+    });
+  }, [item.contractorId]);
+
   return (
     <div style={{
       display: "flex", flexDirection: "column", gap: 10,
@@ -681,6 +691,15 @@ function ContractorDetailsPanel({ item }: { item: RequestItem }) {
           </svg>
           <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a2e1f" }}>{item.contractorName}</span>
         </div>
+      )}
+
+      {contractorPhone && (
+        <a href={`tel:${contractorPhone}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="#8aab97" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "#1a4d2e" }}>{contractorPhone}</span>
+        </a>
       )}
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>

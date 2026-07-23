@@ -27,7 +27,10 @@ export default function ContractorDetailModal({
         maxHeight: "90vh", overflowY: "auto",
       }}>
         <p style={{ fontSize: "1.1rem", fontWeight: 800, color: "#1a2e1f", margin: 0 }}>{contractor.fullName}</p>
-        <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "4px 0 20px" }}>{contractor.email}</p>
+        <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: contractor.mobileNumber ? "4px 0 2px" : "4px 0 20px" }}>{contractor.email}</p>
+        {contractor.mobileNumber && (
+          <p style={{ fontSize: "0.8rem", color: "#6b8f7a", margin: "0 0 20px" }}>{contractor.mobileNumber}</p>
+        )}
 
         <div style={{ background: "#f8fbf9", border: "1px solid #edf4f0", borderRadius: 12, padding: "12px 14px", marginBottom: 20, display: "inline-block" }}>
           <p style={{ fontSize: "0.66rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.05em", margin: 0 }}>Active Requests</p>

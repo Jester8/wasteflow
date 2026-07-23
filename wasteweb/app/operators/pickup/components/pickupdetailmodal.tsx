@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import type { PickupItem } from "../page";
 
 const WASTE_TYPE_CONFIG: Record<string, { bg: string; color: string; border: string }> = {
@@ -146,6 +148,16 @@ export default function PickupDetailModal({
   item: PickupItem | null;
   onClose: () => void;
 }) {
+  const [contractorPhone, setContractorPhone] = useState<string | null>(null);
+
+  useEffect(() => {
+    setContractorPhone(null);
+    if (!item?.contractorId) return;
+    getDoc(doc(db, "users", item.contractorId)).then((snap) => {
+      setContractorPhone(snap.exists() ? (snap.data().mobileNumber || snap.data().phone || null) : null);
+    });
+  }, [item?.contractorId]);
+
   useEffect(() => {
     if (!item) return;
     const prev = document.body.style.overflow;
@@ -292,6 +304,24 @@ export default function PickupDetailModal({
             </div>
 
             {/* Detail rows */}
+            {item.contractorName && (
+              <DetailRow label="Site Contact" value={item.contractorName} icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+              } />
+            )}
+
+            {contractorPhone && (
+              <a href={`tel:${contractorPhone}`} style={{ textDecoration: "none" }}>
+                <DetailRow label="Site Contact Phone" value={contractorPhone} valueColor="#1a4d2e" icon={
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                } />
+              </a>
+            )}
+
             <DetailRow label="Location" value={item.location} icon={
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>

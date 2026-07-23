@@ -32,7 +32,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (firebaseUser) {
         const userRef = doc(db, "users", firebaseUser.uid);
-        profileUnsub = onSnapshot(
+
+        // The very first snapshot can come straight from Firestore's local
+        // (IndexedDB) cache — see lib/firebase.ts's persistentLocalCache —
+        // which may still hold an out of date kycStatus/role from before this
+        // device last synced. Every redirect guard in the app waits on
+        // `loading` before acting, so if we flip it false on that stale cache
+        // hit, a guard can briefly send the user to /kyc (or the wrong
+        // dashboard) before the real server snapshot arrives a moment later
+        // and corrects it — the exact "KYC flashes then disappears" symptom.
+        // Only unblock guards once the server has confirmed the data, with a
+        // short timeout fallback so an offline session doesn't spin forever.
+        let settled = false;
+        const fallback = setTimeout(() => {
+          if (!settled) { settled = true; setLoading(false); }
+        }, 2500);
+
+        const unsub = onSnapshot(
           userRef,
           (snap) => {
             const data = snap.exists() ? snap.data() : null;
@@ -43,18 +59,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (data?.accountStatus === "suspended") {
               signOut(auth);
               setProfile(null);
+              settled = true;
+              clearTimeout(fallback);
               setLoading(false);
               return;
             }
 
             setProfile(data ? { uid: snap.id, ...data } : null);
-            setLoading(false);
+            if (!snap.metadata.fromCache) {
+              settled = true;
+              clearTimeout(fallback);
+              setLoading(false);
+            }
           },
           () => {
             setProfile(null);
+            settled = true;
+            clearTimeout(fallback);
             setLoading(false);
           }
         );
+        profileUnsub = () => {
+          clearTimeout(fallback);
+          unsub();
+        };
       } else {
         setProfile(null);
         setLoading(false);

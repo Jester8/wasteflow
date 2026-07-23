@@ -493,7 +493,7 @@ export default function KycPage() {
       router.replace("/login");
       return;
     }
-    if (profile?.kycStatus === "submitted") {
+    if (profile?.kycStatus === "submitted" || profile?.kycStatus === "approved") {
       router.replace(dashboardPathFor(profile.role));
     }
   }, [user, profile, authLoading, router]);

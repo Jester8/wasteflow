@@ -45,6 +45,7 @@ export default function ContractorsPage() {
           >
             <p style={{ fontSize: "0.92rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>{c.fullName}</p>
             <p style={{ fontSize: "0.76rem", color: "#6b8f7a", margin: "4px 0 0" }}>{c.email}</p>
+            {c.mobileNumber && <p style={{ fontSize: "0.76rem", color: "#6b8f7a", margin: "2px 0 0" }}>{c.mobileNumber}</p>}
             <p style={{ fontSize: "0.7rem", color: "#9ab8a5", margin: "8px 0 0" }}>
               Active requests: {activeRequestCounts[c.id] || 0}
             </p>

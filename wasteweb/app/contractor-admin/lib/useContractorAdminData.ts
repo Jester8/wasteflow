@@ -10,6 +10,7 @@ export interface SiteContractor {
   id: string;
   fullName: string;
   email: string;
+  mobileNumber?: string;
   createdAt?: any;
 }
 

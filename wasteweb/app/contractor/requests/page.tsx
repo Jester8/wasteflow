@@ -46,6 +46,7 @@ export type RequestItem = {
     note: string;
   };
   operatorId?: string;
+  assignedOperatorId?: string;
   destinationLat?: number;
   destinationLng?: number;
   liveLocation?: {
@@ -420,6 +421,7 @@ export default function MyRequestsPage() {
               proposedTime: data.proposedTime || "",
               rescheduleRequest: data.rescheduleRequest || null,
               operatorId: data.operatorId || "",
+              assignedOperatorId: data.assignedOperatorId || "",
               destinationLat: typeof data.destinationLat === "number" ? data.destinationLat : undefined,
               destinationLng: typeof data.destinationLng === "number" ? data.destinationLng : undefined,
               liveLocation: data.liveLocation || null,
