@@ -346,11 +346,11 @@ function OperatorBusinessStep({ data, setData, errors, isOperatorAdmin }: any) {
                   type="checkbox"
                   checked={(data.regions ?? []).includes(region)}
                   onChange={(e) => {
-                    const regions = data.regions ?? [];
+                    const regions: string[] = data.regions ?? [];
                     if (e.target.checked) {
                       setData({ ...data, regions: [...regions, region] });
                     } else {
-                      setData({ ...data, regions: regions.filter((r) => r !== region) });
+                      setData({ ...data, regions: regions.filter((r: string) => r !== region) });
                     }
                   }}
                   style={{
