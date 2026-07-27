@@ -540,12 +540,14 @@ export type WasteTransferFormData = {
 function CompleteForm({ loading, onCancel, onSubmit }: {
   loading: boolean;
   onCancel: () => void;
-  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => void;
+  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => void;
 }) {
+  const [step, setStep] = useState<1 | 2>(1);
   const [operatorName, setOperatorName] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-  const [hasSignature, setHasSignature] = useState(false);
+  const [hasWasteSignature, setHasWasteSignature] = useState(false);
+  const [hasDEFRASignature, setHasDEFRASignature] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -570,21 +572,29 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const handleSubmit = async () => {
+  const handleContinueToStep2 = () => {
     if (!operatorName.trim()) { setError("Enter the operator's name."); return; }
-    if (!photoFile) { setError("Upload a photo before completing."); return; }
-    if (!hasSignature) { setError("Add a signature before completing."); return; }
+    if (!photoFile) { setError("Upload a photo before continuing."); return; }
+    if (!hasWasteSignature) { setError("Add a signature for waste acceptance."); return; }
+    setError(null);
+    setStep(2);
+  };
+
+  const handleSubmit = async () => {
     if (!ewcCode.trim()) { setError("Select or enter an EWC waste code."); return; }
     if (!weightAmount.trim() || Number.isNaN(Number(weightAmount))) { setError("Enter the waste weight."); return; }
     setError(null);
-    const canvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
-    if (!canvas) { setError("Signature pad not ready — try again."); return; }
-    canvas.toBlob((blob) => {
-      if (!blob) { setError("Could not read signature — try signing again."); return; }
+    const wasteCanvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
+    if (!wasteCanvas) { setError("Signature pad not ready — try again."); return; }
+
+    wasteCanvas.toBlob((wasteBlob) => {
+      if (!wasteBlob) { setError("Could not read signature — try signing again."); return; }
+      if (!photoFile) { setError("Photo is required."); return; }
       onSubmit({
         operatorName: operatorName.trim(),
         photoFile,
-        signatureBlob: blob,
+        signatureBlob: wasteBlob,
+        wasteSignatureBlob: wasteBlob,
         wasteTransfer: {
           ewcCode: ewcCode.trim(),
           wasteDescription: wasteDescription.trim(),
@@ -603,33 +613,58 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
     }, "image/png");
   };
 
+  if (step === 1) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Complete this job (Step 1 of 2)</p>
+          <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the operator's name, a site photo, and signature to mark as completed.</p>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site Manager</label>
+          <input type="text" value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="e.g. John"
+            style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site photo</label>
+          <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: "none" }} />
+          {photoPreview ? (
+            <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
+              <img src={photoPreview} alt="Selected proof" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+              <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(26,46,31,0.75)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>Change photo</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, height: 100, borderRadius: 10, border: "1.5px dashed #c6e2d0", background: "#fbfdfb", color: "#6b8f7a", cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+              </svg>
+              <span style={{ fontSize: "0.78rem", fontWeight: 700 }}>Tap to add a photo</span>
+            </button>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Signature (Waste Acceptance)</label>
+          <SignaturePad onChange={setHasWasteSignature} />
+        </div>
+        {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button type="button" onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back</button>
+          <button type="button" onClick={handleContinueToStep2} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
+            Continue to DEFRA Details
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
-        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Complete this job</p>
-        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the Operators's name, a site photo, and signature to mark as completed.</p>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site Manager</label>
-        <input type="text" value={operatorName} onChange={(e) => setOperatorName(e.target.value)} placeholder="e.g. John "
-          style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site photo</label>
-        <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoChange} style={{ display: "none" }} />
-        {photoPreview ? (
-          <div style={{ position: "relative", borderRadius: 10, overflow: "hidden" }}>
-            <img src={photoPreview} alt="Selected proof" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
-            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ position: "absolute", bottom: 8, right: 8, background: "rgba(26,46,31,0.75)", color: "#fff", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: "0.7rem", fontWeight: 700, cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>Change photo</button>
-          </div>
-        ) : (
-          <button type="button" onClick={() => fileInputRef.current?.click()} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, height: 100, borderRadius: 10, border: "1.5px dashed #c6e2d0", background: "#fbfdfb", color: "#6b8f7a", cursor: "pointer", fontFamily: "'Quicksand', sans-serif" }}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-            </svg>
-            <span style={{ fontSize: "0.78rem", fontWeight: 700 }}>Tap to add a photo</span>
-          </button>
-        )}
+        <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Waste Transfer Details (Step 2 of 2)</p>
+        <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add waste transfer information for the completed job.</p>
       </div>
       <div style={{ borderTop: "1px solid #f0f7f2", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
         <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Waste Transfer Details</p>
@@ -705,13 +740,9 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
           </div>
         )}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Signature</label>
-        <SignaturePad onChange={setHasSignature} />
-      </div>
       {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-        <button type="button" onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back</button>
+        <button type="button" onClick={() => setStep(1)} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back to Step 1</button>
         <button type="button" onClick={handleSubmit} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
           {loading ? (<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Uploading…</>) : "Confirm & Complete"}
         </button>
@@ -1083,7 +1114,7 @@ function RequestActionModal({
   item: RequestItem | null;
   onClose: () => void;
   onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
-  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
+  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
   onDeclineConfirm: (id: string, reason: string) => Promise<void>;
   onAcceptReschedule: (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => Promise<void>;
 }) {
@@ -1109,7 +1140,7 @@ function RequestActionModal({
     handleSimpleAction(value);
   };
 
-  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
     setLoading("Completed");
     try { await onCompleteConfirm(item.id, data); setActiveForm(null); } finally { setLoading(null); }
   };
@@ -1295,16 +1326,17 @@ export default function OperatorRequestsPage() {
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
-  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
     const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
-    const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
+    const wasteSignatureUrl = await uploadToCloudinary(data.wasteSignatureBlob, `waste_signature_${id}.png`);
     const docRef = doc(db, "wasteRequests", id);
     await updateDoc(docRef, {
       status: "completed",
       operatorName: data.operatorName,
       driverName: profile?.fullName || "Driver",
       proofPhotoUrl: photoUrl,
-      signatureUrl: signatureUrl,
+      signatureUrl: wasteSignatureUrl,
+      wasteSignatureUrl: wasteSignatureUrl,
       completedAt: serverTimestamp(),
       wasteTransferRecord: {
         ewcCode: data.wasteTransfer.ewcCode,

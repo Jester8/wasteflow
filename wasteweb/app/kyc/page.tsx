@@ -326,29 +326,42 @@ function OperatorBusinessStep({ data, setData, errors, isOperatorAdmin }: any) {
       </div>
       {isOperatorAdmin && (
         <div>
-          <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", display: "block", marginBottom: 6 }}>
+          <label style={{ fontSize: "0.78rem", fontWeight: 600, color: "#2a5c38", fontFamily: "'Quicksand',sans-serif", display: "block", marginBottom: 10 }}>
             Regions you operate in<span style={{ color: "#B8D52E", marginLeft: 2 }}>*</span>
           </label>
-          <select
-            multiple
-            value={data.regions ?? []}
-            onChange={(e) => setData({ ...data, regions: Array.from(e.target.selectedOptions, (o: HTMLOptionElement) => o.value) })}
-            size={6}
-            style={{
-              width: "100%", padding: "8px", borderRadius: 10,
-              border: errors.regions ? "1px solid #e05c5c" : "1px solid #c6e2d0",
-              background: "#f5faf6", color: "#1a2e1f", fontSize: "0.875rem",
-              fontWeight: 600, fontFamily: "'Quicksand',sans-serif", outline: "none",
-              boxSizing: "border-box",
-            }}
-          >
-            {UK_REGIONS.map((r) => (
-              <option key={r} value={r}>{r}</option>
+          <div style={{
+            display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10,
+            padding: "12px", borderRadius: 10,
+            border: errors.regions ? "1px solid #e05c5c" : "1px solid #c6e2d0",
+            background: "#f5faf6",
+            boxSizing: "border-box",
+          }}>
+            {UK_REGIONS.map((region) => (
+              <label key={region} style={{
+                display: "flex", alignItems: "center", gap: 8, cursor: "pointer",
+                fontSize: "0.875rem", fontWeight: 600, color: "#1a2e1f",
+                fontFamily: "'Quicksand',sans-serif",
+              }}>
+                <input
+                  type="checkbox"
+                  checked={(data.regions ?? []).includes(region)}
+                  onChange={(e) => {
+                    const regions = data.regions ?? [];
+                    if (e.target.checked) {
+                      setData({ ...data, regions: [...regions, region] });
+                    } else {
+                      setData({ ...data, regions: regions.filter((r) => r !== region) });
+                    }
+                  }}
+                  style={{
+                    width: 18, height: 18, cursor: "pointer",
+                    accentColor: "#1a4d2e",
+                  }}
+                />
+                {region}
+              </label>
             ))}
-          </select>
-          <span style={{ fontSize: "0.7rem", color: "#6b8f7a", fontFamily: "'Quicksand',sans-serif", display: "block", marginTop: 6 }}>
-            Hold Ctrl (or Cmd) to select more than one.
-          </span>
+          </div>
           {errors.regions && (
             <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600, display: "block", marginTop: 6 }}>
               {errors.regions}

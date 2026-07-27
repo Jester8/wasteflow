@@ -688,7 +688,7 @@ export default function CreateRequestModal({ open, onClose, onSubmit, operatorAd
                   </div>
 
                   <div className="cr-field">
-                    <Label required>Operator</Label>
+                    <Label required>Operator Company</Label>
                     <select
                       className="cr-unit-select"
                       style={{ width: "100%" }}
@@ -698,21 +698,21 @@ export default function CreateRequestModal({ open, onClose, onSubmit, operatorAd
                         setForm((p) => ({
                           ...p,
                           operatorAdminId: e.target.value,
-                          operatorAdminName: chosen?.fullName || "",
+                          operatorAdminName: chosen?.businessName || chosen?.fullName || "",
                         }));
                         setErrors((e2) => ({ ...e2, operatorAdminId: null }));
                       }}
                     >
-                      <option value="">Select an operator</option>
+                      <option value="">Select an operator company</option>
                       {matchingOperators.map((o) => (
-                        <option key={o.id} value={o.id}>{o.fullName}</option>
+                        <option key={o.id} value={o.id}>{o.businessName || o.fullName}</option>
                       ))}
                     </select>
                     {errors.operatorAdminId && <span className="cr-error">{errors.operatorAdminId}</span>}
                     <FieldHint>
                       {region === "Unknown"
-                        ? "Showing all operators."
-                        : `Showing operators covering ${region}.`}
+                        ? "Showing all operator companies."
+                        : `Showing operator companies covering ${region}.`}
                     </FieldHint>
                   </div>
 

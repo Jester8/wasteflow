@@ -457,7 +457,12 @@ export default function MyRequestsPage() {
     const unsub = onSnapshot(q, (snap) => {
       setOperatorAdmins(snap.docs.map((d) => {
         const data = d.data();
-        return { id: d.id, fullName: data.fullName || "Operator", regions: data.regions || [] };
+        return {
+          id: d.id,
+          fullName: data.fullName || "Operator",
+          businessName: data.businessName || data.fullName || "Operator",
+          regions: data.regions || []
+        };
       }));
     });
     return () => unsub();
