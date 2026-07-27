@@ -4,13 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import {
   collection, query, where, orderBy, onSnapshot, doc, updateDoc, getDoc, serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { useAuth } from "../../context/AuthContext";
 import Sidebar from "../../components/Sidebar";
 import { useLiveLocationBroadcaster } from "../../hooks/useLiveLocationBroadcaster";
 import LiveTrackingMap from "../../components/LiveTrackingMap";
 import { logAdminEvent } from "../../lib/adminLog";
 import { downloadCompletedRequestReport } from "../../lib/generateRequestReportPdf";
+import { COMMON_EWC_CODES, PHYSICAL_FORMS, WEIGHT_UNITS, COMMON_DISPOSAL_RECOVERY_CODES, WasteTransferRecord } from "../../lib/wasteTransferReference";
 
 const TABS = ["All", "Pending", "Accepted", "Scheduled", "Arriving", "In Transit", "Completed", "Declined", "Rescheduled"];
 
@@ -100,6 +101,8 @@ export type FirestoreRequest = {
   operatorId?: string;
   contractorName?: string;
   operatorName?: string;
+  driverName?: string;
+  wasteTransferRecord?: WasteTransferRecord | null;
   proofPhotoUrl?: string;
   signatureUrl?: string;
   declineReason?: string;
@@ -142,9 +145,11 @@ export type RequestItem = {
   contractorId?: string;
   operatorId?: string;
   operatorName?: string;
+  driverName?: string;
   proofPhotoUrl?: string;
   signatureUrl?: string;
   declineReason?: string;
+  wasteTransferRecord?: WasteTransferRecord | null;
   createdAt?: string | null;
   scheduledAt?: string | null;
   arrivingAt?: string | null;
@@ -227,6 +232,8 @@ function mapDoc(d: FirestoreRequest): RequestItem {
     contractorId: d.contractorId,
     operatorId: d.operatorId,
     operatorName: d.operatorName,
+    driverName: d.driverName,
+    wasteTransferRecord: d.wasteTransferRecord,
     proofPhotoUrl: d.proofPhotoUrl,
     signatureUrl: d.signatureUrl,
     createdAt: formatTimestamp(d.createdAt),
@@ -515,10 +522,25 @@ function SignaturePad({ onChange }: { onChange: (hasSignature: boolean) => void 
   );
 }
 
+export type WasteTransferFormData = {
+  ewcCode: string;
+  wasteDescription: string;
+  physicalForm: string;
+  isHazardous: boolean;
+  weightAmount: string;
+  weightUnit: string;
+  weightEstimated: boolean;
+  disposalOrRecoveryCode: string;
+  receivingSiteName: string;
+  receivingSiteAddress: string;
+  receivingSitePostcode: string;
+  receivingSiteAuthNumber: string;
+};
+
 function CompleteForm({ loading, onCancel, onSubmit }: {
   loading: boolean;
   onCancel: () => void;
-  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => void;
+  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => void;
 }) {
   const [operatorName, setOperatorName] = useState("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -526,6 +548,20 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
   const [hasSignature, setHasSignature] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [ewcCode, setEwcCode] = useState("");
+  const [wasteDescription, setWasteDescription] = useState("");
+  const [physicalForm, setPhysicalForm] = useState(PHYSICAL_FORMS[0]);
+  const [isHazardous, setIsHazardous] = useState(false);
+  const [weightAmount, setWeightAmount] = useState("");
+  const [weightUnit, setWeightUnit] = useState(WEIGHT_UNITS[0]);
+  const [weightEstimated, setWeightEstimated] = useState(true);
+  const [disposalOrRecoveryCode, setDisposalOrRecoveryCode] = useState(COMMON_DISPOSAL_RECOVERY_CODES[0].code);
+  const [showReceivingSite, setShowReceivingSite] = useState(false);
+  const [receivingSiteName, setReceivingSiteName] = useState("");
+  const [receivingSiteAddress, setReceivingSiteAddress] = useState("");
+  const [receivingSitePostcode, setReceivingSitePostcode] = useState("");
+  const [receivingSiteAuthNumber, setReceivingSiteAuthNumber] = useState("");
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -538,12 +574,32 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
     if (!operatorName.trim()) { setError("Enter the operator's name."); return; }
     if (!photoFile) { setError("Upload a photo before completing."); return; }
     if (!hasSignature) { setError("Add a signature before completing."); return; }
+    if (!ewcCode.trim()) { setError("Select or enter an EWC waste code."); return; }
+    if (!weightAmount.trim() || Number.isNaN(Number(weightAmount))) { setError("Enter the waste weight."); return; }
     setError(null);
     const canvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
     if (!canvas) { setError("Signature pad not ready — try again."); return; }
     canvas.toBlob((blob) => {
       if (!blob) { setError("Could not read signature — try signing again."); return; }
-      onSubmit({ operatorName: operatorName.trim(), photoFile, signatureBlob: blob });
+      onSubmit({
+        operatorName: operatorName.trim(),
+        photoFile,
+        signatureBlob: blob,
+        wasteTransfer: {
+          ewcCode: ewcCode.trim(),
+          wasteDescription: wasteDescription.trim(),
+          physicalForm,
+          isHazardous,
+          weightAmount: weightAmount.trim(),
+          weightUnit,
+          weightEstimated,
+          disposalOrRecoveryCode,
+          receivingSiteName: receivingSiteName.trim(),
+          receivingSiteAddress: receivingSiteAddress.trim(),
+          receivingSitePostcode: receivingSitePostcode.trim(),
+          receivingSiteAuthNumber: receivingSiteAuthNumber.trim(),
+        },
+      });
     }, "image/png");
   };
 
@@ -573,6 +629,80 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
             </svg>
             <span style={{ fontSize: "0.78rem", fontWeight: 700 }}>Tap to add a photo</span>
           </button>
+        )}
+      </div>
+      <div style={{ borderTop: "1px solid #f0f7f2", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Waste Transfer Details</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>EWC waste code</label>
+          <select value={ewcCode} onChange={(e) => setEwcCode(e.target.value)}
+            style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }}>
+            <option value="">Select a code…</option>
+            {COMMON_EWC_CODES.map((c) => (
+              <option key={c.code} value={c.code}>{c.code} — {c.description}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Waste description (optional)</label>
+          <input type="text" value={wasteDescription} onChange={(e) => setWasteDescription(e.target.value)} placeholder="e.g. Mixed rubble and packaging"
+            style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Physical form</label>
+            <select value={physicalForm} onChange={(e) => setPhysicalForm(e.target.value)}
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }}>
+              {PHYSICAL_FORMS.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Weight</label>
+            <input type="number" min="0" value={weightAmount} onChange={(e) => setWeightAmount(e.target.value)} placeholder="e.g. 2.5"
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 5 }}>
+            <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Unit</label>
+            <select value={weightUnit} onChange={(e) => setWeightUnit(e.target.value)}
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }}>
+              {WEIGHT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.78rem", fontWeight: 600, color: "#4a7a5a", cursor: "pointer" }}>
+          <input type="checkbox" checked={weightEstimated} onChange={(e) => setWeightEstimated(e.target.checked)} />
+          Weight is estimated
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.78rem", fontWeight: 600, color: "#4a7a5a", cursor: "pointer" }}>
+          <input type="checkbox" checked={isHazardous} onChange={(e) => setIsHazardous(e.target.checked)} />
+          This waste is hazardous
+        </label>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Disposal / recovery code</label>
+          <select value={disposalOrRecoveryCode} onChange={(e) => setDisposalOrRecoveryCode(e.target.value)}
+            style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }}>
+            {COMMON_DISPOSAL_RECOVERY_CODES.map((c) => (
+              <option key={c.code} value={c.code}>{c.code} — {c.description}</option>
+            ))}
+          </select>
+        </div>
+
+        <button type="button" onClick={() => setShowReceivingSite((v) => !v)} style={{ background: "none", border: "none", padding: 0, textAlign: "left", fontSize: "0.76rem", fontWeight: 700, color: "#1a4d2e", cursor: "pointer" }}>
+          {showReceivingSite ? "Hide" : "Add"} receiving site details (optional)
+        </button>
+        {showReceivingSite && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input type="text" value={receivingSiteName} onChange={(e) => setReceivingSiteName(e.target.value)} placeholder="Receiving site name"
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+            <input type="text" value={receivingSiteAddress} onChange={(e) => setReceivingSiteAddress(e.target.value)} placeholder="Receiving site address"
+              style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="text" value={receivingSitePostcode} onChange={(e) => setReceivingSitePostcode(e.target.value)} placeholder="Postcode"
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+              <input type="text" value={receivingSiteAuthNumber} onChange={(e) => setReceivingSiteAuthNumber(e.target.value)} placeholder="Authorisation/permit number"
+                style={{ flex: 1, padding: "9px 12px", borderRadius: 9, border: "1px solid #e8f2eb", fontSize: "0.84rem", fontWeight: 600, color: "#1a2e1f", fontFamily: "'Quicksand', sans-serif", outline: "none" }} />
+            </div>
+          </div>
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -850,6 +980,7 @@ function CompletionProofPanel({ item }: { item: RequestItem }) {
         volume: item.yards,
         note: item.note,
         operatorName: item.operatorName,
+        driverName: item.driverName,
         createdAt: item.createdAt,
         scheduledAt: item.scheduledAt,
         arrivingAt: item.arrivingAt,
@@ -857,6 +988,7 @@ function CompletionProofPanel({ item }: { item: RequestItem }) {
         completedAt: item.completedAt,
         proofPhotoUrl: item.proofPhotoUrl,
         signatureUrl: item.signatureUrl,
+        wasteTransferRecord: item.wasteTransferRecord,
       });
     } catch (err) {
       console.error("[CompletionProofPanel] Failed to generate PDF:", err);
@@ -951,7 +1083,7 @@ function RequestActionModal({
   item: RequestItem | null;
   onClose: () => void;
   onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
-  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
   onDeclineConfirm: (id: string, reason: string) => Promise<void>;
   onAcceptReschedule: (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => Promise<void>;
 }) {
@@ -977,7 +1109,7 @@ function RequestActionModal({
     handleSimpleAction(value);
   };
 
-  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
     setLoading("Completed");
     try { await onCompleteConfirm(item.id, data); setActiveForm(null); } finally { setLoading(null); }
   };
@@ -1163,16 +1295,34 @@ export default function OperatorRequestsPage() {
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
-  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
+  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
     const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
     const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
     const docRef = doc(db, "wasteRequests", id);
     await updateDoc(docRef, {
       status: "completed",
       operatorName: data.operatorName,
+      driverName: profile?.fullName || "Driver",
       proofPhotoUrl: photoUrl,
       signatureUrl: signatureUrl,
       completedAt: serverTimestamp(),
+      wasteTransferRecord: {
+        ewcCode: data.wasteTransfer.ewcCode,
+        wasteDescription: data.wasteTransfer.wasteDescription,
+        physicalForm: data.wasteTransfer.physicalForm,
+        isHazardous: data.wasteTransfer.isHazardous,
+        weightAmount: data.wasteTransfer.weightAmount,
+        weightUnit: data.wasteTransfer.weightUnit,
+        weightEstimated: data.wasteTransfer.weightEstimated,
+        disposalOrRecoveryCode: data.wasteTransfer.disposalOrRecoveryCode,
+        receivingSiteName: data.wasteTransfer.receivingSiteName,
+        receivingSiteAddress: data.wasteTransfer.receivingSiteAddress,
+        receivingSitePostcode: data.wasteTransfer.receivingSitePostcode,
+        receivingSiteAuthNumber: data.wasteTransfer.receivingSiteAuthNumber,
+        carrierName: profile?.fullName || "",
+        vehicleRegistration: profile?.vehicleRegistration || "",
+        recordedAt: serverTimestamp(),
+      },
     });
     logAdminEvent({
       type: "status_change",
@@ -1181,6 +1331,18 @@ export default function OperatorRequestsPage() {
       meta: { toStatus: "completed" },
     });
     setSelectedRequest(null);
+
+    // Best-effort, non-blocking — the pickup is already done regardless of
+    // whether DEFRA reporting succeeds. The route itself records why it
+    // skipped/failed on the request doc so it's visible without holding up
+    // this UI.
+    auth.currentUser?.getIdToken().then((idToken) => {
+      fetch("/api/defra/submit-receipt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, requestId: id }),
+      }).catch((err) => console.error("[DEFRA] Submission request failed:", err));
+    });
   };
 
   const handleDeclineConfirm = async (id: string, reason: string) => {

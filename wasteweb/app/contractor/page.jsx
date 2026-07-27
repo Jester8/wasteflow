@@ -75,6 +75,7 @@ function toDetailItem(raw) {
     awaitingUserConfirmation,
     driverName: raw.driverName || "",
     driverRating: raw.driverRating ?? null,
+    wasteTransferRecord: raw.wasteTransferRecord || null,
     proposedDate: raw.proposedDate || "",
     proposedTime: raw.proposedTime || "",
     rescheduleRequest: raw.rescheduleRequest || null,

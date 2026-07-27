@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import type { WasteTransferRecord } from "./wasteTransferReference";
 
 export interface CompletedRequestReportData {
   id: string;
@@ -9,6 +10,7 @@ export interface CompletedRequestReportData {
   volume: string;
   note?: string;
   operatorName?: string;
+  driverName?: string;
   createdAt?: string | null;
   scheduledAt?: string | null;
   arrivingAt?: string | null;
@@ -16,6 +18,7 @@ export interface CompletedRequestReportData {
   completedAt?: string | null;
   proofPhotoUrl?: string;
   signatureUrl?: string;
+  wasteTransferRecord?: WasteTransferRecord | null;
 }
 
 const BRAND_GREEN: [number, number, number] = [26, 77, 46];
@@ -86,7 +89,8 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
   detailRow("Pickup Window", `${item.dates} (${item.availability})`);
   detailRow("Estimated Volume", item.volume);
   if (item.note && item.note !== "—") detailRow("Notes", item.note);
-  detailRow("Operator", item.operatorName || "—");
+  detailRow("Site Manager", item.operatorName || "N/A");
+  detailRow("Operator", item.driverName || "N/A");
 
   y += 6;
   doc.setDrawColor(...LINE_COLOR);
@@ -158,10 +162,37 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
       doc.setTextColor(...TEXT_MUTED);
-      doc.text(`Operator: ${item.operatorName || "N/A"}`, sigX, y + 16 + imgH + 12);
+      doc.text(`Operator: ${item.driverName || "N/A"}`, sigX, y + 16 + imgH + 12);
       maxImgH = Math.max(maxImgH, imgH + 14);
     }
     y += maxImgH + 30;
+  }
+
+  const wt = item.wasteTransferRecord;
+  if (wt) {
+    if (y > doc.internal.pageSize.getHeight() - 160) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setDrawColor(...LINE_COLOR);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 24;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...TEXT_DARK);
+    doc.text("Waste Transfer Details", margin, y);
+    y += 20;
+
+    detailRow("EWC Code", wt.ewcCode || "N/A");
+    if (wt.wasteDescription) detailRow("Waste Description", wt.wasteDescription);
+    detailRow("Physical Form", wt.physicalForm || "N/A");
+    detailRow("Hazardous", wt.isHazardous ? "Yes" : "No");
+    detailRow("Weight", `${wt.weightAmount || "N/A"} ${wt.weightUnit || ""}${wt.weightEstimated ? " (estimated)" : ""}`.trim());
+    detailRow("Carrier", `${wt.carrierName || "N/A"}${wt.vehicleRegistration ? ` (${wt.vehicleRegistration})` : ""}`);
+    if (wt.receivingSiteName || wt.receivingSiteAddress) {
+      detailRow("Receiving Site", [wt.receivingSiteName, wt.receivingSiteAddress, wt.receivingSitePostcode].filter(Boolean).join(", ") || "N/A");
+    }
+    if (wt.receivingSiteAuthNumber) detailRow("Site Authorisation Number", wt.receivingSiteAuthNumber);
   }
 
   doc.setFont("helvetica", "normal");

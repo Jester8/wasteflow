@@ -411,7 +411,7 @@ function CompletionProofSection({ item }) {
               textTransform: "uppercase", letterSpacing: "0.05em",
               fontFamily: "'Quicksand', sans-serif", margin: "0 0 6px",
             }}>
-              Operator's Signature
+              Manager's Signature
             </p>
             <div style={{
               borderRadius: 10, overflow: "hidden", border: "1px solid #e8f2eb",
@@ -424,9 +424,65 @@ function CompletionProofSection({ item }) {
                 style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain", display: "block" }}
               />
             </div>
+            {item.driverName && (
+              <p style={{
+                fontSize: "0.68rem", fontWeight: 600, color: "#8aab97",
+                fontFamily: "'Quicksand', sans-serif", margin: "6px 0 0",
+              }}>
+                Operator: {item.driverName}
+              </p>
+            )}
           </div>
         )}
       </div>
+
+      {item.wasteTransferRecord && (
+        <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #f0f7f2" }}>
+          <p style={{
+            fontSize: "0.68rem", fontWeight: 700, color: "#9ab8a5",
+            fontFamily: "'Quicksand', sans-serif",
+            textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 10px",
+          }}>
+            Waste Transfer Details
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+            {[
+              ["EWC Code", item.wasteTransferRecord.ewcCode],
+              ["Physical Form", item.wasteTransferRecord.physicalForm],
+              ["Hazardous", item.wasteTransferRecord.isHazardous ? "Yes" : "No"],
+              ["Weight", [item.wasteTransferRecord.weightAmount, item.wasteTransferRecord.weightUnit, item.wasteTransferRecord.weightEstimated ? "(estimated)" : ""].filter(Boolean).join(" ")],
+              ["Carrier", [item.wasteTransferRecord.carrierName, item.wasteTransferRecord.vehicleRegistration].filter(Boolean).join(" · ")],
+              ["Receiving Site", [item.wasteTransferRecord.receivingSiteName, item.wasteTransferRecord.receivingSitePostcode].filter(Boolean).join(", ") || "N/A"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p style={{ fontSize: "0.62rem", fontWeight: 700, color: "#9ab8a5", textTransform: "uppercase", letterSpacing: "0.04em", margin: 0 }}>{label}</p>
+                <p style={{ fontSize: "0.8rem", fontWeight: 600, color: "#1a2e1f", margin: "2px 0 0" }}>{value || "N/A"}</p>
+              </div>
+            ))}
+          </div>
+
+          {item.defraSubmission && (
+            <div style={{
+              marginTop: 12, display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 12px", borderRadius: 8,
+              background: item.defraSubmission.status === "submitted" ? "rgba(34,197,94,0.08)"
+                : item.defraSubmission.status === "failed" ? "rgba(239,68,68,0.08)"
+                : "rgba(154,184,165,0.12)",
+            }}>
+              <span style={{
+                fontSize: "0.68rem", fontWeight: 700,
+                color: item.defraSubmission.status === "submitted" ? "#15803d"
+                  : item.defraSubmission.status === "failed" ? "#b91c1c"
+                  : "#6b8f7a",
+              }}>
+                {item.defraSubmission.status === "submitted" && `✓ Reported to DEFRA (ID: ${item.defraSubmission.globalMovementId})`}
+                {item.defraSubmission.status === "failed" && `DEFRA submission failed: ${item.defraSubmission.error}`}
+                {item.defraSubmission.status === "skipped" && `Not reported to DEFRA: ${item.defraSubmission.reason}`}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

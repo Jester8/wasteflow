@@ -381,6 +381,7 @@ function OperatorComplianceStep({ data, setData, errors }: any) {
       {errors.wasteCarrierDoc && <span style={{ fontSize: "0.72rem", color: "#e05c5c", fontFamily: "'Quicksand',sans-serif", fontWeight: 600 }}>{errors.wasteCarrierDoc}</span>}
 
       <Input label="Waste Carrier Licence Number" placeholder="CBDU123456" required value={data.wasteCarrierNum ?? ""} onChange={(e: any) => setData({ ...data, wasteCarrierNum: e.target.value })} error={errors.wasteCarrierNum} hint="Found on your Environment Agency registration" />
+      <Input label="DEFRA Waste Receiver API Code" placeholder="e.g. 123456" value={data.defraApiCode ?? ""} onChange={(e: any) => setData({ ...data, defraApiCode: e.target.value })} hint="Optional for now — the 6-digit code DEFRA issues once you're registered for Digital Waste Tracking. Leave blank if you haven't registered yet; pickups will still complete normally, they just won't be reported to DEFRA until this is filled in." />
       <Textarea label="Certifications & Other Licences" placeholder="e.g. ISO 14001, Hazardous Waste Consignee, SSAIB..." value={data.certs ?? ""} onChange={(e: any) => setData({ ...data, certs: e.target.value })} hint="Optional — list any additional relevant certifications" />
 
       <SectionDivider label="Insurance" />

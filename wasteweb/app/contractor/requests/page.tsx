@@ -37,6 +37,7 @@ export type RequestItem = {
   awaitingUserConfirmation?: boolean;
   driverName?: string;
   driverRating?: number;
+  wasteTransferRecord?: import("../../lib/wasteTransferReference").WasteTransferRecord | null;
   proposedDate?: string;
   proposedTime?: string;
   rescheduleRequest?: {
@@ -60,6 +61,12 @@ export type RequestItem = {
   arrivingAt?: string | null;
   inTransitAt?: string | null;
   completedAt?: string | null;
+  defraSubmission?: {
+    status: "submitted" | "skipped" | "failed";
+    globalMovementId?: string;
+    reason?: string;
+    error?: string;
+  } | null;
 };
 
 const STATUS_DISPLAY_MAP: Record<string, string> = {
@@ -417,6 +424,7 @@ export default function MyRequestsPage() {
               awaitingUserConfirmation: awaitingUserConfirmation,
               driverName: data.driverName || "",
               driverRating: data.driverRating ?? null,
+              wasteTransferRecord: data.wasteTransferRecord || null,
               proposedDate: data.proposedDate || "",
               proposedTime: data.proposedTime || "",
               rescheduleRequest: data.rescheduleRequest || null,
@@ -429,6 +437,7 @@ export default function MyRequestsPage() {
               arrivingAt: data.arrivingAt ? formatTimestamp(data.arrivingAt) : null,
               inTransitAt: data.inTransitAt ? formatTimestamp(data.inTransitAt) : null,
               completedAt: data.completedAt ? formatTimestamp(data.completedAt) : null,
+              defraSubmission: data.defraSubmission || null,
             } as RequestItem;
           })
         );

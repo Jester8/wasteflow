@@ -199,6 +199,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /platformSettings/{docId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

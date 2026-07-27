@@ -37,6 +37,7 @@ export type RequestItem = {
   awaitingUserConfirmation?: boolean;
   driverName?: string;
   driverRating?: number;
+  wasteTransferRecord?: import("../../lib/wasteTransferReference").WasteTransferRecord | null;
   proposedDate?: string;
   proposedTime?: string;
   rescheduleRequest?: {
@@ -402,6 +403,7 @@ export default function MyRequestsPage() {
               awaitingUserConfirmation: awaitingUserConfirmation,
               driverName: data.driverName || "",
               driverRating: data.driverRating ?? null,
+              wasteTransferRecord: data.wasteTransferRecord || null,
               proposedDate: data.proposedDate || "",
               proposedTime: data.proposedTime || "",
               rescheduleRequest: data.rescheduleRequest || null,
