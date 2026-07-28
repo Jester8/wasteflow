@@ -19,6 +19,12 @@ export interface CompletedRequestReportData {
   proofPhotoUrl?: string;
   signatureUrl?: string;
   wasteTransferRecord?: WasteTransferRecord | null;
+  defraSubmission?: {
+    status: "submitted" | "skipped" | "failed";
+    globalMovementId?: string;
+    reason?: string;
+    error?: string;
+  } | null;
 }
 
 const BRAND_GREEN: [number, number, number] = [26, 77, 46];
@@ -193,6 +199,15 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
       detailRow("Receiving Site", [wt.receivingSiteName, wt.receivingSiteAddress, wt.receivingSitePostcode].filter(Boolean).join(", ") || "N/A");
     }
     if (wt.receivingSiteAuthNumber) detailRow("Site Authorisation Number", wt.receivingSiteAuthNumber);
+
+    const defra = item.defraSubmission;
+    if (defra) {
+      const defraValue =
+        defra.status === "submitted" ? `Reported (Movement ID: ${defra.globalMovementId})`
+        : defra.status === "failed" ? `Failed — ${defra.error}`
+        : `Not reported — ${defra.reason}`;
+      detailRow("DEFRA Digital Waste Tracking", defraValue);
+    }
   }
 
   doc.setFont("helvetica", "normal");

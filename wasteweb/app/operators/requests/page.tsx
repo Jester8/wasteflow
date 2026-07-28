@@ -537,10 +537,16 @@ export type WasteTransferFormData = {
   receivingSiteAuthNumber: string;
 };
 
-function CompleteForm({ loading, onCancel, onSubmit }: {
+function CompleteForm({ loading, onCancel, onStep1Complete, onStep2Complete }: {
   loading: boolean;
   onCancel: () => void;
-  onSubmit: (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => void;
+  // Saves immediately — the job is marked completed and the contractor can
+  // already download a report from this point, even before DEFRA details
+  // (step 2) are added.
+  onStep1Complete: (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  // Updates the already-completed request with the DEFRA waste transfer
+  // record, so the contractor's report gets regenerated with those details.
+  onStep2Complete: (data: { wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
 }) {
   const [step, setStep] = useState<1 | 2>(1);
   const [operatorName, setOperatorName] = useState("");
@@ -548,7 +554,7 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [hasWasteSignature, setHasWasteSignature] = useState(false);
   const [hasDEFRASignature, setHasDEFRASignature] = useState(false);
-  const [collectionSignatureBlob, setCollectionSignatureBlob] = useState<Blob | null>(null);
+  const [stepSubmitting, setStepSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -573,44 +579,66 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
     setPhotoPreview(URL.createObjectURL(file));
   };
 
+  // Captures the CURRENTLY-mounted step-1 canvas and saves it right away —
+  // the canvas unmounts once we move to step 2, so this is the only point
+  // it can ever be read. Only advances to step 2 once the save actually
+  // succeeds, so the job is genuinely marked completed (and downloadable by
+  // the contractor) before any DEFRA details exist.
   const handleContinueToStep2 = () => {
     if (!operatorName.trim()) { setError("Enter the operator's name."); return; }
     if (!photoFile) { setError("Upload a photo before continuing."); return; }
     if (!hasWasteSignature) { setError("Add a signature for waste acceptance."); return; }
+    const canvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
+    if (!canvas) { setError("Signature pad not ready — try again."); return; }
     setError(null);
-    setStep(2);
+    setStepSubmitting(true);
+    canvas.toBlob(async (blob) => {
+      if (!blob) { setError("Could not read signature — try signing again."); setStepSubmitting(false); return; }
+      if (!photoFile) { setError("Photo is required."); setStepSubmitting(false); return; }
+      try {
+        await onStep1Complete({ operatorName: operatorName.trim(), photoFile, signatureBlob: blob });
+        setStep(2);
+      } catch {
+        setError("Could not save — check your connection and try again.");
+      } finally {
+        setStepSubmitting(false);
+      }
+    }, "image/png");
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!ewcCode.trim()) { setError("Select or enter an EWC waste code."); return; }
     if (!weightAmount.trim() || Number.isNaN(Number(weightAmount))) { setError("Enter the waste weight."); return; }
-    setError(null);
+    if (!hasDEFRASignature) { setError("Add a signature for the waste transfer."); return; }
     const wasteCanvas: HTMLCanvasElement | null = (SignaturePad as any)._getCanvas?.();
     if (!wasteCanvas) { setError("Signature pad not ready — try again."); return; }
-
-    wasteCanvas.toBlob((wasteBlob) => {
-      if (!wasteBlob) { setError("Could not read signature — try signing again."); return; }
-      if (!photoFile) { setError("Photo is required."); return; }
-      onSubmit({
-        operatorName: operatorName.trim(),
-        photoFile,
-        signatureBlob: wasteBlob,
-        wasteSignatureBlob: wasteBlob,
-        wasteTransfer: {
-          ewcCode: ewcCode.trim(),
-          wasteDescription: wasteDescription.trim(),
-          physicalForm,
-          isHazardous,
-          weightAmount: weightAmount.trim(),
-          weightUnit,
-          weightEstimated,
-          disposalOrRecoveryCode,
-          receivingSiteName: receivingSiteName.trim(),
-          receivingSiteAddress: receivingSiteAddress.trim(),
-          receivingSitePostcode: receivingSitePostcode.trim(),
-          receivingSiteAuthNumber: receivingSiteAuthNumber.trim(),
-        },
-      });
+    setError(null);
+    setStepSubmitting(true);
+    wasteCanvas.toBlob(async (wasteBlob) => {
+      if (!wasteBlob) { setError("Could not read signature — try signing again."); setStepSubmitting(false); return; }
+      try {
+        await onStep2Complete({
+          wasteSignatureBlob: wasteBlob,
+          wasteTransfer: {
+            ewcCode: ewcCode.trim(),
+            wasteDescription: wasteDescription.trim(),
+            physicalForm,
+            isHazardous,
+            weightAmount: weightAmount.trim(),
+            weightUnit,
+            weightEstimated,
+            disposalOrRecoveryCode,
+            receivingSiteName: receivingSiteName.trim(),
+            receivingSiteAddress: receivingSiteAddress.trim(),
+            receivingSitePostcode: receivingSitePostcode.trim(),
+            receivingSiteAuthNumber: receivingSiteAuthNumber.trim(),
+          },
+        });
+      } catch {
+        setError("Could not save DEFRA details — check your connection and try again.");
+      } finally {
+        setStepSubmitting(false);
+      }
     }, "image/png");
   };
 
@@ -649,12 +677,17 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
         </div>
         {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-          <button type="button" onClick={onCancel} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back</button>
-          <button type="button" onClick={handleContinueToStep2} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-            Continue to DEFRA Details
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
-              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-            </svg>
+          <button type="button" onClick={onCancel} disabled={loading || stepSubmitting} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: (loading || stepSubmitting) ? "not-allowed" : "pointer" }}>Back</button>
+          <button type="button" onClick={handleContinueToStep2} disabled={loading || stepSubmitting} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: (loading || stepSubmitting) ? "not-allowed" : "pointer", opacity: (loading || stepSubmitting) ? 0.7 : 1 }}>
+            {stepSubmitting ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            ) : null}
+            {stepSubmitting ? "Saving…" : "Save & Continue to DEFRA Details"}
+            {!stepSubmitting && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}>
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+              </svg>
+            )}
           </button>
         </div>
       </div>
@@ -666,6 +699,16 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
       <div>
         <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Waste Transfer Details (Step 2 of 2)</p>
         <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add waste transfer information for the completed job.</p>
+      </div>
+      <div style={{
+        display: "flex", alignItems: "flex-start", gap: 8,
+        background: "rgba(184,213,46,0.12)", border: "1px solid rgba(184,213,46,0.3)",
+        borderRadius: 8, padding: "8px 10px",
+      }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3a6b00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13, flexShrink: 0, marginTop: 2 }}><polyline points="20 6 9 17 4 12"/></svg>
+        <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#3a6b00", margin: 0, lineHeight: 1.5 }}>
+          Job already marked complete — the contractor can download a report now. Add these DEFRA details to include them in that report, or close this and add them later.
+        </p>
       </div>
       <div style={{ borderTop: "1px solid #f0f7f2", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
         <p style={{ fontSize: "0.78rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Waste Transfer Details</p>
@@ -741,11 +784,15 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
           </div>
         )}
       </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Signature (DEFRA Waste Transfer Confirmation)</label>
+        <SignaturePad onChange={setHasDEFRASignature} />
+      </div>
       {error && <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "#b91c1c", margin: 0 }}>{error}</p>}
       <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-        <button type="button" onClick={() => setStep(1)} disabled={loading} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer" }}>Back to Step 1</button>
-        <button type="button" onClick={handleSubmit} disabled={loading} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1 }}>
-          {loading ? (<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Uploading…</>) : "Confirm & Complete"}
+        <button type="button" onClick={() => setStep(1)} disabled={loading || stepSubmitting} style={{ flex: 1, padding: "11px 16px", borderRadius: 10, border: "1px solid #e8f2eb", background: "none", color: "#6b8f7a", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: (loading || stepSubmitting) ? "not-allowed" : "pointer" }}>Back to Step 1</button>
+        <button type="button" onClick={handleSubmit} disabled={loading || stepSubmitting} style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "11px 16px", borderRadius: 10, border: "none", background: "#1a4d2e", color: "#B8D52E", fontSize: "0.82rem", fontWeight: 700, fontFamily: "'Quicksand', sans-serif", cursor: (loading || stepSubmitting) ? "not-allowed" : "pointer", opacity: (loading || stepSubmitting) ? 0.7 : 1 }}>
+          {stepSubmitting ? (<><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ width: 14, height: 14, animation: "wfSpin 0.8s linear infinite" }}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Saving…</>) : "Save DEFRA Details"}
         </button>
       </div>
     </div>
@@ -1108,14 +1155,16 @@ function RequestActionModal({
   item,
   onClose,
   onStatusChange,
-  onCompleteConfirm,
+  onCompleteStep1,
+  onCompleteStep2,
   onDeclineConfirm,
   onAcceptReschedule,
 }: {
   item: RequestItem | null;
   onClose: () => void;
   onStatusChange: (id: string, newDisplayStatus: string) => Promise<void>;
-  onCompleteConfirm: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
+  onCompleteStep1: (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => Promise<void>;
+  onCompleteStep2: (id: string, data: { wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => Promise<void>;
   onDeclineConfirm: (id: string, reason: string) => Promise<void>;
   onAcceptReschedule: (id: string, rescheduleData: { date: string; fromTime: string; toTime: string }) => Promise<void>;
 }) {
@@ -1141,9 +1190,20 @@ function RequestActionModal({
     handleSimpleAction(value);
   };
 
-  const handleCompleteSubmit = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+  // Step 1 saves and marks the job completed right away — the modal stays
+  // open (still on "complete") so the operator can continue to step 2.
+  // `loading` here just guards the outer modal (e.g. its close button)
+  // during the save; CompleteForm tracks its own button spinner separately.
+  const handleStep1 = async (data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
     setLoading("Completed");
-    try { await onCompleteConfirm(item.id, data); setActiveForm(null); } finally { setLoading(null); }
+    try { await onCompleteStep1(item.id, data); } finally { setLoading(null); }
+  };
+
+  // Step 2 updates the already-completed request with DEFRA details, then
+  // the modal closes.
+  const handleStep2 = async (data: { wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+    setLoading("Completed");
+    try { await onCompleteStep2(item.id, data); setActiveForm(null); } finally { setLoading(null); }
   };
 
   const handleDeclineSubmit = async (reason: string) => {
@@ -1185,7 +1245,7 @@ function RequestActionModal({
 
           <div style={{ padding: "20px 24px" }}>
             {activeForm === "complete" && (
-              <CompleteForm loading={loading === "Completed"} onCancel={() => setActiveForm(null)} onSubmit={handleCompleteSubmit} />
+              <CompleteForm loading={loading === "Completed"} onCancel={() => setActiveForm(null)} onStep1Complete={handleStep1} onStep2Complete={handleStep2} />
             )}
             {activeForm === "decline" && (
               <DeclineReasonForm loading={loading === "Declined"} onCancel={() => setActiveForm(null)} onSubmit={handleDeclineSubmit} />
@@ -1327,18 +1387,37 @@ export default function OperatorRequestsPage() {
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
-  const handleCompleteConfirm = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob; wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+  // Step 1: marks the job completed immediately with the photo + collection
+  // signature. The contractor can download a report from this point on —
+  // this write does not wait for (or depend on) DEFRA details existing.
+  const handleCompleteStep1 = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
     const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
-    const wasteSignatureUrl = await uploadToCloudinary(data.wasteSignatureBlob, `waste_signature_${id}.png`);
+    const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
     const docRef = doc(db, "wasteRequests", id);
     await updateDoc(docRef, {
       status: "completed",
       operatorName: data.operatorName,
       driverName: profile?.fullName || "Driver",
       proofPhotoUrl: photoUrl,
-      signatureUrl: wasteSignatureUrl,
-      wasteSignatureUrl: wasteSignatureUrl,
+      signatureUrl: signatureUrl,
       completedAt: serverTimestamp(),
+    });
+    logAdminEvent({
+      type: "status_change",
+      message: `Request marked completed by ${data.operatorName}`,
+      targetId: id,
+      meta: { toStatus: "completed" },
+    });
+  };
+
+  // Step 2: adds the DEFRA waste transfer record onto the already-completed
+  // request, so the contractor's next download includes it, and (re)fires
+  // the DEFRA submission.
+  const handleCompleteStep2 = async (id: string, data: { wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
+    const wasteSignatureUrl = await uploadToCloudinary(data.wasteSignatureBlob, `waste_signature_${id}.png`);
+    const docRef = doc(db, "wasteRequests", id);
+    await updateDoc(docRef, {
+      wasteSignatureUrl,
       wasteTransferRecord: {
         ewcCode: data.wasteTransfer.ewcCode,
         wasteDescription: data.wasteTransfer.wasteDescription,
@@ -1359,7 +1438,7 @@ export default function OperatorRequestsPage() {
     });
     logAdminEvent({
       type: "status_change",
-      message: `Request marked completed by ${data.operatorName}`,
+      message: `Waste transfer details recorded`,
       targetId: id,
       meta: { toStatus: "completed" },
     });
@@ -1499,7 +1578,8 @@ export default function OperatorRequestsPage() {
           item={requests.find((r) => r.id === selectedRequest.id) ?? selectedRequest}
           onClose={() => setSelectedRequest(null)}
           onStatusChange={handleStatusChange}
-          onCompleteConfirm={handleCompleteConfirm}
+          onCompleteStep1={handleCompleteStep1}
+          onCompleteStep2={handleCompleteStep2}
           onDeclineConfirm={handleDeclineConfirm}
           onAcceptReschedule={handleAcceptReschedule}
         />
