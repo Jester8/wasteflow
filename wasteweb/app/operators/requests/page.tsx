@@ -858,10 +858,15 @@ const STATUS_FLOW: { label: string; value: string; color: string; bg: string; ic
   },
 ];
 
+// "Scheduled" (raw 'scheduled', awaiting the contractor's confirmation) can
+// only be declined — the operator cannot mark Arriving until the contractor
+// confirms and the request flips to "Accepted" (raw 'confirmed'). This is
+// the two-way confirmation gate; it's also enforced server-side in
+// firestore.rules so it can't be bypassed by calling Firestore directly.
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Pending:      ["Scheduled", "Declined"],
-  Accepted:     ["In Transit", "Declined"],
-  Scheduled:    ["Arriving", "Declined"],
+  Scheduled:    ["Declined"],
+  Accepted:     ["Arriving", "Declined"],
   Arriving:     ["In Transit", "Declined"],
   "In Transit": ["Completed", "Declined"],
   Rescheduled:  ["Scheduled", "Declined"],
@@ -1297,6 +1302,19 @@ function RequestActionModal({
                   </div>
                 )}
 
+                {item.status === "Scheduled" && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)",
+                    borderRadius: 10, padding: "10px 12px",
+                  }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0, marginTop: 1 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <p style={{ fontSize: "0.76rem", fontWeight: 600, color: "#1d4ed8", margin: 0, lineHeight: 1.5 }}>
+                      Waiting for the contractor to confirm this schedule. You can't mark this job Arriving until they accept it.
+                    </p>
+                  </div>
+                )}
+
                 {allowed.length > 0 ? (
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a", textTransform: "uppercase", letterSpacing: "0.04em", margin: "0 0 2px" }}>Available Logistics Transitions</p>
@@ -1364,15 +1382,18 @@ export default function OperatorRequestsPage() {
     if (internalStatus === "scheduled") {
       updates.operatorId = user?.uid;
       updates.operatorName = profile?.fullName || profile?.businessName || "Operator";
+      // The contractor must confirm this schedule before the operator can
+      // progress any further — see ALLOWED_TRANSITIONS and the matching
+      // firestore.rules check on 'arriving'.
+      updates.awaitingUserConfirmation = true;
     }
     // Stamp when each stage happened so the contractor's request timeline
     // can show a real date/time next to each step, not just its label.
     const timestampField = STATUS_TIMESTAMP_FIELD[internalStatus];
     if (timestampField) updates[timestampField] = serverTimestamp();
-    // "Accepted" can jump straight to "In Transit", skipping the Arriving
-    // stage entirely. Backfill arrivingAt with the same moment so the
-    // timeline/report never shows "Not recorded" for a step that simply
-    // never had a distinct arrival moment.
+    // Defensive backfill only — "Arriving" is required before "In Transit"
+    // is reachable at all now (see ALLOWED_TRANSITIONS), so this should
+    // normally already be set by the time we get here.
     if (internalStatus === "in_transit") {
       const existing = requests.find((r) => r.id === id);
       if (existing && !existing.arrivingAt) updates.arrivingAt = serverTimestamp();
@@ -1484,6 +1505,9 @@ export default function OperatorRequestsPage() {
       availability: `${rescheduleData.fromTime} - ${rescheduleData.toTime}`,
       rescheduleRequest: null,
       scheduledAt: serverTimestamp(),
+      // Re-arm confirmation — the contractor should confirm the finalised
+      // reschedule too before the operator can progress further.
+      awaitingUserConfirmation: true,
     });
     logAdminEvent({
       type: "status_change",

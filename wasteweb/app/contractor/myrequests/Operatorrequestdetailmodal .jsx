@@ -1009,10 +1009,10 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
 
   useEffect(() => {
     if (!item) return;
-    if (item.status === "Scheduled") {
+    if (item.status === "Scheduled" && item.awaitingUserConfirmation) {
       setShowAcceptance(true);
     }
-  }, [item?.status]);
+  }, [item?.status, item?.awaitingUserConfirmation]);
 
   if (!item) return null;
 

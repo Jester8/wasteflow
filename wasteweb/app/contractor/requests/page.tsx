@@ -93,10 +93,7 @@ const STATUS_TABS = [
   "Rescheduled",
 ];
 
-function toDisplayStatus(rawStatus: string, awaitingUserConfirmation?: boolean): string {
-  if (rawStatus === 'scheduled' && awaitingUserConfirmation === true) {
-    return "Accepted";
-  }
+function toDisplayStatus(rawStatus: string): string {
   return STATUS_DISPLAY_MAP[rawStatus] || "Awaiting Approval";
 }
 
@@ -213,7 +210,7 @@ function RequestCard({
   item: RequestItem;
   onViewDetails: (item: RequestItem) => void;
 }) {
-  const needsAction = item.status === "Accepted" && item.awaitingUserConfirmation === true;
+  const needsAction = item.status === "Scheduled" && item.awaitingUserConfirmation === true;
 
   return (
     <div
@@ -414,7 +411,7 @@ export default function MyRequestsPage() {
               availability: data.availability || "N/A",
               volume: data.volume || "N/A",
               note: data.notes || "N/A",
-              status: toDisplayStatus(rawStatus, awaitingUserConfirmation),
+              status: toDisplayStatus(rawStatus),
               rawStatus,
               createdAt: formatTimestamp(data.createdAt),
               imageUrl: data.imageUrl || data.proofPhotoUrl || "",
