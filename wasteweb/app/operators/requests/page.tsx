@@ -548,6 +548,7 @@ function CompleteForm({ loading, onCancel, onSubmit }: {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [hasWasteSignature, setHasWasteSignature] = useState(false);
   const [hasDEFRASignature, setHasDEFRASignature] = useState(false);
+  const [collectionSignatureBlob, setCollectionSignatureBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
