@@ -598,8 +598,8 @@ function CompleteForm({ loading, onCancel, onStep1Complete, onStep2Complete }: {
       try {
         await onStep1Complete({ operatorName: operatorName.trim(), photoFile, signatureBlob: blob });
         setStep(2);
-      } catch {
-        setError("Could not save — check your connection and try again.");
+      } catch (err: any) {
+        setError(`Could not save: ${err?.message || "please try again."}`);
       } finally {
         setStepSubmitting(false);
       }
@@ -634,8 +634,8 @@ function CompleteForm({ loading, onCancel, onStep1Complete, onStep2Complete }: {
             receivingSiteAuthNumber: receivingSiteAuthNumber.trim(),
           },
         });
-      } catch {
-        setError("Could not save DEFRA details — check your connection and try again.");
+      } catch (err: any) {
+        setError(`Could not save DEFRA details: ${err?.message || "please try again."}`);
       } finally {
         setStepSubmitting(false);
       }
@@ -647,7 +647,7 @@ function CompleteForm({ loading, onCancel, onStep1Complete, onStep2Complete }: {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
           <p style={{ fontSize: "0.84rem", fontWeight: 700, color: "#1a2e1f", margin: 0 }}>Complete this job (Step 1 of 2)</p>
-          <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the operator's name, a site photo, and signature to mark as completed.</p>
+          <p style={{ fontSize: "0.74rem", fontWeight: 600, color: "#8aab97", margin: "2px 0 0" }}>Add the operator's name, a site photo, and signature. The contractor can download a report as soon as this is saved — the job itself is only marked Completed once DEFRA details are added in step 2.</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
           <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "#6b8f7a" }}>Site Manager</label>
@@ -707,7 +707,7 @@ function CompleteForm({ loading, onCancel, onStep1Complete, onStep2Complete }: {
       }}>
         <svg viewBox="0 0 24 24" fill="none" stroke="#3a6b00" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13, flexShrink: 0, marginTop: 2 }}><polyline points="20 6 9 17 4 12"/></svg>
         <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "#3a6b00", margin: 0, lineHeight: 1.5 }}>
-          Job already marked complete — the contractor can download a report now. Add these DEFRA details to include them in that report, or close this and add them later.
+          Photo and signature saved — the contractor can already download a report. Add these DEFRA details below to mark the job Completed and include them in that report, or close this and add them later.
         </p>
       </div>
       <div style={{ borderTop: "1px solid #f0f7f2", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -1282,7 +1282,7 @@ function RequestActionModal({
                   <DeclineReasonPanel reason={item.declineReason} />
                 )}
 
-                {item.status === "Completed" && (item.operatorName || item.proofPhotoUrl || item.signatureUrl) && (
+                {(item.operatorName || item.proofPhotoUrl || item.signatureUrl) && (
                   <CompletionProofPanel item={item} />
                 )}
 
@@ -1387,36 +1387,38 @@ export default function OperatorRequestsPage() {
     setSelectedRequest(prev => prev ? { ...prev, status: displayStatus } : null);
   };
 
-  // Step 1: marks the job completed immediately with the photo + collection
-  // signature. The contractor can download a report from this point on —
-  // this write does not wait for (or depend on) DEFRA details existing.
+  // Step 1: saves the photo + collection signature, but deliberately does
+  // NOT change status yet — "Completed" only happens once DEFRA details
+  // (step 2) are in. The contractor can still download a report from this
+  // point on (gated on proofPhotoUrl existing, not on status).
   const handleCompleteStep1 = async (id: string, data: { operatorName: string; photoFile: File; signatureBlob: Blob }) => {
     const photoUrl = await uploadToCloudinary(data.photoFile, `proof_${id}.jpg`);
     const signatureUrl = await uploadToCloudinary(data.signatureBlob, `signature_${id}.png`);
     const docRef = doc(db, "wasteRequests", id);
     await updateDoc(docRef, {
-      status: "completed",
       operatorName: data.operatorName,
       driverName: profile?.fullName || "Driver",
       proofPhotoUrl: photoUrl,
       signatureUrl: signatureUrl,
-      completedAt: serverTimestamp(),
+      proofSubmittedAt: serverTimestamp(),
     });
     logAdminEvent({
       type: "status_change",
-      message: `Request marked completed by ${data.operatorName}`,
+      message: `Completion proof captured by ${data.operatorName} — awaiting DEFRA details`,
       targetId: id,
-      meta: { toStatus: "completed" },
+      meta: {},
     });
   };
 
-  // Step 2: adds the DEFRA waste transfer record onto the already-completed
-  // request, so the contractor's next download includes it, and (re)fires
-  // the DEFRA submission.
+  // Step 2: this is the write that actually marks the job "Completed" —
+  // along with the DEFRA waste transfer record, so the contractor's next
+  // download includes it, and (re)fires the DEFRA submission.
   const handleCompleteStep2 = async (id: string, data: { wasteSignatureBlob: Blob; wasteTransfer: WasteTransferFormData }) => {
     const wasteSignatureUrl = await uploadToCloudinary(data.wasteSignatureBlob, `waste_signature_${id}.png`);
     const docRef = doc(db, "wasteRequests", id);
     await updateDoc(docRef, {
+      status: "completed",
+      completedAt: serverTimestamp(),
       wasteSignatureUrl,
       wasteTransferRecord: {
         ewcCode: data.wasteTransfer.ewcCode,
@@ -1438,7 +1440,7 @@ export default function OperatorRequestsPage() {
     });
     logAdminEvent({
       type: "status_change",
-      message: `Waste transfer details recorded`,
+      message: `Request marked completed — DEFRA waste transfer details recorded`,
       targetId: id,
       meta: { toStatus: "completed" },
     });

@@ -1022,6 +1022,11 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
   const isScheduled        = item.status === "Scheduled";
 
   const showLiveTracking   = item.status === "In Transit" || item.status === "Arriving";
+  // A report becomes downloadable as soon as the site photo/signature are
+  // captured (step 1 of completion) — this is intentionally NOT the same
+  // as isCompleted, since status only flips to "Completed" once DEFRA
+  // waste transfer details (step 2) are also in.
+  const hasCompletionProof = Boolean(item.proofPhotoUrl);
 
   const imagesArray = Array.isArray(item.images) ? item.images : [];
 
@@ -1234,7 +1239,7 @@ export default function OperatorRequestDetailModal({ item, onClose, onResubmit, 
             />
 
             {showLiveTracking && <LiveTrackingSection item={item} />}
-            {isCompleted && <CompletionProofSection item={item} />}
+            {hasCompletionProof && <CompletionProofSection item={item} />}
           </div>
 
           <div className="or-footer">
