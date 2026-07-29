@@ -62,10 +62,20 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
   const margin = 48;
   let y = margin;
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(...BRAND_GREEN);
-  doc.text("WasteFlow", margin, y);
+  const logoDataUrl = await loadImageAsDataUrl("/logo.png");
+  if (logoDataUrl) {
+    const logoHeight = 30;
+    const props = doc.getImageProperties(logoDataUrl);
+    const logoWidth = (props.width / props.height) * logoHeight;
+    doc.addImage(logoDataUrl, imageFormatFromDataUrl(logoDataUrl), margin, y - 20, logoWidth, logoHeight);
+  } else {
+    // Fallback if the logo can't be fetched for any reason — never let a
+    // missing asset block the report itself.
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.setTextColor(...BRAND_GREEN);
+    doc.text("WasteFlow", margin, y);
+  }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(...TEXT_MUTED);
