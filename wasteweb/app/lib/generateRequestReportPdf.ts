@@ -62,27 +62,39 @@ export async function downloadCompletedRequestReport(item: CompletedRequestRepor
   const margin = 48;
   let y = margin;
 
+  // Big letterhead-style logo at the top, its own line — sized off the
+  // image's real aspect ratio so it never looks stretched, capped so an
+  // unusually tall/square logo file can't blow out the page.
   const logoDataUrl = await loadImageAsDataUrl("/logo.png");
   if (logoDataUrl) {
-    const logoHeight = 30;
     const props = doc.getImageProperties(logoDataUrl);
-    const logoWidth = (props.width / props.height) * logoHeight;
-    doc.addImage(logoDataUrl, imageFormatFromDataUrl(logoDataUrl), margin, y - 20, logoWidth, logoHeight);
+    const maxLogoWidth = 300;
+    const maxLogoHeight = 110;
+    let logoWidth = maxLogoWidth;
+    let logoHeight = (props.height / props.width) * logoWidth;
+    if (logoHeight > maxLogoHeight) {
+      logoHeight = maxLogoHeight;
+      logoWidth = (props.width / props.height) * logoHeight;
+    }
+    doc.addImage(logoDataUrl, imageFormatFromDataUrl(logoDataUrl), margin, y, logoWidth, logoHeight);
+    y += logoHeight + 14;
   } else {
     // Fallback if the logo can't be fetched for any reason — never let a
     // missing asset block the report itself.
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(28);
     doc.setTextColor(...BRAND_GREEN);
-    doc.text("WasteFlow", margin, y);
+    doc.text("WasteFlow", margin, y + 10);
+    y += 34;
   }
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
   doc.setTextColor(...TEXT_MUTED);
-  doc.text("Completed Pickup Report", margin, y + 16);
+  doc.text("Completed Pickup Report", margin, y);
   doc.setFontSize(9);
   doc.text(`Request #${item.id.slice(-6).toUpperCase()}`, pageWidth - margin, y, { align: "right" });
-  y += 36;
+  y += 24;
   doc.setDrawColor(...LINE_COLOR);
   doc.line(margin, y, pageWidth - margin, y);
   y += 24;
